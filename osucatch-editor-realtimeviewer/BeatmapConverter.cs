@@ -156,8 +156,8 @@ namespace osucatch_editor_realtimeviewer
         public static void CalDistanceToNext(IBeatmap beatmap, PalpableCatchHitObject hitObject)
         {
             if (hitObject.lastObject == null) return;
-            double timeToNext = (int)hitObject.StartTime - (int)hitObject.lastObject.StartTime; // - 1000f / 60f / 4; // 1/4th of a frame of grace time, taken from osu-stable
-            double distanceToNext = Math.Abs(hitObject.OriginalX - hitObject.lastObject.OriginalX);
+            double timeToNext = (int)hitObject.StartTime - (int)hitObject.lastObject.StartTime;
+            double distanceToNext = Math.Abs(hitObject.EffectiveX - hitObject.lastObject.EffectiveX);
             DifficultyControlPoint nextDifficultyControlPoint = (beatmap.ControlPointInfo as LegacyControlPointInfo)?.DifficultyPointAt(hitObject.StartTime) ?? DifficultyControlPoint.DEFAULT;
             var nextTimingPoint = beatmap.ControlPointInfo.TimingPointAt(hitObject.StartTime);
             if (timeToNext <= 0) return;
