@@ -49,6 +49,14 @@ namespace osu.Game.Rulesets.Objects.Legacy
             set => sliderVelocityMultiplier = value;
         }
 
+        private double sliderVelocityAsBeatLength = -100;
+
+        public double SliderVelocityAsBeatLength
+        {
+            get => sliderVelocityAsBeatLength;
+            set => sliderVelocityAsBeatLength = Math.Clamp(value, -1000, -10);
+        }
+
         public bool GenerateTicks { get; set; } = true;
 
         public ConvertSlider()

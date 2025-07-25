@@ -23,12 +23,23 @@ namespace osu.Game.Beatmaps.ControlPoints
         private double sliderVelocity = 1;
 
         /// <summary>
+        /// This field is added to ensure backward compability for osu!stable.
+        /// This field doesn't exist in current osu!lazer.
+        /// </summary>
+        private double sliderVelocityAsBeatLength = -100;
+
+        /// <summary>
         /// The slider velocity at this control point.
         /// </summary>
         public double SliderVelocity
         {
             get => sliderVelocity;
             set => sliderVelocity = Math.Clamp(value, 0.1, 10);
+        }
+        public double SliderVelocityAsBeatLength
+        {
+            get => sliderVelocityAsBeatLength;
+            set => sliderVelocityAsBeatLength = Math.Clamp(value, -1000, -10);
         }
 
         public DifficultyControlPoint()

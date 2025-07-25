@@ -284,5 +284,30 @@ namespace osuTK
                 X == other.X &&
                 Y == other.Y;
         }
+        public static Vector2 CatmullRom(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4, float alpha)
+        {
+            float a = alpha * alpha;
+            float b = alpha * a;
+            Vector2 result;
+            result.X = 0.5f * (2f * p2.X + (-p1.X + p3.X) * alpha + (2f * p1.X - 5f * p2.X + 4f * p3.X - p4.X) * a + (-p1.X + 3f * p2.X - 3f * p3.X + p4.X) * b);
+            result.Y = 0.5f * (2f * p2.Y + (-p1.Y + p3.Y) * alpha + (2f * p1.Y - 5f * p2.Y + 4f * p3.Y - p4.Y) * a + (-p1.Y + 3f * p2.Y - 3f * p3.Y + p4.Y) * b);
+            return result;
+        }
+
+        public static Vector2 Normalize(Vector2 v)
+        {
+            float lengthSquared = v.X * v.X + v.Y * v.Y;
+            float lengthInverted = 1f / (float)Math.Sqrt((double)lengthSquared);
+            Vector2 result;
+            result.X = v.X * lengthInverted;
+            result.Y = v.Y * lengthInverted;
+            return result;
+        }
+        public static void Lerp(ref Vector2 p1, ref Vector2 p2, float x, out Vector2 result)
+        {
+            result.X = p1.X + (p2.X - p1.X) * x;
+            result.Y = p1.Y + (p2.Y - p1.Y) * x;
+        }
+
     }
 }

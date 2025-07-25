@@ -14,6 +14,7 @@ namespace osucatch_editor_realtimeviewer
         public EditorReaderHelper editorReaderHelper = new();
 
         public static DrawingHelper drawingHelper = new();
+        public static BeatmapConverter currentBeatmapConverter => new BeatmapConverter();
 
         BeatmapInfoCollection? lastReader = null;
         List<string>? lastColourLines = null;
@@ -535,7 +536,7 @@ namespace osucatch_editor_realtimeviewer
                 IBeatmap? convertedBeatmap = null;
                 if (differenceType != DifferenceType.None || lastConvertedBeatmap == null || !isSameMods)
                 {
-                    convertedBeatmap = BeatmapConverter.GetConvertedBeatmap(beatmap, mods);
+                    convertedBeatmap = currentBeatmapConverter.GetConvertedBeatmap(beatmap, mods);
                     lastConvertedBeatmap = convertedBeatmap;
                 }
                 else

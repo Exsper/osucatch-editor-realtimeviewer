@@ -35,6 +35,7 @@ namespace osu.Game.Rulesets.Catch.Beatmaps
                         Path = curveData.Path,
                         RepeatCount = curveData.RepeatCount,
                         X = xPositionData?.X ?? 0,
+                        Y = yPositionData?.Y ?? 0,
                         NewCombo = comboData?.NewCombo ?? false,
                         ComboOffset = comboData?.ComboOffset ?? 0,
                         LegacyConvertedY = yPositionData?.Y ?? CatchHitObject.DEFAULT_LEGACY_CONVERT_Y,
@@ -42,6 +43,7 @@ namespace osu.Game.Rulesets.Catch.Beatmaps
                         // this results in more (or less) ticks being generated in <v8 maps for the same time duration.
                         TickDistanceMultiplier = beatmap.BeatmapInfo.BeatmapVersion < 8 ? 1f / ((LegacyControlPointInfo)beatmap.ControlPointInfo).DifficultyPointAt(obj.StartTime).SliderVelocity : 1,
                         SliderVelocityMultiplier = sliderVelocityData?.SliderVelocityMultiplier ?? 1,
+                        SliderVelocityAsBeatLength = sliderVelocityData?.SliderVelocityAsBeatLength ?? -100,
                         IsSelected = obj.IsSelected,
                     }.Yield();
 

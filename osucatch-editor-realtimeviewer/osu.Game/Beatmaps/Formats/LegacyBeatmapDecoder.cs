@@ -122,7 +122,10 @@ namespace osu.Game.Beatmaps.Formats
                 hasGenerateTicks.GenerateTicks = difficultyControlPoint.GenerateTicks;
 
             if (hitObject is IHasSliderVelocity hasSliderVelocity)
+            {
                 hasSliderVelocity.SliderVelocityMultiplier = difficultyControlPoint.SliderVelocity;
+                hasSliderVelocity.SliderVelocityAsBeatLength = difficultyControlPoint.SliderVelocityAsBeatLength;
+            }
 
             hitObject.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
         }
@@ -177,6 +180,7 @@ namespace osu.Game.Beatmaps.Formats
             {
                 GenerateTicks = !double.IsNaN(beatLength),
                 SliderVelocity = speedMultiplier,
+                SliderVelocityAsBeatLength = beatLength
             }, timingChange);
 
             var effectPoint = new EffectControlPoint

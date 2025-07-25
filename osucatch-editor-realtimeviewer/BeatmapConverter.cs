@@ -15,7 +15,7 @@ namespace osucatch_editor_realtimeviewer
 
     public class BeatmapConverter
     {
-        public static Ruleset catchRulest => new CatchRuleset();
+        public static Ruleset catchRuleset => new CatchRuleset();
 
         static Mod[] NoMod = Array.Empty<Mod>();
 
@@ -45,28 +45,28 @@ namespace osucatch_editor_realtimeviewer
             return modsArr.ToArray();
         }
 
-        public static IBeatmap Execute(Beatmap beatmap, Mod[] mods)
+        public IBeatmap Execute(Beatmap beatmap, Mod[] mods)
         {
             Log.ConsoleLog("Converting beatmap.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
             FlatWorkingBeatmap workingBeatmap = new FlatWorkingBeatmap(beatmap);
-            IBeatmap playableBeatmap = workingBeatmap.GetPlayableBeatmap(catchRulest, mods);
+            IBeatmap playableBeatmap = workingBeatmap.GetPlayableBeatmap(catchRuleset, mods);
             if (playableBeatmap == null) throw new Exception("This beatmap is invalid or is not a ctb beatmap.");
             return playableBeatmap;
         }
 
-        public static IBeatmap GetConvertedBeatmap(Beatmap beatmap, string[] mods)
+        public IBeatmap GetConvertedBeatmap(Beatmap beatmap, string[] mods)
         {
-            Ruleset ruleset = catchRulest;
+            Ruleset ruleset = catchRuleset;
             return Execute(beatmap, GetMods(mods, ruleset));
         }
 
-        public static IBeatmap GetConvertedBeatmap(Beatmap beatmap, int mods)
+        public IBeatmap GetConvertedBeatmap(Beatmap beatmap, int mods)
         {
-            Ruleset ruleset = catchRulest;
+            Ruleset ruleset = catchRuleset;
             return Execute(beatmap, GetMods(GetModsString(mods), ruleset));
         }
 
-        public static List<PalpableCatchHitObject> GetPalpableObjects(IBeatmap beatmap, HitObjectLabelType labelType)
+        public virtual List<PalpableCatchHitObject> GetPalpableObjects(IBeatmap beatmap)
         {
             Log.ConsoleLog("Building hitobjects.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
 
@@ -97,6 +97,11 @@ namespace osucatch_editor_realtimeviewer
 
             palpableObjects.Sort((h1, h2) => h1.StartTime.CompareTo(h2.StartTime));
 
+            return palpableObjects;
+        }
+
+        public void CalHitObjectLabel(IBeatmap beatmap, List<PalpableCatchHitObject> palpableObjects, HitObjectLabelType labelType)
+        {
             List<PalpableCatchHitObject> comboHitObjects = new();
             // Build lastObject
             PalpableCatchHitObject? lastObject = null;
@@ -118,7 +123,6 @@ namespace osucatch_editor_realtimeviewer
                 lastObject = hitObject;
             }
 
-            // HitObject label
             switch (labelType)
             {
                 // Calculate Distance
@@ -141,11 +145,9 @@ namespace osucatch_editor_realtimeviewer
                         break;
                     }
             }
-
-            return palpableObjects;
         }
 
-        private static void CalDistance(IBeatmap beatmap, List<PalpableCatchHitObject> comboHitObjects)
+        private void CalDistance(IBeatmap beatmap, List<PalpableCatchHitObject> comboHitObjects)
         {
             foreach (var currentObject in comboHitObjects)
             {
@@ -153,7 +155,7 @@ namespace osucatch_editor_realtimeviewer
             }
         }
 
-        public static void CalDistanceToNext(IBeatmap beatmap, PalpableCatchHitObject hitObject)
+        public void CalDistanceToNext(IBeatmap beatmap, PalpableCatchHitObject hitObject)
         {
             if (hitObject.lastObject == null) return;
             double timeToNext = (int)hitObject.StartTime - (int)hitObject.lastObject.StartTime; // - 1000f / 60f / 4; // 1/4th of a frame of grace time, taken from osu-stable
@@ -184,7 +186,7 @@ namespace osucatch_editor_realtimeviewer
 
         }
 
-        public static double CalDifficulty(IBeatmap beatmap, List<PalpableCatchHitObject> comboHitObjects)
+        public double CalDifficulty(IBeatmap beatmap, List<PalpableCatchHitObject> comboHitObjects)
         {
             const double difficulty_multiplier = 4.59;
             const float normalized_hitobject_radius = 41.0f;
@@ -204,7 +206,7 @@ namespace osucatch_editor_realtimeviewer
             return Math.Sqrt(skill.DifficultyValue()) * difficulty_multiplier;
         }
 
-        public static void CalDifficultyToLast(StrainSkill skill, PalpableCatchHitObject hitObject, float scalingFactor)
+        public void CalDifficultyToLast(StrainSkill skill, PalpableCatchHitObject hitObject, float scalingFactor)
         {
             if (hitObject.lastObject == null)
             {
@@ -220,7 +222,7 @@ namespace osucatch_editor_realtimeviewer
             skill.Process(hitObject);
         }
 
-        private static void CalFruitCountInCombo(List<PalpableCatchHitObject> comboHitObjects)
+        private void CalFruitCountInCombo(List<PalpableCatchHitObject> comboHitObjects)
         {
             int fruitCount = 0;
             int lastHitObjectComboIndex = -1;

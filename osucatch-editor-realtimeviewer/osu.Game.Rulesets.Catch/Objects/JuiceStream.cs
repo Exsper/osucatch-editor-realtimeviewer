@@ -16,6 +16,8 @@ namespace osu.Game.Rulesets.Catch.Objects
         /// </summary>
         private const float base_scoring_distance = 100;
 
+        public float Y { get; set; }
+
 
         public int RepeatCount { get; set; }
 
@@ -25,6 +27,14 @@ namespace osu.Game.Rulesets.Catch.Objects
         {
             get => sliderVelocityMultiplier;
             set => sliderVelocityMultiplier = Math.Clamp(value, 0.1, 10);
+        }
+
+        private double sliderVelocityAsBeatLength = -100;
+
+        public double SliderVelocityAsBeatLength
+        {
+            get => sliderVelocityAsBeatLength;
+            set => sliderVelocityAsBeatLength = Math.Clamp(value, -1000, -10);
         }
 
         /// <summary>

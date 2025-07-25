@@ -90,7 +90,8 @@ namespace osucatch_editor_realtimeviewer
         {
             ControlPointInfo = convertedBeatmap.ControlPointInfo;
             BarLines = convertedBeatmap.BarLines;
-            CatchHitObjects = BeatmapConverter.GetPalpableObjects(convertedBeatmap, LabelType);
+            CatchHitObjects = Form1.currentBeatmapConverter.GetPalpableObjects(convertedBeatmap);
+            Form1.currentBeatmapConverter.CalHitObjectLabel(convertedBeatmap, CatchHitObjects, LabelType);
 
             float moddedAR = convertedBeatmap.Difficulty.ApproachRate;
             ApproachTime = (int)((moddedAR < 5) ? 1800 - moddedAR * 120 : 1200 - (moddedAR - 5) * 150);
