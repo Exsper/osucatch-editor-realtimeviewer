@@ -92,12 +92,12 @@ namespace osucatch_editor_realtimeviewer
             BarLines = convertedBeatmap.BarLines;
             if (app.Default.Use_Stable_Converter)
             {
-                CatchHitObjects = Form1.stableBeatmapConverter.GetPalpableObjects(convertedBeatmap, (mods == 16));
+                CatchHitObjects = Form1.stableBeatmapConverter.GetPalpableObjects(convertedBeatmap, mods);
                 Form1.stableBeatmapConverter.CalHitObjectLabel(convertedBeatmap, CatchHitObjects, LabelType);
             }
             else
             {
-                CatchHitObjects = Form1.lazerBeatmapConverter.GetPalpableObjects(convertedBeatmap, (mods == 16));
+                CatchHitObjects = Form1.lazerBeatmapConverter.GetPalpableObjects(convertedBeatmap, mods);
                 Form1.lazerBeatmapConverter.CalHitObjectLabel(convertedBeatmap, CatchHitObjects, LabelType);
             }
 

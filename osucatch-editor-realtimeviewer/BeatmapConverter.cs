@@ -66,7 +66,7 @@ namespace osucatch_editor_realtimeviewer
             return Execute(beatmap, GetMods(GetModsString(mods), ruleset));
         }
 
-        public virtual List<PalpableCatchHitObject> GetPalpableObjects(IBeatmap beatmap, bool isHardRock)
+        public virtual List<PalpableCatchHitObject> GetPalpableObjects(IBeatmap beatmap, int mods)
         {
             Log.ConsoleLog("Building hitobjects.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
 

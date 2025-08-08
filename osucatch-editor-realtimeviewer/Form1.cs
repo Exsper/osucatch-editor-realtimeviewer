@@ -1,5 +1,6 @@
 ﻿using Microsoft.Win32;
 using osu.Game.Beatmaps;
+using osu.Game.Rulesets.Mods;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Timers;
@@ -1240,6 +1241,17 @@ namespace osucatch_editor_realtimeviewer
             app.Default.Save();
             lazerConverterToolStripMenuItem.Checked = false;
             stableConverterToolStripMenuItem.Checked = true;
+        }
+
+        private void generateConversionMappingToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (lastConvertedBeatmap != null)
+            {
+                string conversionMapping = ((BeatmapConverterOsuStable)stableBeatmapConverter).BuildConversionMapping(lastConvertedBeatmap, lastMods);
+                StreamWriter writer = new("expected-conversion.json");
+                writer.Write(conversionMapping);
+                writer.Close();
+            }
         }
     }
 

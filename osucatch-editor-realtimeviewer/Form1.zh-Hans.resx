@@ -1,17 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!--
-    Microsoft ResX Schema
-
+  <!-- 
+    Microsoft ResX Schema 
+    
     Version 2.0
-
-    The primary goals of this format is to allow a simple XML format
-    that is mostly human readable. The generation and parsing of the
-    various data types are done through the TypeConverter classes
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
     associated with the data types.
-
+    
     Example:
-
+    
     ... ado.net/XML headers & schema ...
     <resheader name="resmimetype">text/microsoft-resx</resheader>
     <resheader name="version">2.0</resheader>
@@ -26,36 +26,36 @@
         <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
         <comment>This is a comment</comment>
     </data>
-
-    There are any number of "resheader" rows that contain simple
+                
+    There are any number of "resheader" rows that contain simple 
     name/value pairs.
-
-    Each data row contains a name, and value. The row also contains a
-    type or mimetype. Type corresponds to a .NET class that support
-    text/value conversion through the TypeConverter architecture.
-    Classes that don't support this are serialized and stored with the
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
     mimetype set.
-
-    The mimetype is used for serialized objects, and tells the
-    ResXResourceReader how to depersist the object. This is currently not
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
     extensible. For a given mimetype the value must be set accordingly:
-
-    Note - application/x-microsoft.net.object.binary.base64 is the format
-    that the ResXResourceWriter will generate, however the reader can
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
     read any of the formats listed below.
-
+    
     mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with
+    value   : The object must be serialized with 
             : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
             : and then encoded with base64 encoding.
-
+    
     mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with
+    value   : The object must be serialized with 
             : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
             : and then encoded with base64 encoding.
 
     mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array
+    value   : The object must be serialized into a byte array 
             : using a System.ComponentModel.TypeConverter
             : and then encoded with base64 encoding.
     -->
@@ -118,29 +118,17 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
-  <data name="viewerToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
-    <value>76, 21</value>
-  </data>
-  <data name="viewerToolStripMenuItem.Text" xml:space="preserve">
-    <value>预览器 (&amp;V)</value>
-  </data>
-  <data name="converterToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
-    <value>180, 22</value>
-  </data>
-  <data name="converterToolStripMenuItem.Text" xml:space="preserve">
-    <value>谱面解析 (&amp;U)</value>
-  </data>
   <data name="lazerConverterToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>180, 22</value>
   </data>
   <data name="stableConverterToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>180, 22</value>
   </data>
-  <data name="modToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
+  <data name="converterToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>180, 22</value>
   </data>
-  <data name="modToolStripMenuItem.Text" xml:space="preserve">
-    <value>Mod (&amp;M)</value>
+  <data name="converterToolStripMenuItem.Text" xml:space="preserve">
+    <value>谱面解析 (&amp;U)</value>
   </data>
   <data name="hRToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>193, 22</value>
@@ -160,17 +148,17 @@
   <data name="noneToolStripMenuItem.Text" xml:space="preserve">
     <value>NoMod (&amp;N)</value>
   </data>
+  <data name="modToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
+    <value>180, 22</value>
+  </data>
+  <data name="modToolStripMenuItem.Text" xml:space="preserve">
+    <value>Mod (&amp;M)</value>
+  </data>
   <data name="cubicFittingCurveToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>180, 22</value>
   </data>
   <data name="cubicFittingCurveToolStripMenuItem.Text" xml:space="preserve">
     <value>三次曲线拟合 (&amp;C)</value>
-  </data>
-  <data name="hitobjectLabelToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
-    <value>180, 22</value>
-  </data>
-  <data name="hitobjectLabelToolStripMenuItem.Text" xml:space="preserve">
-    <value>果子标注 (&amp;F)</value>
   </data>
   <data name="hideToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>373, 22</value>
@@ -208,11 +196,11 @@
   <data name="fruitCountInComboToolStripMenuItem.Text" xml:space="preserve">
     <value>连击果子数 (&amp;F)</value>
   </data>
-  <data name="screenToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
+  <data name="hitobjectLabelToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>180, 22</value>
   </data>
-  <data name="screenToolStripMenuItem.Text" xml:space="preserve">
-    <value>视野范围 (&amp;R)</value>
+  <data name="hitobjectLabelToolStripMenuItem.Text" xml:space="preserve">
+    <value>果子标注 (&amp;F)</value>
   </data>
   <data name="Screens1ToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>159, 22</value>
@@ -262,11 +250,11 @@
   <data name="Screens8ToolStripMenuItem.Text" xml:space="preserve">
     <value>8 个屏幕</value>
   </data>
-  <data name="bookmarkToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
+  <data name="screenToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>180, 22</value>
   </data>
-  <data name="bookmarkToolStripMenuItem.Text" xml:space="preserve">
-    <value>书签+ (&amp;B)</value>
+  <data name="screenToolStripMenuItem.Text" xml:space="preserve">
+    <value>视野范围 (&amp;R)</value>
   </data>
   <data name="bookmarkSettingsToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>207, 22</value>
@@ -355,6 +343,15 @@
   <data name="bookmarkSetStripMenuItem_8.Text" xml:space="preserve">
     <value>设置/删除 书签 8</value>
   </data>
+  <data name="bookmarkToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
+    <value>180, 22</value>
+  </data>
+  <data name="bookmarkToolStripMenuItem.Text" xml:space="preserve">
+    <value>书签+ (&amp;B)</value>
+  </data>
+  <data name="generateConversionMappingToolStripMenuItem.Text" xml:space="preserve">
+    <value>生成转换映射文件</value>
+  </data>
   <data name="toolStripSeparator1.Size" type="System.Drawing.Size, System.Drawing">
     <value>177, 6</value>
   </data>
@@ -364,11 +361,11 @@
   <data name="exitToolStripMenuItem.Text" xml:space="preserve">
     <value>退出 (&amp;E)</value>
   </data>
-  <data name="settingsToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
-    <value>63, 21</value>
+  <data name="viewerToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
+    <value>76, 21</value>
   </data>
-  <data name="settingsToolStripMenuItem.Text" xml:space="preserve">
-    <value>设置 (&amp;S)</value>
+  <data name="viewerToolStripMenuItem.Text" xml:space="preserve">
+    <value>预览器 (&amp;V)</value>
   </data>
   <data name="openSettingsFileToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>170, 22</value>
@@ -376,14 +373,14 @@
   <data name="openSettingsFileToolStripMenuItem.Text" xml:space="preserve">
     <value>打开设置面板 (&amp;O)</value>
   </data>
+  <data name="defaultLanguageToolStripMenuItem.Text" xml:space="preserve">
+    <value>默认</value>
+  </data>
   <data name="languageToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>170, 22</value>
   </data>
   <data name="languageToolStripMenuItem.Text" xml:space="preserve">
     <value>语言 (&amp;L)</value>
-  </data>
-  <data name="defaultLanguageToolStripMenuItem.Text" xml:space="preserve">
-    <value>默认</value>
   </data>
   <data name="toolStripSeparator2.Size" type="System.Drawing.Size, System.Drawing">
     <value>167, 6</value>
@@ -418,17 +415,23 @@
   <data name="restartProgramStripMenuItem.Text" xml:space="preserve">
     <value>重启程序 (&amp;P)</value>
   </data>
-  <data name="githubToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
-    <value>64, 21</value>
+  <data name="settingsToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
+    <value>63, 21</value>
   </data>
-  <data name="githubToolStripMenuItem.Text" xml:space="preserve">
-    <value>关于 (&amp;A)</value>
+  <data name="settingsToolStripMenuItem.Text" xml:space="preserve">
+    <value>设置 (&amp;S)</value>
   </data>
   <data name="githubToolStripMenuItem1.Size" type="System.Drawing.Size, System.Drawing">
     <value>159, 22</value>
   </data>
   <data name="githubToolStripMenuItem1.Text" xml:space="preserve">
     <value>Github项目 (&amp;G)</value>
+  </data>
+  <data name="githubToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
+    <value>64, 21</value>
+  </data>
+  <data name="githubToolStripMenuItem.Text" xml:space="preserve">
+    <value>关于 (&amp;A)</value>
   </data>
   <data name="$this.Text" xml:space="preserve">
     <value>Osu!Catch 编辑器实时预览</value>

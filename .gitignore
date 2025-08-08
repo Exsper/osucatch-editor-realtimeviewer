@@ -361,3 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/StableCompatLib/StableCompatLib.dll.id0
+/StableCompatLib/StableCompatLib.dll.id1
+/StableCompatLib/StableCompatLib.dll.id2
+/StableCompatLib/StableCompatLib.dll.nam
+/StableCompatLib/StableCompatLib.dll.til
+/StableCompatLib/StableCompatLib.o

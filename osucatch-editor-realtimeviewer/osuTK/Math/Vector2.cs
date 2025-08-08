@@ -70,7 +70,7 @@ namespace osuTK
         {
             get
             {
-                return (float)System.Math.Sqrt(X * X + Y * Y);
+                 return (float)System.Math.Sqrt(X * X + Y * Y);
             }
         }
 
@@ -294,15 +294,6 @@ namespace osuTK
             return result;
         }
 
-        public static Vector2 Normalize(Vector2 v)
-        {
-            float lengthSquared = v.X * v.X + v.Y * v.Y;
-            float lengthInverted = 1f / (float)Math.Sqrt((double)lengthSquared);
-            Vector2 result;
-            result.X = v.X * lengthInverted;
-            result.Y = v.Y * lengthInverted;
-            return result;
-        }
         public static void Lerp(ref Vector2 p1, ref Vector2 p2, float x, out Vector2 result)
         {
             result.X = p1.X + (p2.X - p1.X) * x;
