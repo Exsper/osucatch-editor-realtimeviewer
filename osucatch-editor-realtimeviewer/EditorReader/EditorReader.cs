@@ -465,11 +465,11 @@ public class EditorReader
         hitObject.IsSelected = BitConverter.ToBoolean(bufferOb, 133);
         hitObject.BaseX = BitConverter.ToSingle(bufferOb, 140);
         hitObject.BaseY = BitConverter.ToSingle(bufferOb, 144);
-        hitObject.unifiedSoundAddition = (fetchHitSound) ? BitConverter.ToBoolean(bufferOb, 286) : true;
         if (hitObject.IsSlider())
         {
             hitObject.curveLength = BitConverter.ToDouble(bufferOb, 148);
             hitObject.CurveType = BitConverter.ToInt32(bufferOb, 248);
+            hitObject.unifiedSoundAddition = (fetchHitSound) ? BitConverter.ToBoolean(bufferOb, 286) : true;
             pPointsL = ToIntPtr(bufferOb, 196);
             pSTL = ToIntPtr(bufferOb, 224);
             pSSL = ToIntPtr(bufferOb, 228);
