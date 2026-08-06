@@ -46,6 +46,15 @@ namespace osucatch_editor_realtimeviewer
         List<BarLine> BarLines { get; set; }
         public List<PalpableCatchHitObject> CatchHitObjects { get; set; }
 
+        // 每帧复用的缓冲列表，避免反复分配
+        private readonly List<BarLine> scratchBarLines = new();
+        private readonly List<TimingControlPoint> timingControlPoints = new();
+        private readonly List<DifficultyControlPoint> difficultyControlPoints = new();
+        private readonly List<TimingControlPoint> scratchTimingPoints = new();
+        private readonly List<DifficultyControlPoint> scratchDifficultyPoints = new();
+        private readonly HashSet<TimingControlPoint> timingPointSeen = new();
+        private readonly HashSet<DifficultyControlPoint> difficultyPointSeen = new();
+
         /// <summary>
         /// CatchHitObjects which near the editor's current time.
         /// </summary>
@@ -69,6 +78,13 @@ namespace osucatch_editor_realtimeviewer
         };
 
         public List<Bookmark> Bookmarks { get; set; } = new();
+
+        /// <summary>
+        /// 编辑器读取的物件行（含最新选中态），顺序与解码后的 HitObjects 一致。
+        /// 绘制时通过 <see cref="PalpableCatchHitObject.SourceIndex"/> 实时查询选中态，
+        /// 这样选中变化不需要触发全量解析/转换重建。
+        /// </summary>
+        public List<ReaderHitObjectWithSelect>? SelectionLines { get; set; }
 
         /// <summary>
         /// How many screens add up to the height of canvas.
@@ -110,14 +126,30 @@ namespace osucatch_editor_realtimeviewer
             if (CustomComboColours.Count <= 0) CustomComboColours = DefaultCustomComboColours;
         }
 
+        /// <summary>
+        /// 将后台流水线构建好的数据原子地应用到当前绘制实例。
+        /// 只替换装载期字段，不动 CurrentTime / NearbyHitObjects / Bookmarks 等运行时状态。
+        /// </summary>
+        public void ApplyBuildResult(DrawingHelper staged)
+        {
+            CatchHitObjects = staged.CatchHitObjects;
+            ControlPointInfo = staged.ControlPointInfo;
+            BarLines = staged.BarLines;
+            ApproachTime = staged.ApproachTime;
+            TimePerPixels = staged.TimePerPixels;
+            CircleDiameter = staged.CircleDiameter;
+            CustomComboColours = staged.CustomComboColours;
+            LabelType = staged.LabelType;
+        }
+
         public void Draw()
         {
             BuildNearby();
 
             if (app.Default.Show_CubicFittingCurve) DrawSpline();
 
-            List<TimingControlPoint> timingControlPoints = new List<TimingControlPoint>();
-            List<DifficultyControlPoint> difficultyControlPoints = new List<DifficultyControlPoint>();
+            timingControlPoints.Clear();
+            difficultyControlPoints.Clear();
 
             double MaxStartTime = -1;
 
@@ -162,20 +194,34 @@ namespace osucatch_editor_realtimeviewer
 
             if (app.Default.BarLine_Show)
             {
-                List<BarLine> barLines = BarLines.Where((barLine) => barLine.StartTime >= 0 && barLine.StartTime <= MaxStartTime + 1).ToList();
-                DrawBarLines(barLines);
+                scratchBarLines.Clear();
+                foreach (BarLine barLine in BarLines)
+                {
+                    if (barLine.StartTime >= 0 && barLine.StartTime <= MaxStartTime + 1) scratchBarLines.Add(barLine);
+                }
+                DrawBarLines(scratchBarLines);
             }
 
             if (app.Default.TimingLine_ShowGreen)
             {
-                difficultyControlPoints = difficultyControlPoints.Distinct().ToList();
-                DrawDifficultyControPoints(difficultyControlPoints);
+                scratchDifficultyPoints.Clear();
+                difficultyPointSeen.Clear();
+                foreach (DifficultyControlPoint cp in difficultyControlPoints)
+                {
+                    if (difficultyPointSeen.Add(cp)) scratchDifficultyPoints.Add(cp);
+                }
+                DrawDifficultyControPoints(scratchDifficultyPoints);
             }
 
             if (app.Default.TimingLine_ShowRed)
             {
-                timingControlPoints = timingControlPoints.Distinct().ToList();
-                DrawTimingPoints(timingControlPoints);
+                scratchTimingPoints.Clear();
+                timingPointSeen.Clear();
+                foreach (TimingControlPoint cp in timingControlPoints)
+                {
+                    if (timingPointSeen.Add(cp)) scratchTimingPoints.Add(cp);
+                }
+                DrawTimingPoints(scratchTimingPoints);
             }
 
             DrawBookmarkPlus(Bookmarks);
@@ -322,6 +368,8 @@ namespace osucatch_editor_realtimeviewer
             Color4 color = CustomComboColours[comboColorIndex];
 
             bool isSelected = (app.Default.Selected_Show) ? hitObject.IsSelected : false;
+            if (isSelected && SelectionLines != null && hitObject.SourceIndex >= 0 && hitObject.SourceIndex < SelectionLines.Count)
+                isSelected = SelectionLines[hitObject.SourceIndex].IsSelect;
 
             if (hitObject is TinyDroplet) Canvas.DrawTinyDroplet(pos, CircleDiameter, hitObject.Scale, color, withColor, hitObject.HyperDash, isSelected);
             else if (hitObject is Droplet) Canvas.DrawDroplet(pos, CircleDiameter, hitObject.Scale, color, withColor, hitObject.HyperDash, isSelected);
@@ -330,8 +378,13 @@ namespace osucatch_editor_realtimeviewer
 
             if (LabelType != HitObjectLabelType.None && (hitObject is Fruit || (hitObject is Droplet && hitObject is not TinyDroplet)))
             {
-                string labelString = hitObject.GetLabelString(LabelType);
-                Canvas.DrawHitObjectLabel(labelString, pos, CircleDiameter, app.Default.Color_HitObject_Label);
+                // 标签文本在重建后不再变化，按 LabelType 缓存避免每帧 ToString 分配
+                if (hitObject.CachedLabelType != LabelType)
+                {
+                    hitObject.CachedLabel = hitObject.GetLabelString(LabelType);
+                    hitObject.CachedLabelType = LabelType;
+                }
+                Canvas.DrawHitObjectLabel(hitObject.CachedLabel, pos, CircleDiameter, app.Default.Color_HitObject_Label);
             }
         }
 

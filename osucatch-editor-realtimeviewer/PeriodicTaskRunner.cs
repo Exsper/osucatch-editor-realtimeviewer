@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -30,6 +31,8 @@ namespace osucatch_editor_realtimeviewer
 
         public void Start()
         {
+            // 提高系统时钟分辨率到 1ms，让 Task.Delay 在 10ms 级间隔下减少抖动
+            timeBeginPeriod(1);
             _cts = new CancellationTokenSource();
             _runTask = RunLoopAsync(_cts.Token);
         }
@@ -48,8 +51,15 @@ namespace osucatch_editor_realtimeviewer
             {
                 _cts.Dispose();
                 _cts = null;
+                timeEndPeriod(1);
             }
         }
+
+        [DllImport("winmm.dll")]
+        private static extern uint timeBeginPeriod(uint uPeriod);
+
+        [DllImport("winmm.dll")]
+        private static extern uint timeEndPeriod(uint uPeriod);
 
         private async Task RunLoopAsync(CancellationToken ct)
         {

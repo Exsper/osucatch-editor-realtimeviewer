@@ -2,6 +2,8 @@
 
 namespace osucatch_editor_realtimeviewer
 {
+    using System.Diagnostics;
+
     public class EditorReaderHelper
     {
         private static readonly EditorReader reader = new();
@@ -17,10 +19,24 @@ namespace osucatch_editor_realtimeviewer
         private int fetchAll_Failed_Count = 0;
         private const int FetchAll_MaxRetry_Count = 10;
 
+        // 高频/低频分离：多数 tick 只读 EditorTime，全量读取有间隔限制
+        private BeatmapInfoCollection? cachedCollection;
+        private string cachedTitle = "";
+        private readonly Stopwatch stopwatch = Stopwatch.StartNew();
+        private long lastEditorCheckTimestamp;
+        private long lastFullFetchTimestamp;
+        private bool editorCheckSucceeded;
+        private const long FullCheckIntervalMs = 150;
+
         public EditorReaderHelper()
         {
             reader.autoDeStack = true;
         }
+
+        /// <summary>
+        /// 当前连接的 osu! 进程 ID。
+        /// </summary>
+        public int? OsuProcessId => reader.OsuProcessId;
 
         /// <summary>
         /// Fetch osu! process if needed for Editor Reader.
@@ -94,6 +110,13 @@ namespace osucatch_editor_realtimeviewer
         /// <returns>Is success or not.</returns>
         public bool FetchEditor()
         {
+            // 高频路径：FullCheckIntervalMs 内已经完整验证过 editor，直接复用上次结果
+            if (editorCheckSucceeded && stopwatch.ElapsedMilliseconds - lastEditorCheckTimestamp < FullCheckIntervalMs)
+            {
+                Is_Editor_Running = true;
+                return true;
+            }
+
             beatmap_title = "";
             string title = FetchTitle();
             if (title == "")
@@ -101,6 +124,7 @@ namespace osucatch_editor_realtimeviewer
                 Log.ConsoleLog("Empty osu title.", Log.LogType.EditorReader, Log.LogLevel.Info);
                 Is_Editor_Running = false;
                 beatmap_path = "";
+                editorCheckSucceeded = false;
                 return false;
             }
             if (!title.EndsWith(".osu"))
@@ -108,6 +132,7 @@ namespace osucatch_editor_realtimeviewer
                 Log.ConsoleLog("Osu title is not editor: " + title, Log.LogType.EditorReader, Log.LogLevel.Info);
                 Is_Editor_Running = false;
                 beatmap_path = "";
+                editorCheckSucceeded = false;
                 return false;
             }
             if (reader.EditorNeedsReload())
@@ -118,11 +143,13 @@ namespace osucatch_editor_realtimeviewer
                     if (Is_Doing_SetProcess || Is_Doing_FetchEditor)
                     {
                         Log.ConsoleLog("Still fetching editor.", Log.LogType.EditorReader, Log.LogLevel.Info);
+                        editorCheckSucceeded = false;
                         return false;
                     }
                     if (reader.ProcessNeedsReload())
                     {
                         Log.ConsoleLog("Process needs reload.", Log.LogType.EditorReader, Log.LogLevel.Info);
+                        editorCheckSucceeded = false;
                         return false;
                     }
                     Log.ConsoleLog("Try fetch editor.", Log.LogType.EditorReader, Log.LogLevel.Info);
@@ -139,11 +166,14 @@ namespace osucatch_editor_realtimeviewer
                     Is_Doing_FetchEditor = false;
                     Is_Editor_Running = false;
                     beatmap_path = "";
+                    editorCheckSucceeded = false;
                     return false;
                 }
             }
             Is_Editor_Running = true;
             beatmap_title = title;
+            lastEditorCheckTimestamp = stopwatch.ElapsedMilliseconds;
+            editorCheckSucceeded = true;
             return true;
         }
 
@@ -154,32 +184,7 @@ namespace osucatch_editor_realtimeviewer
         /// <para />null if failed.</returns>
         public BeatmapInfoCollection? FetchAll()
         {
-            try
-            {
-                if (fetchAll_Failed_Count > FetchAll_MaxRetry_Count)
-                {
-                    Log.ConsoleLog("Refetching editor...", Log.LogType.EditorReader, Log.LogLevel.Warning);
-                    fetchAll_Failed_Count = 0;
-                    FetchEditor();
-                    return null;
-                }
-
-                Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);
-
-                bool needFetchFull = app.Default.Backup_Enabled && !app.Default.FilterNearbyHitObjects;
-                reader.FetchAll(needFetchFull);
-                var thisReaderData = new BeatmapInfoCollection(reader);
-
-                Log.ConsoleLog("FetchAll complete.", Log.LogType.EditorReader, Log.LogLevel.Debug);
-                fetchAll_Failed_Count = 0;
-                return thisReaderData;
-            }
-            catch (Exception ex)
-            {
-                Log.ConsoleLog("FetchAll failed.(" + fetchAll_Failed_Count + ")\r\n" + ex.ToString(), Log.LogType.EditorReader, Log.LogLevel.Error);
-                fetchAll_Failed_Count++;
-                return null;
-            }
+            return FetchWithCache(false, 0);
         }
 
         /// <summary>
@@ -191,6 +196,15 @@ namespace osucatch_editor_realtimeviewer
         /// <para />null if failed.</returns>
         public BeatmapInfoCollection? FetchAll(double partialLoadingHalfTimeSpan)
         {
+            return FetchWithCache(true, partialLoadingHalfTimeSpan);
+        }
+
+        /// <summary>
+        /// 高频/低频分离读取：多数 tick 只读 EditorTime 并复用缓存数据，
+        /// 只有在编辑器/地图变化、物件数量变化或超过 FullCheckIntervalMs 时才做全量读取。
+        /// </summary>
+        private BeatmapInfoCollection? FetchWithCache(bool filterNearby, double partialLoadingHalfTimeSpan)
+        {
             try
             {
                 if (fetchAll_Failed_Count > FetchAll_MaxRetry_Count)
@@ -198,16 +212,30 @@ namespace osucatch_editor_realtimeviewer
                     Log.ConsoleLog("Refetching editor...", Log.LogType.EditorReader, Log.LogLevel.Warning);
                     fetchAll_Failed_Count = 0;
                     FetchEditor();
+                    cachedCollection = null;
                     return null;
                 }
 
-                Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);
+                if (!IsFullFetchDue())
+                {
+                    // 高频路径：只刷新播放头时间，其余数据沿用上次全量读取
+                    cachedCollection!.EditorTime = reader.EditorTime();
+                    fetchAll_Failed_Count = 0;
+                    return cachedCollection;
+                }
 
-                bool needFetchFull = app.Default.Backup_Enabled && !app.Default.FilterNearbyHitObjects;
+                Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);
+                bool needFetchFull = app.Default.Backup_Enabled && !filterNearby;
                 reader.FetchAll(needFetchFull);
-                var thisReaderData = new BeatmapInfoCollection(reader, partialLoadingHalfTimeSpan);
+                BeatmapInfoCollection thisReaderData = filterNearby
+                    ? new BeatmapInfoCollection(reader, partialLoadingHalfTimeSpan)
+                    : new BeatmapInfoCollection(reader);
 
                 Log.ConsoleLog("FetchAll complete.", Log.LogType.EditorReader, Log.LogLevel.Debug);
+
+                cachedCollection = thisReaderData;
+                cachedTitle = beatmap_title;
+                lastFullFetchTimestamp = stopwatch.ElapsedMilliseconds;
                 fetchAll_Failed_Count = 0;
                 return thisReaderData;
             }
@@ -217,6 +245,21 @@ namespace osucatch_editor_realtimeviewer
                 fetchAll_Failed_Count++;
                 return null;
             }
+        }
+
+        private bool IsFullFetchDue()
+        {
+            if (cachedCollection == null) return true;
+            if (cachedTitle != beatmap_title) return true;
+            if (stopwatch.ElapsedMilliseconds - lastFullFetchTimestamp >= FullCheckIntervalMs) return true;
+
+            // 物件/控制点数量变化（增删）立即触发全量读取，不必等间隔
+            if (reader.TryReadCounts(out int numObjects, out int numControlPoints, out _) &&
+                (numObjects != cachedCollection.NumObjects || numControlPoints != cachedCollection.NumControlPoints))
+            {
+                return true;
+            }
+            return false;
         }
     }
 
@@ -241,6 +284,8 @@ namespace osucatch_editor_realtimeviewer
         public int[] Bookmarks;
         public List<string> ControlPointLines;
         public List<ReaderHitObjectWithSelect> HitObjectLines;
+        public List<Editor_Reader.ControlPoint> ControlPoints;
+        public List<Editor_Reader.HitObject> HitObjects;
 
         public BeatmapInfoCollection()
         {
@@ -249,6 +294,8 @@ namespace osucatch_editor_realtimeviewer
             Bookmarks = [];
             ControlPointLines = new();
             HitObjectLines = new();
+            ControlPoints = new();
+            HitObjects = new();
             IsFull = false;
             NumControlPoints = 0;
             NumObjects = 0;
@@ -311,6 +358,8 @@ namespace osucatch_editor_realtimeviewer
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
             HitObjectLines = reader.hitObjects.Select((ho) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected)).ToList();
+            ControlPoints = reader.controlPoints;
+            HitObjects = reader.hitObjects;
 
             // We don't need breaks because editor force a new combo after every break.
         }
@@ -369,6 +418,8 @@ namespace osucatch_editor_realtimeviewer
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
             HitObjectLines = NearbyHitObjects.Select((ho) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected)).ToList();
+            ControlPoints = reader.controlPoints;
+            HitObjects = NearbyHitObjects;
 
             // We don't need breaks because editor force a new combo after every break.
         }
@@ -419,19 +470,68 @@ namespace osucatch_editor_realtimeviewer
             if (SliderMultiplier != other.SliderMultiplier) return DifferenceType.DifferentObjects;
             if (SliderTickRate != other.SliderTickRate) return DifferenceType.DifferentObjects;
 
-            if (ControlPointLines.Count != other.ControlPointLines.Count) return DifferenceType.DifferentObjects;
-            for (int i = 0; i < ControlPointLines.Count; i++)
+            if (ControlPoints.Count != other.ControlPoints.Count) return DifferenceType.DifferentObjects;
+            for (int i = 0; i < ControlPoints.Count; i++)
             {
-                if (ControlPointLines[i] != other.ControlPointLines[i]) return DifferenceType.DifferentObjects;
+                if (!ControlPointEquals(ControlPoints[i], other.ControlPoints[i])) return DifferenceType.DifferentObjects;
             }
 
-            if (HitObjectLines.Count != other.HitObjectLines.Count) return DifferenceType.DifferentObjects;
-            for (int i = 0; i < HitObjectLines.Count; i++)
+            if (HitObjects.Count != other.HitObjects.Count) return DifferenceType.DifferentObjects;
+            for (int i = 0; i < HitObjects.Count; i++)
             {
-                if (!HitObjectLines[i].EqualTo(other.HitObjectLines[i], isCheckSelected)) return DifferenceType.DifferentObjects;
+                if (!HitObjectEquals(HitObjects[i], other.HitObjects[i], isCheckSelected)) return DifferenceType.DifferentObjects;
             }
 
             return DifferenceType.None;
+        }
+
+        private static bool ControlPointEquals(Editor_Reader.ControlPoint a, Editor_Reader.ControlPoint b)
+        {
+            return a.Offset == b.Offset && a.BeatLength == b.BeatLength &&
+                   a.TimeSignature == b.TimeSignature && a.SampleSet == b.SampleSet &&
+                   a.CustomSamples == b.CustomSamples && a.Volume == b.Volume &&
+                   a.TimingChange == b.TimingChange && a.EffectFlags == b.EffectFlags;
+        }
+
+        private static bool HitObjectEquals(Editor_Reader.HitObject a, Editor_Reader.HitObject b, bool isCheckSelected)
+        {
+            if (a.StartTime != b.StartTime || a.EndTime != b.EndTime || a.Type != b.Type || a.SoundType != b.SoundType ||
+                a.SegmentCount != b.SegmentCount || a.X != b.X || a.Y != b.Y || a.BaseX != b.BaseX || a.BaseY != b.BaseY ||
+                a.SpatialLength != b.SpatialLength || a.CurveType != b.CurveType || a.curveLength != b.curveLength ||
+                a.SampleVolume != b.SampleVolume || a.SampleSet != b.SampleSet || a.SampleSetAdditions != b.SampleSetAdditions ||
+                a.CustomSampleSet != b.CustomSampleSet || a.SampleFile != b.SampleFile || a.unifiedSoundAddition != b.unifiedSoundAddition)
+            {
+                return false;
+            }
+            if (isCheckSelected && a.IsSelected != b.IsSelected) return false;
+
+            if (!IntArrayEquals(a.SoundTypeList, b.SoundTypeList)) return false;
+            if (!IntArrayEquals(a.SampleSetList, b.SampleSetList)) return false;
+            if (!IntArrayEquals(a.SampleSetAdditionsList, b.SampleSetAdditionsList)) return false;
+            if (!FloatArrayEquals(a.sliderCurvePoints, b.sliderCurvePoints)) return false;
+            return true;
+        }
+
+        private static bool IntArrayEquals(int[]? a, int[]? b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
+        }
+
+        private static bool FloatArrayEquals(float[]? a, float[]? b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
         }
     }
 

@@ -23,6 +23,8 @@ namespace osucatch_editor_realtimeviewer
         private static Texture2D? hitCircleTexture;
         private static Texture2D? DropTexture;
         private static Texture2D? BananaTexture;
+        private static readonly Dictionary<string, Texture2D> textTextureCache = new();
+        private static float textTextureCacheFontScale = -1;
 
         private readonly float Border_Height = 32;
         private readonly float Border_Width = 32;
@@ -110,7 +112,20 @@ namespace osucatch_editor_realtimeviewer
         {
             try
             {
-                return new Texture2D(s, fontscale);
+                // 文本纹理缓存：标签文本只在重建/设置变化时才变，
+                // 避免每帧重新做 GDI+ 字体渲染并上传纹理
+                if (textTextureCacheFontScale != fontscale)
+                {
+                    foreach (Texture2D texture in textTextureCache.Values) texture.Dispose();
+                    textTextureCache.Clear();
+                    textTextureCacheFontScale = fontscale;
+                }
+
+                if (textTextureCache.TryGetValue(s, out Texture2D? cached)) return cached;
+
+                Texture2D newTexture = new Texture2D(s, fontscale);
+                textTextureCache[s] = newTexture;
+                return newTexture;
             }
             catch (Exception ex)
             {
@@ -200,7 +215,6 @@ namespace osucatch_editor_realtimeviewer
             Texture2D? BPMTexture = TextureFromString(bpm.ToString("F0"), fontScale);
             if (BPMTexture == null) return;
             DrawLineLabel(BPMTexture, rp0, true, Color.Red);
-            BPMTexture.Dispose();
         }
 
         public static void DrawSVLabel(double sv, int posY)
@@ -211,7 +225,6 @@ namespace osucatch_editor_realtimeviewer
             Texture2D? BPMTexture = TextureFromString(sv.ToString("F2"), fontScale);
             if (BPMTexture == null) return;
             DrawLineLabel(BPMTexture, rp1, false, Color.LightGreen);
-            BPMTexture.Dispose();
         }
 
         public static void DrawBookmarkLabel(string comment, Color color, int posY)
@@ -220,7 +233,6 @@ namespace osucatch_editor_realtimeviewer
             Texture2D? commentTexture = TextureFromString(comment, fontScale);
             if (commentTexture == null) return;
             DrawLineLabel(commentTexture, rp1, false, color);
-            commentTexture.Dispose();
         }
 
         public static void DrawHitObjectLabel(string hitObjectString, Vector2 pos, float circleDiameter, Color color)
@@ -229,7 +241,6 @@ namespace osucatch_editor_realtimeviewer
             Texture2D? labelTexture = TextureFromString(hitObjectString, fontScale);
             if (labelTexture == null) return;
             if (hitObjectString.Length > 0) DrawHitObjectLabel(labelTexture, pos, circleDiameter, color);
-            labelTexture.Dispose();
         }
 
         private static void DrawHyperDashCircle(Texture2D? texture, Vector2 pos, float diameter)

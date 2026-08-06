@@ -32,12 +32,13 @@ namespace osucatch_editor_realtimeviewer
 
             private int RandomNextStableCompat(int lowerBound, int upperBound) => RandomNextStableCompat0(random.Next(), lowerBound, upperBound);
             
-            internal List<PalpableCatchHitObject> AddFruit(Fruit fruit)
+            internal List<PalpableCatchHitObject> AddFruit(Fruit fruit, int sourceIndex)
             {
                 if (isHardRock)
                 {
                     fruit = WarpSpacing(fruit);
                 }
+                fruit.SourceIndex = sourceIndex;
                 palpableObjects.Add(fruit);
                 return [fruit];
             }
@@ -117,7 +118,7 @@ namespace osucatch_editor_realtimeviewer
                 }
             }
 
-            internal List<PalpableCatchHitObject> AddJuiceStream(JuiceStream juiceStream)
+            internal List<PalpableCatchHitObject> AddJuiceStream(JuiceStream juiceStream, int sourceIndex)
             {
                 var hitObjects = ConvertSlider(beatmap, juiceStream, out LegacySliderAdditionalData data, isHardRock && !isConversionMapping);
 
@@ -129,13 +130,14 @@ namespace osucatch_editor_realtimeviewer
                     if (juice is PalpableCatchHitObject palpableObject)
                     {
                         juice.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
+                        palpableObject.SourceIndex = sourceIndex;
                         palpableObjects.Add(palpableObject);
                     }
                 }
                 return hitObjects;
             }
 
-            internal List<PalpableCatchHitObject> AddBananaShower(BananaShower bananaShower)
+            internal List<PalpableCatchHitObject> AddBananaShower(BananaShower bananaShower, int sourceIndex)
             {
                 var hitObjects = ConvertSpinner(beatmap, bananaShower);
                 foreach (var banana in hitObjects)
@@ -143,6 +145,7 @@ namespace osucatch_editor_realtimeviewer
                     if (banana is PalpableCatchHitObject palpableObject)
                     {
                         banana.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
+                        palpableObject.SourceIndex = sourceIndex;
                         palpableObjects.Add(palpableObject);
                     }
                 }
