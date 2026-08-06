@@ -26,6 +26,29 @@ namespace osucatch_editor_realtimeviewer
         private static readonly Dictionary<string, Texture2D> textTextureCache = new();
         private static float textTextureCacheFontScale = -1;
 
+        // ---- 批量渲染缓冲（每帧复用，帧末按纹理/线组一次性 GL.DrawArrays）----
+        private sealed class QuadBatch
+        {
+            public float[] Positions = new float[2048];
+            public float[] TexCoords = new float[2048];
+            public float[] Colors = new float[4096];
+            public int VertexCount;
+        }
+
+        private sealed class LineBatch
+        {
+            public float[] Positions = new float[2048];
+            public float[] Colors = new float[4096];
+            public int VertexCount;
+            public float Width;
+            public bool StippleEnabled;
+            public ushort StipplePattern;
+        }
+
+        private static readonly Dictionary<Texture2D, QuadBatch> textureBatches = new();
+        private static readonly List<LineBatch> backgroundLineBatches = new();
+        private static readonly List<LineBatch> foregroundLineBatches = new();
+
         private readonly float Border_Height = 32;
         private readonly float Border_Width = 32;
 
@@ -40,8 +63,10 @@ namespace osucatch_editor_realtimeviewer
         {
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
+            BeginFrame();
             DrawJudgementLine();
             Form1.drawingHelper.Draw();
+            FlushFrame();
 
             this.SwapBuffers();
         }
@@ -118,6 +143,7 @@ namespace osucatch_editor_realtimeviewer
                 {
                     foreach (Texture2D texture in textTextureCache.Values) texture.Dispose();
                     textTextureCache.Clear();
+                    textureBatches.Clear();
                     textTextureCacheFontScale = fontscale;
                 }
 
@@ -136,55 +162,25 @@ namespace osucatch_editor_realtimeviewer
 
         public static void DrawLine(Vector2 start, Vector2 end, Color color)
         {
-            GL.Disable(EnableCap.Texture2D);
-            GL.LineWidth(1);
-            GL.Color4(color);
-            GL.Begin(PrimitiveType.Lines);
-            GL.Vertex2(start.X, start.Y);
-            GL.Vertex2(end.X, end.Y);
-            GL.End();
-            GL.Enable(EnableCap.Texture2D);
+            AddLine(start, end, color, 1f, 0, false, false);
         }
 
-        public static void DrawLine(Vector2 start, Vector2 end, Color color, float width, LineType lineType)
+        public static void DrawLine(Vector2 start, Vector2 end, Color color, float width, LineType lineType, bool beforeTextures = false)
         {
-            GL.Disable(EnableCap.Texture2D);
-            GL.LineWidth(width);
-            GL.Color4(color);
-
-            // 设置线型
-            switch (lineType)
+            bool stipple = lineType != LineType.Solid;
+            ushort pattern = 0;
+            if (stipple)
             {
-                case LineType.Dash:
-                    GL.Enable(EnableCap.LineStipple);
-                    GL.LineStipple(2, 0x00FF); // 虚线模式
-                    break;
-                case LineType.Dot:
-                    GL.Enable(EnableCap.LineStipple);
-                    GL.LineStipple(2, 0xCCCC); // 点线模式
-                    break;
-                case LineType.DashDot:
-                    GL.Enable(EnableCap.LineStipple);
-                    GL.LineStipple(2, 0xFF18); // 点划线模式
-                    break;
-                case LineType.DashDotDot:
-                    GL.Enable(EnableCap.LineStipple);
-                    GL.LineStipple(2, 0xFCCC); // 双点划线模式
-                    break;
-                default:
-                    GL.Disable(EnableCap.LineStipple); // 实线
-                    break;
+                pattern = lineType switch
+                {
+                    LineType.Dash => 0x00FF,
+                    LineType.Dot => 0xCCCC,
+                    LineType.DashDot => 0xFF18,
+                    LineType.DashDotDot => 0xFCCC,
+                    _ => 0,
+                };
             }
-
-            // 绘制直线
-            GL.Begin(PrimitiveType.Lines);
-            GL.Vertex2(start.X, start.Y);
-            GL.Vertex2(end.X, end.Y);
-            GL.End();
-
-            // 重置线型设置
-            GL.Disable(EnableCap.LineStipple);
-            GL.Enable(EnableCap.Texture2D);
+            AddLine(start, end, color, width, pattern, stipple, beforeTextures);
         }
 
         private static void DrawHitObjectLabel(Texture2D? texture, Vector2 notePos, float diameter, Color color)
@@ -295,21 +291,184 @@ namespace osucatch_editor_realtimeviewer
             if (isSelected) DrawSelectedCircle(BananaTexture, pos, circleDiameter);
         }
 
+        private static void BeginFrame()
+        {
+            // 每帧重置批处理缓冲（保留已分配容量）
+            foreach (QuadBatch batch in textureBatches.Values) batch.VertexCount = 0;
+            foreach (LineBatch batch in backgroundLineBatches) batch.VertexCount = 0;
+            foreach (LineBatch batch in foregroundLineBatches) batch.VertexCount = 0;
+
+            // 所有四边形都是轴对齐屏幕坐标，modelview 恒为 identity，帧开始设一次即可
+            GL.MatrixMode(MatrixMode.Modelview);
+            GL.LoadIdentity();
+        }
+
+        private static void FlushFrame()
+        {
+            GL.EnableClientState(ArrayCap.VertexArray);
+            GL.EnableClientState(ArrayCap.ColorArray);
+            GL.EnableClientState(ArrayCap.TextureCoordArray);
+
+            // 保持原有层级：背景线 → 纹理（物件/标签）→ 前景线
+            GL.Disable(EnableCap.Texture2D);
+            FlushLineBatches(backgroundLineBatches);
+            GL.Enable(EnableCap.Texture2D);
+
+            FlushTextureBatches();
+
+            GL.Disable(EnableCap.Texture2D);
+            FlushLineBatches(foregroundLineBatches);
+            GL.Enable(EnableCap.Texture2D);
+
+            GL.DisableClientState(ArrayCap.VertexArray);
+            GL.DisableClientState(ArrayCap.ColorArray);
+            GL.DisableClientState(ArrayCap.TextureCoordArray);
+            GL.Disable(EnableCap.LineStipple);
+        }
+
+        private static void FlushLineBatches(List<LineBatch> batches)
+        {
+            foreach (LineBatch batch in batches)
+            {
+                if (batch.VertexCount == 0) continue;
+
+                GL.LineWidth(batch.Width);
+                if (batch.StippleEnabled)
+                {
+                    GL.Enable(EnableCap.LineStipple);
+                    GL.LineStipple(2, batch.StipplePattern);
+                }
+                else
+                {
+                    GL.Disable(EnableCap.LineStipple);
+                }
+
+                GL.VertexPointer(2, VertexPointerType.Float, 0, batch.Positions);
+                GL.ColorPointer(4, ColorPointerType.Float, 0, batch.Colors);
+                GL.DrawArrays(PrimitiveType.Lines, 0, batch.VertexCount);
+            }
+        }
+
+        private static void FlushTextureBatches()
+        {
+            foreach (KeyValuePair<Texture2D, QuadBatch> pair in textureBatches)
+            {
+                QuadBatch batch = pair.Value;
+                if (batch.VertexCount == 0) continue;
+
+                GL.BindTexture(TextureTarget.Texture2D, pair.Key.TextureId);
+                GL.VertexPointer(2, VertexPointerType.Float, 0, batch.Positions);
+                GL.ColorPointer(4, ColorPointerType.Float, 0, batch.Colors);
+                GL.TexCoordPointer(2, TexCoordPointerType.Float, 0, batch.TexCoords);
+                GL.DrawArrays(PrimitiveType.Quads, 0, batch.VertexCount);
+            }
+        }
+
+        internal static void AddQuad(Texture2D texture, float x, float y, float w, float h, Color4 color)
+        {
+            if (!textureBatches.TryGetValue(texture, out QuadBatch? batch))
+            {
+                batch = new QuadBatch();
+                textureBatches[texture] = batch;
+            }
+
+            int v = batch.VertexCount;
+            if (v + 4 > batch.Positions.Length / 2) GrowQuadBatch(batch, v + 4);
+
+            int pos = v * 2;
+            int col = v * 4;
+
+            // 左下
+            batch.Positions[pos] = x; batch.Positions[pos + 1] = y;
+            batch.TexCoords[pos] = 0; batch.TexCoords[pos + 1] = 0;
+            // 右下
+            batch.Positions[pos + 2] = x + w; batch.Positions[pos + 3] = y;
+            batch.TexCoords[pos + 2] = 1; batch.TexCoords[pos + 3] = 0;
+            // 右上
+            batch.Positions[pos + 4] = x + w; batch.Positions[pos + 5] = y + h;
+            batch.TexCoords[pos + 4] = 1; batch.TexCoords[pos + 5] = 1;
+            // 左上
+            batch.Positions[pos + 6] = x; batch.Positions[pos + 7] = y + h;
+            batch.TexCoords[pos + 6] = 0; batch.TexCoords[pos + 7] = 1;
+
+            for (int i = 0; i < 4; i++)
+            {
+                batch.Colors[col + i * 4] = color.R;
+                batch.Colors[col + i * 4 + 1] = color.G;
+                batch.Colors[col + i * 4 + 2] = color.B;
+                batch.Colors[col + i * 4 + 3] = color.A;
+            }
+
+            batch.VertexCount = v + 4;
+        }
+
+        private static void AddLine(Vector2 start, Vector2 end, Color4 color, float width, ushort stipplePattern, bool stippleEnabled, bool beforeTextures)
+        {
+            List<LineBatch> batches = beforeTextures ? backgroundLineBatches : foregroundLineBatches;
+
+            LineBatch? batch = null;
+            foreach (LineBatch b in batches)
+            {
+                if (b.Width == width && b.StippleEnabled == stippleEnabled && (!stippleEnabled || b.StipplePattern == stipplePattern))
+                {
+                    batch = b;
+                    break;
+                }
+            }
+            if (batch == null)
+            {
+                batch = new LineBatch { Width = width, StippleEnabled = stippleEnabled, StipplePattern = stipplePattern };
+                batches.Add(batch);
+            }
+
+            int v = batch.VertexCount;
+            if (v + 2 > batch.Positions.Length / 2) GrowLineBatch(batch, v + 2);
+
+            int pos = v * 2;
+            int col = v * 4;
+            batch.Positions[pos] = start.X; batch.Positions[pos + 1] = start.Y;
+            batch.Positions[pos + 2] = end.X; batch.Positions[pos + 3] = end.Y;
+
+            for (int i = 0; i < 2; i++)
+            {
+                batch.Colors[col + i * 4] = color.R;
+                batch.Colors[col + i * 4 + 1] = color.G;
+                batch.Colors[col + i * 4 + 2] = color.B;
+                batch.Colors[col + i * 4 + 3] = color.A;
+            }
+
+            batch.VertexCount = v + 2;
+        }
+
+        private static void GrowQuadBatch(QuadBatch batch, int minVertices)
+        {
+            int newCapacity = Math.Max(batch.Positions.Length / 2 * 2, minVertices);
+            Array.Resize(ref batch.Positions, newCapacity * 2);
+            Array.Resize(ref batch.TexCoords, newCapacity * 2);
+            Array.Resize(ref batch.Colors, newCapacity * 4);
+        }
+
+        private static void GrowLineBatch(LineBatch batch, int minVertices)
+        {
+            int newCapacity = Math.Max(batch.Positions.Length / 2 * 2, minVertices);
+            Array.Resize(ref batch.Positions, newCapacity * 2);
+            Array.Resize(ref batch.Colors, newCapacity * 4);
+        }
+
         private static void DrawJudgementLine()
         {
             if (screensContain > 1)
             {
                 Vector2 rp0 = new Vector2(64, (float)(240.0 * screensContain));
                 Vector2 rp1 = new Vector2(576, (float)(240.0 * screensContain));
-                DrawLine(rp0, rp1, Color.White);
+                DrawLine(rp0, rp1, Color.White, 1f, LineType.Solid, true);
             }
             else
             {
                 Vector2 rp0 = new Vector2(64, 408);
                 Vector2 rp1 = new Vector2(576, 408);
-                DrawLine(rp0, rp1, Color.White);
+                DrawLine(rp0, rp1, Color.White, 1f, LineType.Solid, true);
             }
         }
-
     }
 }

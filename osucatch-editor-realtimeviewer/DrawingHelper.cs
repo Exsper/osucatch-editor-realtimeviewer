@@ -442,7 +442,7 @@ namespace osucatch_editor_realtimeviewer
             }
             for (int i = 1; i < splinePoints.Count; i++)
             {
-                Canvas.DrawLine(splinePoints[i - 1], splinePoints[i], app.Default.Curve_Color, app.Default.Curve_Width, (LineType)(app.Default.Curve_LineStyle * 2));
+                Canvas.DrawLine(splinePoints[i - 1], splinePoints[i], app.Default.Curve_Color, app.Default.Curve_Width, (LineType)(app.Default.Curve_LineStyle * 2), beforeTextures: true);
             }
         }
 
