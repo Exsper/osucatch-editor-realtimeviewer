@@ -2,6 +2,7 @@
 using OpenTK.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets.Catch.Objects;
 using osu.Game.Rulesets.Catch.UI;
 using osu.Game.Rulesets.Objects;
@@ -46,6 +47,7 @@ namespace osucatch_editor_realtimeviewer
         public ControlPointInfo? ControlPointInfo { get; set; }
         List<BarLine> BarLines { get; set; }
         public List<PalpableCatchHitObject> CatchHitObjects { get; set; }
+        public double SliderMultiplier { get; set; }
 
         // 每帧复用的缓冲列表，避免反复分配
         private readonly List<BarLine> scratchBarLines = new();
@@ -112,6 +114,7 @@ namespace osucatch_editor_realtimeviewer
         {
             ControlPointInfo = convertedBeatmap.ControlPointInfo;
             BarLines = convertedBeatmap.BarLines;
+            SliderMultiplier = convertedBeatmap.Difficulty.SliderMultiplier;
             if (app.Default.Use_Stable_Converter)
             {
                 CatchHitObjects = Form1.stableBeatmapConverter.GetPalpableObjects(convertedBeatmap, mods);
@@ -141,6 +144,7 @@ namespace osucatch_editor_realtimeviewer
             CatchHitObjects = staged.CatchHitObjects;
             ControlPointInfo = staged.ControlPointInfo;
             BarLines = staged.BarLines;
+            SliderMultiplier = staged.SliderMultiplier;
             ApproachTime = staged.ApproachTime;
             TimePerPixels = staged.TimePerPixels;
             CircleDiameter = staged.CircleDiameter;
@@ -431,7 +435,7 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>
         /// 距离辅助线（光锥）：当当前时间点上有 Fruit 时，
         /// 从“上个物件”中心向左上/右上画两条放射线。
-        /// 白线默认 1x 走路速度、红线默认 2x，倍率可在设置中修改（速度 = BASE_WALK_SPEED × 倍率），
+        /// 白线默认 1x、红线默认 2x（SameWithEditor 速度倍率，可在设置中修改），
         /// 用于判断当前放置物件相对上个物件的可达距离。
         /// </summary>
         private void DrawDistanceHelper()
@@ -454,13 +458,33 @@ namespace osucatch_editor_realtimeviewer
             double anchorX = 64 + previous.EffectiveX;
             double anchorY = baseY - (previous.StartTime - CurrentTime) / TimePerPixels;
 
-            // 白线：走路速度 × 用户倍率（默认 1x）
-            double whiteSpeed = Catcher.BASE_WALK_SPEED * Math.Max(0, app.Default.Distance_Helper_White_Speed);
-            // 红线：走路速度 × 用户倍率（默认 2x）
-            double redSpeed = Catcher.BASE_WALK_SPEED * Math.Max(0, app.Default.Distance_Helper_Red_Speed);
+            // SameWithEditor 速度换算（参考 BeatmapConverter.CalDistanceToNext）：
+            // 水平速度 = 倍率 × (SliderMultiplier × 100 × SliderVelocity) / BeatLength
+            double whiteSpeed = CalcSameWithEditorSpeed(app.Default.Distance_Helper_White_Speed);
+            double redSpeed = CalcSameWithEditorSpeed(app.Default.Distance_Helper_Red_Speed);
 
             DrawConeRays(anchorX, anchorY, topY, whiteSpeed, Color.White);
             DrawConeRays(anchorX, anchorY, topY, redSpeed, Color.Red);
+        }
+
+        /// <summary>
+        /// 按 SameWithEditor 语义换算水平速度（px/ms）：
+        /// speed = 倍率 × (SliderMultiplier × 100 × SliderVelocity) / BeatLength。
+        /// 与 <see cref="BeatmapConverter.CalDistanceToNext"/> 的 XDistToNext_SameWithEditor 一致，
+        /// 参数取当前播放头处的拍长与滑条速度。数据无效时返回 0（对应射线不画）。
+        /// </summary>
+        private double CalcSameWithEditorSpeed(double multiplier)
+        {
+            if (!(multiplier > 0) || ControlPointInfo == null || !(SliderMultiplier > 0)) return 0;
+
+            TimingControlPoint timing = ControlPointInfo.TimingPointAt(CurrentTime);
+            DifficultyControlPoint difficulty = (ControlPointInfo as LegacyControlPointInfo)?.DifficultyPointAt(CurrentTime) ?? DifficultyControlPoint.DEFAULT;
+
+            double beatLength = timing.BeatLength;
+            double sliderVelocity = difficulty.SliderVelocity;
+            if (!(beatLength > 0) || !(sliderVelocity > 0)) return 0;
+
+            return multiplier * (SliderMultiplier * 100 * sliderVelocity) / beatLength;
         }
 
         /// <summary>

@@ -1812,10 +1812,10 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
     <value>Show distance guide</value>
   </data>
   <data name="DistanceHelper_WhiteSpeed_Label" xml:space="preserve">
-    <value>White line speed (x)</value>
+    <value>White speed (x)</value>
   </data>
   <data name="DistanceHelper_RedSpeed_Label" xml:space="preserve">
-    <value>Red line speed (x)</value>
+    <value>Red speed (x)</value>
   </data>
   <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>True</value>

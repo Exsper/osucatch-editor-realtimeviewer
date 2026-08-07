@@ -67,13 +67,13 @@
             checkBox_ShowDistanceHelper.Checked = app.Default.Show_Distance_Helper;
             groupBox7.Controls.Add(checkBox_ShowDistanceHelper);
 
-            // 白线/红线速度倍率（相对盘子走路速度的倍数，1x = BASE_WALK_SPEED = 0.5）
+            // 白线/红线速度倍率（SameWithEditor 语义：1x = 与编辑器滑条速度一致）
             label_WhiteSpeed = new Label();
             label_WhiteSpeed.Location = new Point(6, 130);
-            label_WhiteSpeed.Size = new Size(120, 21);
+            label_WhiteSpeed.Size = new Size(150, 21);
             label_WhiteSpeed.Text = rm.GetString("DistanceHelper_WhiteSpeed_Label") ?? "白线速度倍率";
             numericUpDown_WhiteSpeed = new NumericUpDown();
-            numericUpDown_WhiteSpeed.Location = new Point(130, 128);
+            numericUpDown_WhiteSpeed.Location = new Point(160, 128);
             numericUpDown_WhiteSpeed.Size = new Size(60, 23);
             numericUpDown_WhiteSpeed.Minimum = 0.1m;
             numericUpDown_WhiteSpeed.Maximum = 10m;
@@ -85,10 +85,10 @@
 
             label_RedSpeed = new Label();
             label_RedSpeed.Location = new Point(6, 157);
-            label_RedSpeed.Size = new Size(120, 21);
+            label_RedSpeed.Size = new Size(150, 21);
             label_RedSpeed.Text = rm.GetString("DistanceHelper_RedSpeed_Label") ?? "红线速度倍率";
             numericUpDown_RedSpeed = new NumericUpDown();
-            numericUpDown_RedSpeed.Location = new Point(130, 155);
+            numericUpDown_RedSpeed.Location = new Point(160, 155);
             numericUpDown_RedSpeed.Size = new Size(60, 23);
             numericUpDown_RedSpeed.Minimum = 0.1m;
             numericUpDown_RedSpeed.Maximum = 10m;

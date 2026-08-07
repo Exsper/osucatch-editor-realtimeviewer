@@ -375,9 +375,9 @@
     <value>显示距离辅助线</value>
   </data>
   <data name="DistanceHelper_WhiteSpeed_Label" xml:space="preserve">
-    <value>白线速度倍率</value>
+    <value>白线速度倍率 (x)</value>
   </data>
   <data name="DistanceHelper_RedSpeed_Label" xml:space="preserve">
-    <value>红线速度倍率</value>
+    <value>红线速度倍率 (x)</value>
   </data>
 </root>
