@@ -220,6 +220,7 @@ namespace osucatch_editor_realtimeviewer
                 {
                     // 高频路径：只刷新播放头时间，其余数据沿用上次全量读取
                     cachedCollection!.EditorTime = reader.EditorTime();
+                    if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
                     fetchAll_Failed_Count = 0;
                     return cachedCollection;
                 }
@@ -237,6 +238,7 @@ namespace osucatch_editor_realtimeviewer
                 cachedTitle = beatmap_title;
                 lastFullFetchTimestamp = stopwatch.ElapsedMilliseconds;
                 fetchAll_Failed_Count = 0;
+                if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
                 return thisReaderData;
             }
             catch (Exception ex)
@@ -246,6 +248,40 @@ namespace osucatch_editor_realtimeviewer
                 return null;
             }
         }
+
+        /// <summary>
+        /// 轻量刷新选中态：只读编辑器当前的选中列表（1~2 次 ReadProcessMemory），
+        /// 原位更新 <see cref="BeatmapInfoCollection.HitObjectLines"/> 中每行的选中标志，供绘制实时查表。
+        /// 读取失败时沿用旧状态，避免闪烁。
+        /// </summary>
+        private void RefreshSelection(BeatmapInfoCollection collection)
+        {
+            if (!reader.TryReadSelectedIndices(out int[] selectedIndices))
+            {
+                return;
+            }
+
+            if (selectionScratch.Length != collection.NumObjects)
+            {
+                selectionScratch = new bool[collection.NumObjects];
+            }
+
+            Array.Fill(selectionScratch, false);
+            foreach (int index in selectedIndices)
+            {
+                if (index >= 0 && index < selectionScratch.Length)
+                {
+                    selectionScratch[index] = true;
+                }
+            }
+
+            foreach (ReaderHitObjectWithSelect line in collection.HitObjectLines)
+            {
+                line.IsSelect = line.MasterIndex >= 0 && line.MasterIndex < selectionScratch.Length && selectionScratch[line.MasterIndex];
+            }
+        }
+
+        private bool[] selectionScratch = Array.Empty<bool>();
 
         private bool IsFullFetchDue()
         {
@@ -357,7 +393,7 @@ namespace osucatch_editor_realtimeviewer
             BeatmapVersion = reader.BeatmapVersion;
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
-            HitObjectLines = reader.hitObjects.Select((ho) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected)).ToList();
+            HitObjectLines = reader.hitObjects.Select((ho, i) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected, i)).ToList();
             ControlPoints = reader.controlPoints;
             HitObjects = reader.hitObjects;
 
@@ -396,9 +432,9 @@ namespace osucatch_editor_realtimeviewer
 
             var NearbyHitObjects = FilterNearbyHitObjects(reader.hitObjects, partialLoadingHalfTimeSpan);
 
-            bool FindInvalid = NearbyHitObjects.Any(readerHitObject => readerHitObject.X > 1000 || readerHitObject.X < -1000 || readerHitObject.Y > 1000 || readerHitObject.Y < -1000 ||
-            readerHitObject.SegmentCount > 9000 || readerHitObject.Type == 0 || readerHitObject.SampleSet > 1000 ||
-            readerHitObject.SampleSetAdditions > 1000 || readerHitObject.SampleVolume > 1000);
+            bool FindInvalid = NearbyHitObjects.Any(pair => pair.Object.X > 1000 || pair.Object.X < -1000 || pair.Object.Y > 1000 || pair.Object.Y < -1000 ||
+            pair.Object.SegmentCount > 9000 || pair.Object.Type == 0 || pair.Object.SampleSet > 1000 ||
+            pair.Object.SampleSetAdditions > 1000 || pair.Object.SampleVolume > 1000);
             if (FindInvalid) throw new Exception("Find invalid hitObject.");
             // -----------------------
 
@@ -417,9 +453,9 @@ namespace osucatch_editor_realtimeviewer
             BeatmapVersion = reader.BeatmapVersion;
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
-            HitObjectLines = NearbyHitObjects.Select((ho) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected)).ToList();
+            HitObjectLines = NearbyHitObjects.Select((pair) => new ReaderHitObjectWithSelect(pair.Object.ToString(), pair.Object.IsSelected, pair.Index)).ToList();
             ControlPoints = reader.controlPoints;
-            HitObjects = NearbyHitObjects;
+            HitObjects = NearbyHitObjects.Select((pair) => pair.Object).ToList();
 
             // We don't need breaks because editor force a new combo after every break.
         }
@@ -427,18 +463,20 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>
         /// MUCH BOOST BUT IT CAUSE RANDOM ERROR.
         /// </summary>
-        private List<Editor_Reader.HitObject> FilterNearbyHitObjects(List<Editor_Reader.HitObject> hitObject, double halfTimeSpan)
+        private List<(int Index, Editor_Reader.HitObject Object)> FilterNearbyHitObjects(List<Editor_Reader.HitObject> hitObject, double halfTimeSpan)
         {
-            if (EditorTime < 0) return hitObject;
-            return hitObject.Where(ho =>
+            if (EditorTime < 0) return hitObject.Select((ho, i) => (i, ho)).ToList();
+            List<(int, Editor_Reader.HitObject)> result = new();
+            for (int i = 0; i < hitObject.Count; i++)
             {
-                // keep sliders & spins
-                if (EditorTime - ho.StartTime >= 0 && ho.EndTime - EditorTime >= 0) return true;
+                Editor_Reader.HitObject ho = hitObject[i];
+                // keep sliders & spins（跨过当前时间点的物件）
+                if (EditorTime - ho.StartTime >= 0 && ho.EndTime - EditorTime >= 0) { result.Add((i, ho)); continue; }
                 // keep the objects which |endtime - nowtime| < 10s, or which starttime - nowtime < 10s
-                if (EditorTime - ho.EndTime >= 0 && EditorTime - ho.EndTime <= halfTimeSpan) return true;
-                else if (ho.StartTime - EditorTime >= 0 && ho.StartTime - EditorTime <= halfTimeSpan) return true;
-                else return false;
-            }).ToList();
+                if (EditorTime - ho.EndTime >= 0 && EditorTime - ho.EndTime <= halfTimeSpan) { result.Add((i, ho)); continue; }
+                if (ho.StartTime - EditorTime >= 0 && ho.StartTime - EditorTime <= halfTimeSpan) { result.Add((i, ho)); continue; }
+            }
+            return result;
         }
 
 
@@ -539,11 +577,17 @@ namespace osucatch_editor_realtimeviewer
     {
         public string HitObjectLine;
         public bool IsSelect;
+        /// <summary>
+        /// 该物件在编辑器主物件列表中的下标（全量模式下与列表位置一致；
+        /// 过滤模式下用于把选中态映射回主列表下标）。
+        /// </summary>
+        public int MasterIndex = -1;
 
-        public ReaderHitObjectWithSelect(string hitObjectLine, bool IsSelect)
+        public ReaderHitObjectWithSelect(string hitObjectLine, bool IsSelect, int masterIndex = -1)
         {
             HitObjectLine = hitObjectLine;
             this.IsSelect = IsSelect;
+            MasterIndex = masterIndex;
         }
 
         public bool EqualTo(ReaderHitObjectWithSelect? other, bool isCheckSelected = false)

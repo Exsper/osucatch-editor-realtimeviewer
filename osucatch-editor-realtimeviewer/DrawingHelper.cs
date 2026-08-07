@@ -84,7 +84,8 @@ namespace osucatch_editor_realtimeviewer
 
         /// <summary>
         /// 编辑器读取的物件行（含最新选中态），顺序与解码后的 HitObjects 一致。
-        /// 绘制时通过 <see cref="PalpableCatchHitObject.SourceIndex"/> 实时查询选中态，
+        /// 高频 tick 时由 EditorReaderHelper 原位刷新 IsSelect，绘制时通过
+        /// <see cref="PalpableCatchHitObject.SourceIndex"/> 实时查询，
         /// 这样选中变化不需要触发全量解析/转换重建。
         /// </summary>
         public List<ReaderHitObjectWithSelect>? SelectionLines { get; set; }
@@ -651,9 +652,15 @@ namespace osucatch_editor_realtimeviewer
             int comboColorIndex = (hitObject.ComboIndex) % CustomComboColours.Count;
             Color4 color = CustomComboColours[comboColorIndex];
 
-            bool isSelected = (app.Default.Selected_Show) ? hitObject.IsSelected : false;
-            if (isSelected && SelectionLines != null && hitObject.SourceIndex >= 0 && hitObject.SourceIndex < SelectionLines.Count)
-                isSelected = SelectionLines[hitObject.SourceIndex].IsSelect;
+            bool isSelected = false;
+            if (app.Default.Selected_Show)
+            {
+                // 实时选中态优先（高频刷新，不依赖重建）；表不可用时回退到转换快照的选中标志
+                if (SelectionLines != null && hitObject.SourceIndex >= 0 && hitObject.SourceIndex < SelectionLines.Count)
+                    isSelected = SelectionLines[hitObject.SourceIndex].IsSelect;
+                else
+                    isSelected = hitObject.IsSelected;
+            }
 
             if (hitObject is TinyDroplet) Canvas.DrawTinyDroplet(pos, CircleDiameter, hitObject.Scale, color, withColor, hitObject.HyperDash, isSelected);
             else if (hitObject is Droplet) Canvas.DrawDroplet(pos, CircleDiameter, hitObject.Scale, color, withColor, hitObject.HyperDash, isSelected);

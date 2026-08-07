@@ -92,6 +92,12 @@ public class EditorReader
 
     private byte[] pObjects;
 
+    /// <summary>
+    /// 主物件列表指针 -> 主物件下标，用于轻量地把选中物件列表映射回 SourceIndex。
+    /// 每次 SetObjects 时重建。
+    /// </summary>
+    private Dictionary<IntPtr, int>? masterIndexByPointer;
+
     public List<HitObject> hitObjects;
 
     private IntPtr pClipboardL;
@@ -397,6 +403,67 @@ public class EditorReader
         return ok;
     }
 
+    /// <summary>
+    /// 轻量读取当前选中物件在主物件列表中的下标（0..numObjects-1，顺序不保证与主列表一致）。
+    /// 高频 tick 时使用，避免等待 150ms 一次的全量读取。
+    /// 不会抛异常；指针无效、读取失败或主物件指针表未就绪时返回 false（调用方沿用旧状态）。
+    /// </summary>
+    public bool TryReadSelectedIndices(out int[] selectedIndices)
+    {
+        selectedIndices = Array.Empty<int>();
+        if (process == null || pSelectedL == IntPtr.Zero || masterIndexByPointer == null)
+        {
+            return false;
+        }
+
+        if (!ReadProcessMemory(process.Handle, pSelectedL, buffer16, 16, ref bytesRead))
+        {
+            return false;
+        }
+
+        IntPtr pSelA = ToIntPtr(buffer16, 4);
+        int selCount = BitConverter.ToInt32(buffer16, 12);
+        if (selCount < 0 || selCount > 1000000)
+        {
+            return false;
+        }
+
+        if (selCount == 0)
+        {
+            return true;
+        }
+
+        if (pSelA == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        EnsureBuffer(ref pSelected, 4 * selCount);
+        if (!ReadProcessMemory(process.Handle, pSelA + 8, pSelected, 4 * selCount, ref bytesRead))
+        {
+            return false;
+        }
+
+        int[] result = new int[selCount];
+        int found = 0;
+        for (int i = 0; i < selCount; i++)
+        {
+            IntPtr objPtr = ToIntPtr(pSelected, 4 * i);
+            if (masterIndexByPointer.TryGetValue(objPtr, out int index))
+            {
+                result[found++] = index;
+            }
+        }
+
+        if (found != selCount)
+        {
+            Array.Resize(ref result, found);
+        }
+
+        selectedIndices = result;
+        return true;
+    }
+
     private bool ReadListCount(IntPtr pList, out int count)
     {
         count = -1;
@@ -483,6 +550,20 @@ public class EditorReader
         numObjects = SafeBitConverterToInt32(buffer16, 12, "numObjects");
         EnsureBuffer(ref pObjects, 4 * numObjects);
         SafeReadProcessMemory(process.Handle, pObjectsA + 8, pObjects, 4 * numObjects, ref bytesRead);
+
+        // 建立指针 -> 主物件下标映射，供高频选中读取使用
+        if (masterIndexByPointer == null || masterIndexByPointer.Count != numObjects)
+        {
+            masterIndexByPointer = new Dictionary<IntPtr, int>(numObjects);
+        }
+        else
+        {
+            masterIndexByPointer.Clear();
+        }
+        for (int i = 0; i < numObjects; i++)
+        {
+            masterIndexByPointer[ToIntPtr(pObjects, 4 * i)] = i;
+        }
     }
 
     public void ReadObjects(bool fetchHitSound = true)
