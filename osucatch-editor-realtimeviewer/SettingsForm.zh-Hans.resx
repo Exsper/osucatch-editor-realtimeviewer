@@ -389,4 +389,10 @@
   <data name="Template_Alpha_Label" xml:space="preserve">
     <value>透明度 (%)</value>
   </data>
+  <data name="ReadInterval_Full_Label" xml:space="preserve">
+    <value>全量读取</value>
+  </data>
+  <data name="ReadInterval_LowFreq_Label" xml:space="preserve">
+    <value>低频读取</value>
+  </data>
 </root>

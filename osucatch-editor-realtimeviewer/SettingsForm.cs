@@ -13,6 +13,10 @@
         private Button? button_TemplateColor;
         private Label? label_TemplateAlpha;
         private NumericUpDown? numericUpDown_TemplateAlpha;
+        private Label? label_FullReadInterval;
+        private NumericUpDown? numericUpDown_FullReadInterval;
+        private Label? label_LowFreqReadInterval;
+        private NumericUpDown? numericUpDown_LowFreqReadInterval;
 
         public SettingsForm()
         {
@@ -111,6 +115,38 @@
             CurveWidthComboBox.SelectedIndex = app.Default.Curve_Width - 1;
             CurveDashStyleComboBox.SelectedIndex = app.Default.Curve_LineStyle;
             CurveColorButton.BackColor = app.Default.Curve_Color;
+
+            // 全量/低频读取间隔（程序内创建；groupBox3 增高并下移 groupBox6 腾出空间）
+            groupBox3.Height = 176;
+            groupBox6.Top += 66;
+
+            label_FullReadInterval = new Label();
+            label_FullReadInterval.Location = new Point(6, 95);
+            label_FullReadInterval.Size = new Size(103, 17);
+            label_FullReadInterval.Text = rm.GetString("ReadInterval_Full_Label") ?? "Full read";
+            numericUpDown_FullReadInterval = new NumericUpDown();
+            numericUpDown_FullReadInterval.Location = new Point(118, 93);
+            numericUpDown_FullReadInterval.Size = new Size(78, 23);
+            numericUpDown_FullReadInterval.Minimum = 5m;
+            numericUpDown_FullReadInterval.Maximum = 10000m;
+            numericUpDown_FullReadInterval.Increment = 5m;
+            numericUpDown_FullReadInterval.Value = Math.Clamp(app.Default.FullRead_Interval, 5, 10000);
+            groupBox3.Controls.Add(label_FullReadInterval);
+            groupBox3.Controls.Add(numericUpDown_FullReadInterval);
+
+            label_LowFreqReadInterval = new Label();
+            label_LowFreqReadInterval.Location = new Point(6, 130);
+            label_LowFreqReadInterval.Size = new Size(103, 17);
+            label_LowFreqReadInterval.Text = rm.GetString("ReadInterval_LowFreq_Label") ?? "Low-freq read";
+            numericUpDown_LowFreqReadInterval = new NumericUpDown();
+            numericUpDown_LowFreqReadInterval.Location = new Point(118, 128);
+            numericUpDown_LowFreqReadInterval.Size = new Size(78, 23);
+            numericUpDown_LowFreqReadInterval.Minimum = 5m;
+            numericUpDown_LowFreqReadInterval.Maximum = 10000m;
+            numericUpDown_LowFreqReadInterval.Increment = 5m;
+            numericUpDown_LowFreqReadInterval.Value = Math.Clamp(app.Default.LowFreqRead_Interval, 5, 10000);
+            groupBox3.Controls.Add(label_LowFreqReadInterval);
+            groupBox3.Controls.Add(numericUpDown_LowFreqReadInterval);
 
             // 模板谱面虚线圆轮廓的颜色/透明度（程序内创建，避免改动 Designer/资源布局）
             groupBox_Template = new GroupBox();
@@ -237,6 +273,9 @@
 
             if (button_TemplateColor != null) app.Default.Template_Color = button_TemplateColor.BackColor;
             app.Default.Template_Alpha = (numericUpDown_TemplateAlpha != null) ? (int)numericUpDown_TemplateAlpha.Value : 35;
+
+            app.Default.FullRead_Interval = (numericUpDown_FullReadInterval != null) ? (int)numericUpDown_FullReadInterval.Value : 20;
+            app.Default.LowFreqRead_Interval = (numericUpDown_LowFreqReadInterval != null) ? (int)numericUpDown_LowFreqReadInterval.Value : 100;
 
             app.Default.Save();
 

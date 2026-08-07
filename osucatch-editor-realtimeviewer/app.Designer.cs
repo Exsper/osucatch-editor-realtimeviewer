@@ -970,5 +970,29 @@ namespace osucatch_editor_realtimeviewer {
                 this["Template_Alpha"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("20")]
+        public int FullRead_Interval {
+            get {
+                return ((int)(this["FullRead_Interval"]));
+            }
+            set {
+                this["FullRead_Interval"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("100")]
+        public int LowFreqRead_Interval {
+            get {
+                return ((int)(this["LowFreqRead_Interval"]));
+            }
+            set {
+                this["LowFreqRead_Interval"] = value;
+            }
+        }
     }
 }

@@ -29,9 +29,9 @@ namespace osucatch_editor_realtimeviewer
         private long lastEditorCheckTimestamp;
         private long lastFullFetchTimestamp;
         private bool editorCheckSucceeded;
-        // 静止时全量读取间隔；编辑器前台且鼠标正在移动（正在编辑器中操作）时用更短间隔，让预览实时跟随
-        private const long FullCheckIntervalMs = 100;
-        private const long FullCheckIntervalMsEditing = 30;
+        // 低频读取间隔（静止时）与全量读取间隔（编辑器前台且鼠标正在移动时），可在设置面板中自定义
+        private static long FullCheckIntervalMs => Math.Clamp(app.Default.LowFreqRead_Interval, 5, 10000);
+        private static long FullCheckIntervalMsEditing => Math.Clamp(app.Default.FullRead_Interval, 5, 10000);
 
         public EditorReaderHelper()
         {

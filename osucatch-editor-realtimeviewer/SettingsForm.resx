@@ -1826,6 +1826,12 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
   <data name="Template_Alpha_Label" xml:space="preserve">
     <value>Opacity (%)</value>
   </data>
+  <data name="ReadInterval_Full_Label" xml:space="preserve">
+    <value>Full read</value>
+  </data>
+  <data name="ReadInterval_LowFreq_Label" xml:space="preserve">
+    <value>Low-freq read</value>
+  </data>
   <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>True</value>
   </metadata>
