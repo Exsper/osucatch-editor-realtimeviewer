@@ -1817,6 +1817,15 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
   <data name="DistanceHelper_RedSpeed_Label" xml:space="preserve">
     <value>Red speed (x)</value>
   </data>
+  <data name="Template_GroupBox" xml:space="preserve">
+    <value>Template</value>
+  </data>
+  <data name="Template_Color_Label" xml:space="preserve">
+    <value>Outline color</value>
+  </data>
+  <data name="Template_Alpha_Label" xml:space="preserve">
+    <value>Opacity (%)</value>
+  </data>
   <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>True</value>
   </metadata>

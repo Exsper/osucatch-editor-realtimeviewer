@@ -946,5 +946,29 @@ namespace osucatch_editor_realtimeviewer {
                 this["Curve_Color"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("White")]
+        public global::System.Drawing.Color Template_Color {
+            get {
+                return ((global::System.Drawing.Color)(this["Template_Color"]));
+            }
+            set {
+                this["Template_Color"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("35")]
+        public int Template_Alpha {
+            get {
+                return ((int)(this["Template_Alpha"]));
+            }
+            set {
+                this["Template_Alpha"] = value;
+            }
+        }
     }
 }

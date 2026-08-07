@@ -8,6 +8,11 @@
         private NumericUpDown? numericUpDown_WhiteSpeed;
         private Label? label_RedSpeed;
         private NumericUpDown? numericUpDown_RedSpeed;
+        private GroupBox? groupBox_Template;
+        private Label? label_TemplateColor;
+        private Button? button_TemplateColor;
+        private Label? label_TemplateAlpha;
+        private NumericUpDown? numericUpDown_TemplateAlpha;
 
         public SettingsForm()
         {
@@ -106,6 +111,41 @@
             CurveWidthComboBox.SelectedIndex = app.Default.Curve_Width - 1;
             CurveDashStyleComboBox.SelectedIndex = app.Default.Curve_LineStyle;
             CurveColorButton.BackColor = app.Default.Curve_Color;
+
+            // 模板谱面虚线圆轮廓的颜色/透明度（程序内创建，避免改动 Designer/资源布局）
+            groupBox_Template = new GroupBox();
+            groupBox_Template.Text = rm.GetString("Template_GroupBox") ?? "Template";
+            groupBox_Template.Location = new Point(516, 408);
+            groupBox_Template.Size = new Size(209, 92);
+            groupBox_Template.TabStop = false;
+
+            label_TemplateColor = new Label();
+            label_TemplateColor.Location = new Point(6, 24);
+            label_TemplateColor.Size = new Size(100, 20);
+            label_TemplateColor.Text = rm.GetString("Template_Color_Label") ?? "Outline color";
+            button_TemplateColor = new Button();
+            button_TemplateColor.Location = new Point(110, 20);
+            button_TemplateColor.Size = new Size(80, 25);
+            button_TemplateColor.BackColor = app.Default.Template_Color;
+            button_TemplateColor.Click += button_TemplateColor_Click;
+
+            label_TemplateAlpha = new Label();
+            label_TemplateAlpha.Location = new Point(6, 56);
+            label_TemplateAlpha.Size = new Size(100, 20);
+            label_TemplateAlpha.Text = rm.GetString("Template_Alpha_Label") ?? "Opacity (%)";
+            numericUpDown_TemplateAlpha = new NumericUpDown();
+            numericUpDown_TemplateAlpha.Location = new Point(110, 54);
+            numericUpDown_TemplateAlpha.Size = new Size(60, 23);
+            numericUpDown_TemplateAlpha.Minimum = 0m;
+            numericUpDown_TemplateAlpha.Maximum = 100m;
+            numericUpDown_TemplateAlpha.Increment = 5m;
+            numericUpDown_TemplateAlpha.Value = Math.Clamp(app.Default.Template_Alpha, 0, 100);
+
+            groupBox_Template.Controls.Add(label_TemplateColor);
+            groupBox_Template.Controls.Add(button_TemplateColor);
+            groupBox_Template.Controls.Add(label_TemplateAlpha);
+            groupBox_Template.Controls.Add(numericUpDown_TemplateAlpha);
+            this.Controls.Add(groupBox_Template);
         }
 
         private void button_width_reset_Click(object sender, EventArgs e)
@@ -195,6 +235,9 @@
             app.Default.Curve_LineStyle = CurveDashStyleComboBox.SelectedIndex;
             app.Default.Curve_Color = CurveColorButton.BackColor;
 
+            if (button_TemplateColor != null) app.Default.Template_Color = button_TemplateColor.BackColor;
+            app.Default.Template_Alpha = (numericUpDown_TemplateAlpha != null) ? (int)numericUpDown_TemplateAlpha.Value : 35;
+
             app.Default.Save();
 
             Form1.NeedReapplySettings = true;
@@ -274,6 +317,15 @@
             if (colorDialog.ShowDialog() == DialogResult.OK)
             {
                 CurveColorButton.BackColor = colorDialog.Color;
+            }
+        }
+
+        private void button_TemplateColor_Click(object? sender, EventArgs e)
+        {
+            ColorDialog colorDialog = new ColorDialog();
+            if (colorDialog.ShowDialog() == DialogResult.OK)
+            {
+                button_TemplateColor!.BackColor = colorDialog.Color;
             }
         }
     }

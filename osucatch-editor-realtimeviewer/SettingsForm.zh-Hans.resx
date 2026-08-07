@@ -380,4 +380,13 @@
   <data name="DistanceHelper_RedSpeed_Label" xml:space="preserve">
     <value>红线速度倍率 (x)</value>
   </data>
+  <data name="Template_GroupBox" xml:space="preserve">
+    <value>模板</value>
+  </data>
+  <data name="Template_Color_Label" xml:space="preserve">
+    <value>轮廓颜色</value>
+  </data>
+  <data name="Template_Alpha_Label" xml:space="preserve">
+    <value>透明度 (%)</value>
+  </data>
 </root>

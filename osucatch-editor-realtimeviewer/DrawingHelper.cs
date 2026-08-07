@@ -243,7 +243,7 @@ namespace osucatch_editor_realtimeviewer
         }
 
         /// <summary>
-        /// 绘制模板谱面的参考物件：半透明白色虚线圆，置于主物件下层。
+        /// 绘制模板谱面的参考物件：半透明虚线圆（颜色/透明度可在设置中调整），置于主物件下层。
         /// 与主物件共用同一条时间轴（主图的 TimePerPixels），只画当前时间窗口内的物件。
         /// </summary>
         private void DrawTemplate()
@@ -255,7 +255,9 @@ namespace osucatch_editor_realtimeviewer
             int startIndex = TemplateLowerBound(templateObjects, CurrentTime - timeSpan);
             int endIndex = TemplateUpperBound(templateObjects, CurrentTime + timeSpan);
 
-            Color4 templateColor = new Color4(1f, 1f, 1f, 0.35f);
+            Color templateArgb = app.Default.Template_Color;
+            float templateAlpha = Math.Clamp(app.Default.Template_Alpha, 0, 100) / 100f;
+            Color4 templateColor = new Color4(templateArgb.R / 255f, templateArgb.G / 255f, templateArgb.B / 255f, templateAlpha);
             double baseY = (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
 
             for (int k = startIndex; k <= endIndex; k++)

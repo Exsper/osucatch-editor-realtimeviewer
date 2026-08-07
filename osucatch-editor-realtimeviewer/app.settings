@@ -233,5 +233,11 @@
     <Setting Name="Curve_Color" Type="System.Drawing.Color" Scope="User">
       <Value Profile="(Default)">Gray</Value>
     </Setting>
+    <Setting Name="Template_Color" Type="System.Drawing.Color" Scope="User">
+      <Value Profile="(Default)">White</Value>
+    </Setting>
+    <Setting Name="Template_Alpha" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">35</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
