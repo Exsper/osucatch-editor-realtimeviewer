@@ -13,6 +13,9 @@ namespace osucatch_editor_realtimeviewer
         private bool Is_Osu_Running = false;
         public bool Is_Editor_Running = false;
 
+        private int fetchEditor_Failed_Count = 0;
+        private const int FetchEditor_MaxRetry_Count = 10;
+
         public string beatmap_path = "";
         public string beatmap_title = "";
 
@@ -135,11 +138,11 @@ namespace osucatch_editor_realtimeviewer
                 editorCheckSucceeded = false;
                 return false;
             }
-            if (reader.EditorNeedsReload())
+            try
             {
-                Log.ConsoleLog("Editor needs Reload.", Log.LogType.EditorReader, Log.LogLevel.Info);
-                try
+                if (reader.EditorNeedsReload())
                 {
+                    Log.ConsoleLog("Editor needs Reload.", Log.LogType.EditorReader, Log.LogLevel.Info);
                     if (Is_Doing_SetProcess || Is_Doing_FetchEditor)
                     {
                         Log.ConsoleLog("Still fetching editor.", Log.LogType.EditorReader, Log.LogLevel.Info);
@@ -160,20 +163,39 @@ namespace osucatch_editor_realtimeviewer
                     Is_Osu_Running = true;
                     Is_Editor_Running = true;
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                Log.ConsoleLog("Fetch editor failed.\r\n" + ex, Log.LogType.EditorReader, Log.LogLevel.Error);
+                Is_Doing_FetchEditor = false;
+                Is_Editor_Running = false;
+                beatmap_path = "";
+                editorCheckSucceeded = false;
+
+                // 连续失败（例如 osu! test mode 快速进出后旧地址失效）时，强制重新绑定进程并清空 editor 地址，
+                // 避免永远停留在"检测到失效却不去重新扫描"的状态
+                fetchEditor_Failed_Count++;
+                if (fetchEditor_Failed_Count > FetchEditor_MaxRetry_Count)
                 {
-                    Log.ConsoleLog("Fetch editor failed.\r\n" + ex, Log.LogType.EditorReader, Log.LogLevel.Error);
-                    Is_Doing_FetchEditor = false;
-                    Is_Editor_Running = false;
-                    beatmap_path = "";
-                    editorCheckSucceeded = false;
-                    return false;
+                    Log.ConsoleLog("Refetching osu! process and editor...", Log.LogType.EditorReader, Log.LogLevel.Warning);
+                    fetchEditor_Failed_Count = 0;
+                    try
+                    {
+                        reader.SetProcess();
+                    }
+                    catch (Exception setProcessEx)
+                    {
+                        Log.ConsoleLog("Refetch osu! process failed.\r\n" + setProcessEx, Log.LogType.EditorReader, Log.LogLevel.Error);
+                    }
+                    reader.ResetEditor();
                 }
+                return false;
             }
             Is_Editor_Running = true;
             beatmap_title = title;
             lastEditorCheckTimestamp = stopwatch.ElapsedMilliseconds;
             editorCheckSucceeded = true;
+            fetchEditor_Failed_Count = 0;
             return true;
         }
 

@@ -314,16 +314,34 @@ public class EditorReader
         pEditor = FindEditorAddress();
     }
 
+    /// <summary>
+    /// 清空已缓存的编辑器地址，强制下一次检查时重新扫描内存。
+    /// </summary>
+    public void ResetEditor()
+    {
+        pEditor = IntPtr.Zero;
+    }
+
     public bool EditorNeedsReload()
     {
         if (ProcessNeedsReload())
         {
             return true;
         }
+        if (pEditor == IntPtr.Zero)
+        {
+            return true;
+        }
 
-        ReadProcessMemory(process.Handle, pEditor + 160, buffer16, 16, ref bytesRead);
-        ReadProcessMemory(process.Handle, pEditor + 208, buffer4, 4, ref bytesRead);
-        if (pEditor == IntPtr.Zero || BitConverter.ToBoolean(buffer4, 1) || BitConverter.ToInt32(buffer16, 0) != 35 || BitConverter.ToInt32(buffer16, 4) != 20 || BitConverter.ToInt32(buffer16, 8) != 25)
+        // 读取失败时必须视为需要重载，不能依赖上次成功读取残留的 buffer 值做判断
+        // （osu! 从 test mode 退出重建 editor 后，旧 pEditor 可能已失效，ReadProcessMemory 失败但 buffer 仍是旧签名）
+        if (!ReadProcessMemory(process.Handle, pEditor + 160, buffer16, 16, ref bytesRead) ||
+            !ReadProcessMemory(process.Handle, pEditor + 208, buffer4, 4, ref bytesRead))
+        {
+            return true;
+        }
+
+        if (BitConverter.ToBoolean(buffer4, 1) || BitConverter.ToInt32(buffer16, 0) != 35 || BitConverter.ToInt32(buffer16, 4) != 20 || BitConverter.ToInt32(buffer16, 8) != 25)
         {
             return true;
         }
@@ -333,16 +351,24 @@ public class EditorReader
 
     private bool EditorMissingObjects(IntPtr pE)
     {
-        SafeReadProcessMemory(process.Handle, pE + 28, buffer4, 4, ref bytesRead);
-        IntPtr intPtr = ToIntPtr(buffer4, 0);
-        SafeReadProcessMemory(process.Handle, intPtr + 72, buffer4, 4, ref bytesRead);
-        IntPtr intPtr2 = ToIntPtr(buffer4, 0);
-        if (!(intPtr == IntPtr.Zero))
+        try
         {
+            SafeReadProcessMemory(process.Handle, pE + 28, buffer4, 4, ref bytesRead);
+            IntPtr intPtr = ToIntPtr(buffer4, 0);
+            if (intPtr == IntPtr.Zero)
+            {
+                return true;
+            }
+            SafeReadProcessMemory(process.Handle, intPtr + 72, buffer4, 4, ref bytesRead);
+            IntPtr intPtr2 = ToIntPtr(buffer4, 0);
             return intPtr2 == IntPtr.Zero;
         }
-
-        return true;
+        catch
+        {
+            // 读取失败视为"对象缺失"：EditorNeedsReload 会据此返回 true（需要重载），
+            // FindEditorAddress 扫描中则跳过该候选继续扫描，避免假目标中断整次扫描
+            return true;
+        }
     }
 
     public int EditorTime()
