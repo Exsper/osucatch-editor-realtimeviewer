@@ -981,8 +981,17 @@ namespace osucatch_editor_realtimeviewer
         public static void ApplyResources(Form form)
         {
             ComponentResourceManager rm = new System.ComponentModel.ComponentResourceManager(form.GetType());
+
+            // $this 资源里含有设计时的 ClientSize/Location，语言切换时不应重置用户调整过的窗口布局，
+            // 因此在应用前后保存并恢复窗体的大小和位置（Text 等语言资源仍会正常应用）
+            Size formSize = form.Size;
+            Point formLocation = form.Location;
+
             rm.ApplyResources(form, "$this");
             AppLang(form, rm);
+
+            form.Size = formSize;
+            form.Location = formLocation;
 
             // 模板菜单文本跟随语言切换（并保留已加载模板的文件名后缀）
             if (form is Form1 form1)
