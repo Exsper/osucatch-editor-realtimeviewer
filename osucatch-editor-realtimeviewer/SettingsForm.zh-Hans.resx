@@ -371,4 +371,7 @@
   <data name="BarLineSubdivide_Item_Quarter" xml:space="preserve">
     <value>显示到拍</value>
   </data>
+  <data name="ShowDistanceHelper_Checkbox" xml:space="preserve">
+    <value>显示距离辅助线</value>
+  </data>
 </root>

@@ -3,6 +3,7 @@ using OpenTK.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Rulesets.Catch.Objects;
+using osu.Game.Rulesets.Catch.UI;
 using osu.Game.Rulesets.Objects;
 
 namespace osucatch_editor_realtimeviewer
@@ -232,6 +233,8 @@ namespace osucatch_editor_realtimeviewer
             }
 
             DrawBookmarkPlus(Bookmarks);
+
+            DrawDistanceHelper();
         }
 
         /// <summary>
@@ -423,6 +426,96 @@ namespace osucatch_editor_realtimeviewer
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// 距离辅助线（光锥）：当当前时间点上有 Fruit 时，
+        /// 从“上个物件”中心向左上/右上画两条放射线。
+        /// 白线 = 1x 走路速度（BASE_WALK_SPEED=0.5），红线 = 2x 走路速度（BASE_DASH_SPEED=1.0），
+        /// 用于判断当前放置物件相对上个物件的可达距离。
+        /// </summary>
+        private void DrawDistanceHelper()
+        {
+            if (!app.Default.Show_Distance_Helper) return;
+            if (CatchHitObjects == null || CatchHitObjects.Count <= 0) return;
+
+            int currentIndex = FindFruitIndexAtTime(CurrentTime);
+            if (currentIndex < 0) return;
+
+            PalpableCatchHitObject? previous = ((Fruit)CatchHitObjects[currentIndex]).lastObject;
+            if (previous == null) return;
+
+            double baseY = (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
+            double topY = (ScreensContain <= 1)
+                ? baseY - (ApproachTime + CircleDiameter * TimePerPixels)
+                : baseY - ScreensContain * ApproachTime * 1.25;
+            if (topY >= baseY) return;
+
+            double anchorX = 64 + previous.EffectiveX;
+            double anchorY = baseY - (previous.StartTime - CurrentTime) / TimePerPixels;
+
+            // 1x 走路速度：白线
+            DrawConeRays(anchorX, anchorY, topY, Catcher.BASE_WALK_SPEED, Color.White);
+            // 2x 走路速度：红线
+            DrawConeRays(anchorX, anchorY, topY, Catcher.BASE_DASH_SPEED, Color.Red);
+        }
+
+        /// <summary>
+        /// 从锚点画两条对称的向上放射线（右上、左上），延伸到可视窗口顶部，超出 playfield 时在边缘截断。
+        /// 屏幕坐标下时间轴向上为未来，速度 s 的斜率为 dy/dx = -1/(s * TimePerPixels)。
+        /// </summary>
+        private void DrawConeRays(double anchorX, double anchorY, double topY, double speed, Color color)
+        {
+            if (speed <= 0 || TimePerPixels <= 0) return;
+
+            double slope = 1.0 / (speed * TimePerPixels);
+            Vector2 anchor = new Vector2((float)anchorX, (float)anchorY);
+
+            Canvas.DrawLine(anchor, ConeRayEndpoint(anchorX, anchorY, topY, slope, +1), color);
+            Canvas.DrawLine(anchor, ConeRayEndpoint(anchorX, anchorY, topY, slope, -1), color);
+        }
+
+        private static Vector2 ConeRayEndpoint(double anchorX, double anchorY, double topY, double slope, double direction)
+        {
+            const double playLeft = 64;
+            const double playRight = 576;
+
+            double dyToTop = anchorY - topY;
+            double xAtTop = anchorX + direction * dyToTop / slope;
+
+            if (direction > 0)
+            {
+                if (xAtTop > playRight)
+                    return new Vector2((float)playRight, (float)(anchorY - slope * (playRight - anchorX)));
+                return new Vector2((float)xAtTop, (float)topY);
+            }
+
+            if (xAtTop < playLeft)
+                return new Vector2((float)playLeft, (float)(anchorY - slope * (anchorX - playLeft)));
+            return new Vector2((float)xAtTop, (float)topY);
+        }
+
+        /// <summary>
+        /// 在 CatchHitObjects（按 StartTime 升序）中找时间点（±1ms）上的 Fruit。
+        /// </summary>
+        private int FindFruitIndexAtTime(double time)
+        {
+            const double tolerance = 1.0;
+
+            int left = 0;
+            int right = CatchHitObjects.Count - 1;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (CatchHitObjects[mid].StartTime < time - tolerance) left = mid + 1;
+                else right = mid - 1;
+            }
+
+            for (int i = left; i < CatchHitObjects.Count && CatchHitObjects[i].StartTime <= time + tolerance; i++)
+            {
+                if (CatchHitObjects[i] is Fruit) return i;
+            }
+            return -1;
         }
 
         public void DrawBookmarkPlus(List<Bookmark> bookmarks)

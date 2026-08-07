@@ -286,6 +286,18 @@ namespace osucatch_editor_realtimeviewer {
                 this["BarLine_Subdivide"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool Show_Distance_Helper {
+            get {
+                return ((bool)(this["Show_Distance_Helper"]));
+            }
+            set {
+                this["Show_Distance_Helper"] = value;
+            }
+        }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]

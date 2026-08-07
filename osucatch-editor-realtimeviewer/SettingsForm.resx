@@ -434,7 +434,7 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
     <value>Timing Lines</value>
   </data>
   <data name="groupBox8.Location" type="System.Drawing.Point, System.Drawing">
-    <value>260, 411</value>
+    <value>260, 451</value>
   </data>
   <data name="&gt;&gt;button_timeOut_reset.ZOrder" xml:space="preserve">
     <value>0</value>
@@ -596,7 +596,7 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
     <value>7</value>
   </data>
   <data name="button_cancel.Location" type="System.Drawing.Point, System.Drawing">
-    <value>623, 535</value>
+    <value>623, 575</value>
   </data>
   <data name="numericUpDown_timeOut.Location" type="System.Drawing.Point, System.Drawing">
     <value>235, 66</value>
@@ -639,7 +639,7 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
     <value>...</value>
   </data>
   <data name="groupBox7.Size" type="System.Drawing.Size, System.Drawing">
-    <value>243, 110</value>
+    <value>243, 135</value>
   </data>
   <data name="numericUpDown_timeOut.Size" type="System.Drawing.Size, System.Drawing">
     <value>75, 23</value>
@@ -663,7 +663,7 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
     <value>textBox_osuFolder</value>
   </data>
   <data name="button_apply.Location" type="System.Drawing.Point, System.Drawing">
-    <value>495, 535</value>
+    <value>495, 575</value>
   </data>
   <data name="button_timeOut_reset.Text" xml:space="preserve">
     <value>↺</value>
@@ -1485,7 +1485,7 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
     <value>89, 21</value>
   </data>
   <data name="$this.ClientSize" type="System.Drawing.Size, System.Drawing">
-    <value>737, 579</value>
+    <value>737, 619</value>
   </data>
   <data name="&gt;&gt;checkBox_enableBackup.Type" xml:space="preserve">
     <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
@@ -1807,6 +1807,9 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
   </data>
   <data name="BarLineSubdivide_Item_Quarter" xml:space="preserve">
     <value>Show to beats</value>
+  </data>
+  <data name="ShowDistanceHelper_Checkbox" xml:space="preserve">
+    <value>Show distance guide</value>
   </data>
   <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>True</value>

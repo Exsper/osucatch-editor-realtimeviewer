@@ -3,6 +3,7 @@
     public partial class SettingsForm : Form
     {
         private ComboBox? comboBox_BarLineSubdivide;
+        private CheckBox? checkBox_ShowDistanceHelper;
 
         public SettingsForm()
         {
@@ -53,6 +54,14 @@
             comboBox_BarLineSubdivide.Items.Add(rm.GetString("BarLineSubdivide_Item_Quarter") ?? "显示到拍");
             comboBox_BarLineSubdivide.SelectedIndex = Math.Clamp(app.Default.BarLine_Subdivide, 0, 2);
             groupBox7.Controls.Add(comboBox_BarLineSubdivide);
+
+            // 距离辅助线开关
+            checkBox_ShowDistanceHelper = new CheckBox();
+            checkBox_ShowDistanceHelper.Location = new Point(6, 103);
+            checkBox_ShowDistanceHelper.Size = new Size(220, 21);
+            checkBox_ShowDistanceHelper.Text = rm.GetString("ShowDistanceHelper_Checkbox") ?? "显示距离辅助线";
+            checkBox_ShowDistanceHelper.Checked = app.Default.Show_Distance_Helper;
+            groupBox7.Controls.Add(checkBox_ShowDistanceHelper);
 
             checkBox_FilterNearbyHitObjects.Checked = app.Default.FilterNearbyHitObjects;
             numericUpDown_timeOut.Value = app.Default.WorkCancelAfter;
@@ -138,6 +147,7 @@
             app.Default.TimingLine_ShowGreen = checkBox_TimingLine_ShowGreen.Checked;
             app.Default.BarLine_Show = checkBox_BarLine_Show.Checked;
             app.Default.BarLine_Subdivide = (comboBox_BarLineSubdivide != null) ? comboBox_BarLineSubdivide.SelectedIndex : 0;
+            app.Default.Show_Distance_Helper = (checkBox_ShowDistanceHelper != null) && checkBox_ShowDistanceHelper.Checked;
 
             app.Default.FilterNearbyHitObjects = checkBox_FilterNearbyHitObjects.Checked;
             app.Default.WorkCancelAfter = (int)numericUpDown_timeOut.Value;
