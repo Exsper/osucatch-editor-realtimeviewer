@@ -2,6 +2,7 @@
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using Color = OpenTK.Graphics.Color4;
 
 namespace osucatch_editor_realtimeviewer
@@ -359,9 +360,30 @@ namespace osucatch_editor_realtimeviewer
                     GL.Disable(EnableCap.LineStipple);
                 }
 
-                GL.VertexPointer(2, VertexPointerType.Float, 0, batch.Positions);
-                GL.ColorPointer(4, ColorPointerType.Float, 0, batch.Colors);
+                DrawLineBatch(batch);
+            }
+        }
+
+        /// <summary>
+        /// 用 GCHandle 固定顶点/颜色数组后一次性绘制。
+        /// OpenTK 的泛型数组重载（VertexPointer&lt;T&gt; 等）内部用 C# fixed，
+        /// 只在设置指针的瞬间 pin，方法返回即解除；而 glDrawArrays 在之后才读取数组，
+        /// 两次调用之间数组可能被 GC 移动，导致读取已失效地址（c0000005，可能读到 0x0）。
+        /// </summary>
+        private static void DrawLineBatch(LineBatch batch)
+        {
+            GCHandle hPos = GCHandle.Alloc(batch.Positions, GCHandleType.Pinned);
+            GCHandle hCol = GCHandle.Alloc(batch.Colors, GCHandleType.Pinned);
+            try
+            {
+                GL.VertexPointer(2, VertexPointerType.Float, 0, hPos.AddrOfPinnedObject());
+                GL.ColorPointer(4, ColorPointerType.Float, 0, hCol.AddrOfPinnedObject());
                 GL.DrawArrays(PrimitiveType.Lines, 0, batch.VertexCount);
+            }
+            finally
+            {
+                hCol.Free();
+                hPos.Free();
             }
         }
 
@@ -372,11 +394,28 @@ namespace osucatch_editor_realtimeviewer
                 QuadBatch batch = pair.Value;
                 if (batch.VertexCount == 0) continue;
 
-                GL.BindTexture(TextureTarget.Texture2D, pair.Key.TextureId);
-                GL.VertexPointer(2, VertexPointerType.Float, 0, batch.Positions);
-                GL.ColorPointer(4, ColorPointerType.Float, 0, batch.Colors);
-                GL.TexCoordPointer(2, TexCoordPointerType.Float, 0, batch.TexCoords);
+                DrawQuadBatch(pair.Key, batch);
+            }
+        }
+
+        private static void DrawQuadBatch(Texture2D texture, QuadBatch batch)
+        {
+            GCHandle hPos = GCHandle.Alloc(batch.Positions, GCHandleType.Pinned);
+            GCHandle hCol = GCHandle.Alloc(batch.Colors, GCHandleType.Pinned);
+            GCHandle hTex = GCHandle.Alloc(batch.TexCoords, GCHandleType.Pinned);
+            try
+            {
+                GL.BindTexture(TextureTarget.Texture2D, texture.TextureId);
+                GL.VertexPointer(2, VertexPointerType.Float, 0, hPos.AddrOfPinnedObject());
+                GL.ColorPointer(4, ColorPointerType.Float, 0, hCol.AddrOfPinnedObject());
+                GL.TexCoordPointer(2, TexCoordPointerType.Float, 0, hTex.AddrOfPinnedObject());
                 GL.DrawArrays(PrimitiveType.Quads, 0, batch.VertexCount);
+            }
+            finally
+            {
+                hTex.Free();
+                hCol.Free();
+                hPos.Free();
             }
         }
 
