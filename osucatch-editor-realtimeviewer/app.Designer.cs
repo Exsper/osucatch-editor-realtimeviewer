@@ -298,6 +298,30 @@ namespace osucatch_editor_realtimeviewer {
                 this["Show_Distance_Helper"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public double Distance_Helper_White_Speed {
+            get {
+                return ((double)(this["Distance_Helper_White_Speed"]));
+            }
+            set {
+                this["Distance_Helper_White_Speed"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2")]
+        public double Distance_Helper_Red_Speed {
+            get {
+                return ((double)(this["Distance_Helper_Red_Speed"]));
+            }
+            set {
+                this["Distance_Helper_Red_Speed"] = value;
+            }
+        }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]

@@ -431,7 +431,7 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>
         /// 距离辅助线（光锥）：当当前时间点上有 Fruit 时，
         /// 从“上个物件”中心向左上/右上画两条放射线。
-        /// 白线 = 1x 走路速度（BASE_WALK_SPEED=0.5），红线 = 2x 走路速度（BASE_DASH_SPEED=1.0），
+        /// 白线默认 1x 走路速度、红线默认 2x，倍率可在设置中修改（速度 = BASE_WALK_SPEED × 倍率），
         /// 用于判断当前放置物件相对上个物件的可达距离。
         /// </summary>
         private void DrawDistanceHelper()
@@ -454,10 +454,13 @@ namespace osucatch_editor_realtimeviewer
             double anchorX = 64 + previous.EffectiveX;
             double anchorY = baseY - (previous.StartTime - CurrentTime) / TimePerPixels;
 
-            // 1x 走路速度：白线
-            DrawConeRays(anchorX, anchorY, topY, Catcher.BASE_WALK_SPEED, Color.White);
-            // 2x 走路速度：红线
-            DrawConeRays(anchorX, anchorY, topY, Catcher.BASE_DASH_SPEED, Color.Red);
+            // 白线：走路速度 × 用户倍率（默认 1x）
+            double whiteSpeed = Catcher.BASE_WALK_SPEED * Math.Max(0, app.Default.Distance_Helper_White_Speed);
+            // 红线：走路速度 × 用户倍率（默认 2x）
+            double redSpeed = Catcher.BASE_WALK_SPEED * Math.Max(0, app.Default.Distance_Helper_Red_Speed);
+
+            DrawConeRays(anchorX, anchorY, topY, whiteSpeed, Color.White);
+            DrawConeRays(anchorX, anchorY, topY, redSpeed, Color.Red);
         }
 
         /// <summary>

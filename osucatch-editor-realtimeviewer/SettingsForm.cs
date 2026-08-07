@@ -4,6 +4,10 @@
     {
         private ComboBox? comboBox_BarLineSubdivide;
         private CheckBox? checkBox_ShowDistanceHelper;
+        private Label? label_WhiteSpeed;
+        private NumericUpDown? numericUpDown_WhiteSpeed;
+        private Label? label_RedSpeed;
+        private NumericUpDown? numericUpDown_RedSpeed;
 
         public SettingsForm()
         {
@@ -62,6 +66,37 @@
             checkBox_ShowDistanceHelper.Text = rm.GetString("ShowDistanceHelper_Checkbox") ?? "显示距离辅助线";
             checkBox_ShowDistanceHelper.Checked = app.Default.Show_Distance_Helper;
             groupBox7.Controls.Add(checkBox_ShowDistanceHelper);
+
+            // 白线/红线速度倍率（相对盘子走路速度的倍数，1x = BASE_WALK_SPEED = 0.5）
+            label_WhiteSpeed = new Label();
+            label_WhiteSpeed.Location = new Point(6, 130);
+            label_WhiteSpeed.Size = new Size(120, 21);
+            label_WhiteSpeed.Text = rm.GetString("DistanceHelper_WhiteSpeed_Label") ?? "白线速度倍率";
+            numericUpDown_WhiteSpeed = new NumericUpDown();
+            numericUpDown_WhiteSpeed.Location = new Point(130, 128);
+            numericUpDown_WhiteSpeed.Size = new Size(60, 23);
+            numericUpDown_WhiteSpeed.Minimum = 0.1m;
+            numericUpDown_WhiteSpeed.Maximum = 10m;
+            numericUpDown_WhiteSpeed.DecimalPlaces = 2;
+            numericUpDown_WhiteSpeed.Increment = 0.25m;
+            numericUpDown_WhiteSpeed.Value = Math.Clamp((decimal)app.Default.Distance_Helper_White_Speed, numericUpDown_WhiteSpeed.Minimum, numericUpDown_WhiteSpeed.Maximum);
+            groupBox7.Controls.Add(label_WhiteSpeed);
+            groupBox7.Controls.Add(numericUpDown_WhiteSpeed);
+
+            label_RedSpeed = new Label();
+            label_RedSpeed.Location = new Point(6, 157);
+            label_RedSpeed.Size = new Size(120, 21);
+            label_RedSpeed.Text = rm.GetString("DistanceHelper_RedSpeed_Label") ?? "红线速度倍率";
+            numericUpDown_RedSpeed = new NumericUpDown();
+            numericUpDown_RedSpeed.Location = new Point(130, 155);
+            numericUpDown_RedSpeed.Size = new Size(60, 23);
+            numericUpDown_RedSpeed.Minimum = 0.1m;
+            numericUpDown_RedSpeed.Maximum = 10m;
+            numericUpDown_RedSpeed.DecimalPlaces = 2;
+            numericUpDown_RedSpeed.Increment = 0.25m;
+            numericUpDown_RedSpeed.Value = Math.Clamp((decimal)app.Default.Distance_Helper_Red_Speed, numericUpDown_RedSpeed.Minimum, numericUpDown_RedSpeed.Maximum);
+            groupBox7.Controls.Add(label_RedSpeed);
+            groupBox7.Controls.Add(numericUpDown_RedSpeed);
 
             checkBox_FilterNearbyHitObjects.Checked = app.Default.FilterNearbyHitObjects;
             numericUpDown_timeOut.Value = app.Default.WorkCancelAfter;
@@ -148,6 +183,8 @@
             app.Default.BarLine_Show = checkBox_BarLine_Show.Checked;
             app.Default.BarLine_Subdivide = (comboBox_BarLineSubdivide != null) ? comboBox_BarLineSubdivide.SelectedIndex : 0;
             app.Default.Show_Distance_Helper = (checkBox_ShowDistanceHelper != null) && checkBox_ShowDistanceHelper.Checked;
+            app.Default.Distance_Helper_White_Speed = (numericUpDown_WhiteSpeed != null) ? (double)numericUpDown_WhiteSpeed.Value : 1.0;
+            app.Default.Distance_Helper_Red_Speed = (numericUpDown_RedSpeed != null) ? (double)numericUpDown_RedSpeed.Value : 2.0;
 
             app.Default.FilterNearbyHitObjects = checkBox_FilterNearbyHitObjects.Checked;
             app.Default.WorkCancelAfter = (int)numericUpDown_timeOut.Value;

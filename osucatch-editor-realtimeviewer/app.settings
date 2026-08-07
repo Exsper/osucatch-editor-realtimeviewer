@@ -71,6 +71,12 @@
     <Setting Name="Show_Distance_Helper" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="Distance_Helper_White_Speed" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">1</Value>
+    </Setting>
+    <Setting Name="Distance_Helper_Red_Speed" Type="System.Double" Scope="User">
+      <Value Profile="(Default)">2</Value>
+    </Setting>
     <Setting Name="ScreensContain" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">4</Value>
     </Setting>
