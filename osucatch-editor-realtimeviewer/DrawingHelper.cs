@@ -87,6 +87,11 @@ namespace osucatch_editor_realtimeviewer
         public List<ReaderHitObjectWithSelect>? SelectionLines { get; set; }
 
         /// <summary>
+        /// 参考模板谱面（只读，仅用于绘制下层虚线透明参考物件）。
+        /// </summary>
+        public TemplateBeatmapData? Template { get; set; }
+
+        /// <summary>
         /// How many screens add up to the height of canvas.
         /// </summary>
         public int ScreensContain { get; set; }
@@ -145,6 +150,8 @@ namespace osucatch_editor_realtimeviewer
         public void Draw()
         {
             BuildNearby();
+
+            DrawTemplate();
 
             if (app.Default.Show_CubicFittingCurve) DrawSpline();
 
@@ -225,6 +232,75 @@ namespace osucatch_editor_realtimeviewer
             }
 
             DrawBookmarkPlus(Bookmarks);
+        }
+
+        /// <summary>
+        /// 绘制模板谱面的参考物件：半透明白色虚线圆，置于主物件下层。
+        /// 与主物件共用同一条时间轴（主图的 TimePerPixels），只画当前时间窗口内的物件。
+        /// </summary>
+        private void DrawTemplate()
+        {
+            if (Template == null || Template.Objects.Count <= 0) return;
+
+            List<PalpableCatchHitObject> templateObjects = Template.Objects;
+            double timeSpan = ScreensContain * ApproachTime * 1.25 + CircleDiameter * TimePerPixels * 2;
+            int startIndex = TemplateLowerBound(templateObjects, CurrentTime - timeSpan);
+            int endIndex = TemplateUpperBound(templateObjects, CurrentTime + timeSpan);
+
+            Color4 templateColor = new Color4(1f, 1f, 1f, 0.35f);
+            double baseY = (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
+
+            for (int k = startIndex; k <= endIndex; k++)
+            {
+                if (k < 0 || k >= templateObjects.Count) continue;
+                PalpableCatchHitObject obj = templateObjects[k];
+
+                double deltaTime = obj.StartTime - CurrentTime;
+                if (ScreensContain <= 1)
+                {
+                    double upTime = ApproachTime + CircleDiameter * TimePerPixels;
+                    double bottomTime = ApproachTime * 3 / 17 + CircleDiameter * TimePerPixels;
+                    if (deltaTime > upTime || deltaTime < -bottomTime) continue;
+                }
+                else
+                {
+                    double span = ScreensContain * ApproachTime * 1.25;
+                    if (deltaTime > span || deltaTime < -span) continue;
+                }
+
+                float diameter = Template.CircleDiameter;
+                if (obj is TinyDroplet) diameter *= obj.Scale / 2f;
+                else if (obj is Droplet) diameter *= obj.Scale;
+
+                float posY = (float)(baseY - deltaTime / TimePerPixels);
+                Canvas.DrawDashedCircleOutline(new Vector2(64 + obj.EffectiveX, posY), diameter / 2f, templateColor);
+            }
+        }
+
+        private static int TemplateLowerBound(List<PalpableCatchHitObject> objects, double target)
+        {
+            int left = 0;
+            int right = objects.Count - 1;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (objects[mid].StartTime < target) left = mid + 1;
+                else right = mid - 1;
+            }
+            return right >= 0 ? right : 0;
+        }
+
+        private static int TemplateUpperBound(List<PalpableCatchHitObject> objects, double target)
+        {
+            int left = 0;
+            int right = objects.Count - 1;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (objects[mid].StartTime <= target) left = mid + 1;
+                else right = mid - 1;
+            }
+            return left < objects.Count ? left : objects.Count - 1;
         }
 
         public void DrawBarLines(List<BarLine> barLines)

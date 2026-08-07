@@ -183,6 +183,22 @@ namespace osucatch_editor_realtimeviewer
             AddLine(start, end, color, width, pattern, stipple, beforeTextures);
         }
 
+        /// <summary>
+        /// 绘制虚线圆轮廓（用于模板参考物件，半透明由颜色 alpha 控制）。
+        /// </summary>
+        public static void DrawDashedCircleOutline(Vector2 center, float radius, Color4 color, bool beforeTextures = true)
+        {
+            const int segments = 24;
+            for (int i = 0; i < segments; i++)
+            {
+                double angle0 = 2.0 * Math.PI * i / segments;
+                double angle1 = 2.0 * Math.PI * (i + 1) / segments;
+                Vector2 p0 = new Vector2(center.X + (float)Math.Cos(angle0) * radius, center.Y + (float)Math.Sin(angle0) * radius);
+                Vector2 p1 = new Vector2(center.X + (float)Math.Cos(angle1) * radius, center.Y + (float)Math.Sin(angle1) * radius);
+                AddLine(p0, p1, color, 1f, 0x00FF, true, beforeTextures);
+            }
+        }
+
         private static void DrawHitObjectLabel(Texture2D? texture, Vector2 notePos, float diameter, Color color)
         {
             if (texture == null) return;

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Win32;
 using osu.Game.Beatmaps;
+using osu.Game.Rulesets.Catch.Objects;
 using osu.Game.Rulesets.Mods;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -26,6 +27,12 @@ namespace osucatch_editor_realtimeviewer
         private int _rebuildTaskGeneration;
         private int _rebuildGeneration;
         private long _rebuildRetryTicks;
+
+        // 模板谱面（只读参考）
+        private ToolStripMenuItem? templateToolStripMenuItem;
+        private ToolStripMenuItem? selectTemplateStripMenuItem;
+        private ToolStripMenuItem? unloadTemplateStripMenuItem;
+        private TemplateBeatmapData? templateData;
 
         /// <summary>
         /// 已提交（正在绘制）的解析/转换结果快照。
@@ -104,6 +111,9 @@ namespace osucatch_editor_realtimeviewer
         {
             InitializeComponent();
 
+            // 模板菜单在构造函数里创建，确保语言资源能应用到它
+            CreateTemplateMenu();
+
             if (app.Default.Language_String != "")
             {
                 defaultLanguageToolStripMenuItem.Checked = false;
@@ -118,6 +128,8 @@ namespace osucatch_editor_realtimeviewer
                 defaultLanguageToolStripMenuItem.Checked = true;
                 englishLanguageToolStripMenuItem.Checked = false;
                 zhHansLanguageToolStripMenuItem.Checked = false;
+                // 跟随系统语言：模板菜单也要应用资源文本
+                Form1.ApplyResources(this);
             }
 
             if (app.Default.Window_X >= 0 && app.Default.Window_Y >= 0)
@@ -971,6 +983,12 @@ namespace osucatch_editor_realtimeviewer
             ComponentResourceManager rm = new System.ComponentModel.ComponentResourceManager(form.GetType());
             rm.ApplyResources(form, "$this");
             AppLang(form, rm);
+
+            // 模板菜单文本跟随语言切换（并保留已加载模板的文件名后缀）
+            if (form is Form1 form1)
+            {
+                form1.RestoreTemplateMenuText();
+            }
         }
 
         private static void AppLang(ToolStripMenuItem item, System.ComponentModel.ComponentResourceManager resources)
@@ -1075,6 +1093,129 @@ namespace osucatch_editor_realtimeviewer
 
             // 关闭当前应用程序
             Application.Exit();
+        }
+
+        private async void selectTemplateStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Title = "选择模板谱面";
+                openFileDialog.Filter = "osu Beatmap (*.osu)|*.osu";
+
+                // 默认文件夹为当前读取的 osu 文件所在文件夹
+                string defaultFolder = "";
+                if (_committed.Reader != null && _committed.Reader.ContainingFolder != "")
+                {
+                    defaultFolder = Path.Combine(app.Default.osu_path, "Songs", _committed.Reader.ContainingFolder);
+                    if (!Directory.Exists(defaultFolder)) defaultFolder = "";
+                }
+                if (defaultFolder == "") defaultFolder = Path.Combine(app.Default.osu_path, "Songs");
+                if (Directory.Exists(defaultFolder)) openFileDialog.InitialDirectory = defaultFolder;
+
+                if (openFileDialog.ShowDialog() != DialogResult.OK) return;
+
+                string filePath = openFileDialog.FileName;
+                selectTemplateStripMenuItem.Enabled = false;
+                try
+                {
+                    TemplateBeatmapData? data = await Task.Run(() => LoadTemplate(filePath));
+                    if (data == null)
+                    {
+                        MessageBox.Show("模板加载失败，文件可能不是有效的 osu 谱面。", "模板", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    templateData = data;
+                    drawingHelper.Template = data;
+                    unloadTemplateStripMenuItem.Enabled = true;
+                    RestoreTemplateMenuText();
+                    Log.ConsoleLog("Template loaded: " + filePath, Log.LogType.Program, Log.LogLevel.Info);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("模板加载失败：\r\n" + ex.Message, "模板", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    selectTemplateStripMenuItem.Enabled = true;
+                }
+            }
+        }
+
+        private void unloadTemplateStripMenuItem_Click(object sender, EventArgs e)
+        {
+            templateData = null;
+            drawingHelper.Template = null;
+            unloadTemplateStripMenuItem.Enabled = false;
+            RestoreTemplateMenuText();
+            Log.ConsoleLog("Template unloaded.", Log.LogType.Program, Log.LogLevel.Info);
+        }
+
+        /// <summary>
+        /// 程序内创建模板菜单（设在构造函数中，早于语言资源的应用）。
+        /// </summary>
+        private void CreateTemplateMenu()
+        {
+            templateToolStripMenuItem = new ToolStripMenuItem();
+            templateToolStripMenuItem.Name = "templateToolStripMenuItem";
+            templateToolStripMenuItem.Text = "模板";
+            selectTemplateStripMenuItem = new ToolStripMenuItem();
+            selectTemplateStripMenuItem.Name = "selectTemplateStripMenuItem";
+            selectTemplateStripMenuItem.Text = "选择模板谱面...";
+            selectTemplateStripMenuItem.Click += selectTemplateStripMenuItem_Click;
+            unloadTemplateStripMenuItem = new ToolStripMenuItem();
+            unloadTemplateStripMenuItem.Name = "unloadTemplateStripMenuItem";
+            unloadTemplateStripMenuItem.Text = "卸载模板";
+            unloadTemplateStripMenuItem.Enabled = false;
+            unloadTemplateStripMenuItem.Click += unloadTemplateStripMenuItem_Click;
+            templateToolStripMenuItem.DropDownItems.Add(selectTemplateStripMenuItem);
+            templateToolStripMenuItem.DropDownItems.Add(unloadTemplateStripMenuItem);
+            menuStrip1.Items.Insert(1, templateToolStripMenuItem);
+        }
+
+        /// <summary>
+        /// 在语言资源应用后恢复“卸载模板”菜单文本：
+        /// 去掉可能已附加的文件名后缀，若已加载模板则按当前语言文本补回后缀。
+        /// </summary>
+        private void RestoreTemplateMenuText()
+        {
+            if (unloadTemplateStripMenuItem == null) return;
+
+            string baseText = unloadTemplateStripMenuItem.Text;
+            int suffixIndex = baseText.LastIndexOf(" (");
+            if (suffixIndex > 0) baseText = baseText.Substring(0, suffixIndex);
+
+            unloadTemplateStripMenuItem.Text = (templateData != null) ? baseText + " (" + templateData.Filename + ")" : baseText;
+        }
+
+        /// <summary>
+        /// 解析模板 .osu 文件并转换为可接物件（在后台线程执行）。
+        /// 只读使用，不影响主谱面的解析/转换时序。
+        /// </summary>
+        private static TemplateBeatmapData? LoadTemplate(string path)
+        {
+            Beatmap? beatmap = BeatmapBuilder.BuildNewBeatmapFromBeatmapFile(path);
+            if (beatmap == null) return null;
+
+            BeatmapConverter converter = app.Default.Use_Stable_Converter ? new BeatmapConverterOsuStable() : new BeatmapConverter();
+            IBeatmap? converted = converter.GetConvertedBeatmap(beatmap, 0);
+            if (converted == null) return null;
+
+            List<PalpableCatchHitObject> objects = converter.GetPalpableObjects(converted, 0);
+            if (objects.Count <= 0) return null;
+
+            float circleDiameter = (float)(108.848 - converted.Difficulty.CircleSize * 8.9646);
+            int approachTime = (int)((converted.Difficulty.ApproachRate < 5)
+                ? 1800 - converted.Difficulty.ApproachRate * 120
+                : 1200 - (converted.Difficulty.ApproachRate - 5) * 150);
+
+            return new TemplateBeatmapData
+            {
+                FilePath = path,
+                Filename = Path.GetFileName(path),
+                Objects = objects,
+                CircleDiameter = circleDiameter,
+                ApproachTime = approachTime,
+            };
         }
 
         private void TopWhenEditorFocusToolStripMenuItem_Click(object sender, EventArgs e)

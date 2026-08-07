@@ -1003,4 +1003,13 @@
   <data name="&gt;&gt;$this.Type" xml:space="preserve">
     <value>System.Windows.Forms.Form, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
+  <data name="templateToolStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Template</value>
+  </data>
+  <data name="selectTemplateStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Select Template...</value>
+  </data>
+  <data name="unloadTemplateStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Unload Template</value>
+  </data>
 </root>
