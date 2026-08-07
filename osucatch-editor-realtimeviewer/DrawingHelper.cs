@@ -305,6 +305,9 @@ namespace osucatch_editor_realtimeviewer
 
         public void DrawBarLines(List<BarLine> barLines)
         {
+            int subdivide = app.Default.BarLine_Subdivide;
+            bool drawSubdivisions = subdivide > 0 && ControlPointInfo != null;
+
             barLines.ForEach(barLine =>
             {
                 if (barLine.StartTime < 0) return;
@@ -319,6 +322,7 @@ namespace osucatch_editor_realtimeviewer
                         Vector2 rp1 = new Vector2(576, posY);
                         if (barLine.Major) Canvas.DrawLine(rp0, rp1, Color.LightGray);
                         else Canvas.DrawLine(rp0, rp1, Color.Gray);
+                        if (drawSubdivisions) DrawBarLineSubdivisions(barLine, subdivide);
                     }
                 }
                 else
@@ -332,9 +336,93 @@ namespace osucatch_editor_realtimeviewer
                         Vector2 rp1 = new Vector2(576, posY);
                         if (barLine.Major) Canvas.DrawLine(rp0, rp1, Color.LightGray);
                         else Canvas.DrawLine(rp0, rp1, Color.Gray);
+                        if (drawSubdivisions) DrawBarLineSubdivisions(barLine, subdivide);
                     }
                 }
             });
+        }
+
+        /// <summary>
+        /// 绘制小节线的拍点细分线：
+        /// “显示到2拍”每隔 2 拍一条，“显示到拍”每一拍一条。
+        /// 统一用淡白线（比小节线更淡），避免与 editor 中表示“拍”的 1/2、1/4 混淆。
+        /// 不越过下一条小节线。
+        /// </summary>
+        private void DrawBarLineSubdivisions(BarLine barLine, int subdivide)
+        {
+            if (ControlPointInfo == null) return;
+
+            TimingControlPoint timing = ControlPointInfo.TimingPointAt(barLine.StartTime);
+            double beatLength = timing.BeatLength;
+            if (beatLength <= 0) return;
+
+            int beatsPerMeasure = timing.TimeSignature.Numerator;
+            double nextBarTime = NextBarLineTime(barLine.StartTime);
+            Color subdivisionColor = Color.FromArgb(90, Color.White);
+
+            if (subdivide >= 2)
+            {
+                // 每一拍一条（2 拍位置也包含在内，颜色相同无需去重）
+                for (int beat = 1; beat < beatsPerMeasure; beat++)
+                {
+                    double time = barLine.StartTime + beat * beatLength;
+                    if (time < nextBarTime) DrawSubdivisionLine(time, subdivisionColor);
+                }
+            }
+            else if (subdivide >= 1)
+            {
+                // 每隔 2 拍一条
+                for (int beat = 2; beat < beatsPerMeasure; beat += 2)
+                {
+                    double time = barLine.StartTime + beat * beatLength;
+                    if (time < nextBarTime) DrawSubdivisionLine(time, subdivisionColor);
+                }
+            }
+        }
+
+        private void DrawSubdivisionLine(double time, Color color)
+        {
+            double deltaTime = time - CurrentTime;
+            double baseY = (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
+
+            if (ScreensContain <= 1)
+            {
+                double upTime = ApproachTime;
+                double bottomTime = ApproachTime * 3 / 17;
+                if (deltaTime > upTime || deltaTime < -bottomTime) return;
+            }
+            else
+            {
+                double span = ScreensContain * ApproachTime * 1.25;
+                if (deltaTime > span || deltaTime < -span) return;
+            }
+
+            int posY = (int)(baseY - deltaTime / TimePerPixels);
+            Canvas.DrawLine(new Vector2(64, posY), new Vector2(576, posY), color);
+        }
+
+        /// <summary>
+        /// BarLines 按时间升序，二分查找第一条晚于指定时间的小节线。
+        /// </summary>
+        private double NextBarLineTime(double time)
+        {
+            int left = 0;
+            int right = BarLines.Count - 1;
+            double result = double.MaxValue;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (BarLines[mid].StartTime > time)
+                {
+                    result = BarLines[mid].StartTime;
+                    right = mid - 1;
+                }
+                else
+                {
+                    left = mid + 1;
+                }
+            }
+            return result;
         }
 
         public void DrawBookmarkPlus(List<Bookmark> bookmarks)

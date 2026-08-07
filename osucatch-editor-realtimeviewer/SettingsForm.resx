@@ -1799,6 +1799,15 @@ Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
   <data name="label10.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
+  <data name="BarLineSubdivide_Item_None" xml:space="preserve">
+    <value>Show to measure</value>
+  </data>
+  <data name="BarLineSubdivide_Item_Half" xml:space="preserve">
+    <value>Show to 2 beats</value>
+  </data>
+  <data name="BarLineSubdivide_Item_Quarter" xml:space="preserve">
+    <value>Show to beats</value>
+  </data>
   <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>True</value>
   </metadata>

@@ -2,6 +2,8 @@
 {
     public partial class SettingsForm : Form
     {
+        private ComboBox? comboBox_BarLineSubdivide;
+
         public SettingsForm()
         {
             InitializeComponent();
@@ -39,6 +41,18 @@
             checkBox_TimingLine_ShowRed.Checked = app.Default.TimingLine_ShowRed;
             checkBox_TimingLine_ShowGreen.Checked = app.Default.TimingLine_ShowGreen;
             checkBox_BarLine_Show.Checked = app.Default.BarLine_Show;
+
+            // 小节线细分选择（程序内创建，避免改动 Designer/资源布局）
+            comboBox_BarLineSubdivide = new ComboBox();
+            comboBox_BarLineSubdivide.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBox_BarLineSubdivide.Location = new Point(127, 76);
+            comboBox_BarLineSubdivide.Size = new Size(110, 25);
+            System.ComponentModel.ComponentResourceManager rm = new System.ComponentModel.ComponentResourceManager(typeof(SettingsForm));
+            comboBox_BarLineSubdivide.Items.Add(rm.GetString("BarLineSubdivide_Item_None") ?? "显示到小节");
+            comboBox_BarLineSubdivide.Items.Add(rm.GetString("BarLineSubdivide_Item_Half") ?? "显示到2拍");
+            comboBox_BarLineSubdivide.Items.Add(rm.GetString("BarLineSubdivide_Item_Quarter") ?? "显示到拍");
+            comboBox_BarLineSubdivide.SelectedIndex = Math.Clamp(app.Default.BarLine_Subdivide, 0, 2);
+            groupBox7.Controls.Add(comboBox_BarLineSubdivide);
 
             checkBox_FilterNearbyHitObjects.Checked = app.Default.FilterNearbyHitObjects;
             numericUpDown_timeOut.Value = app.Default.WorkCancelAfter;
@@ -123,6 +137,7 @@
             app.Default.TimingLine_ShowRed = checkBox_TimingLine_ShowRed.Checked;
             app.Default.TimingLine_ShowGreen = checkBox_TimingLine_ShowGreen.Checked;
             app.Default.BarLine_Show = checkBox_BarLine_Show.Checked;
+            app.Default.BarLine_Subdivide = (comboBox_BarLineSubdivide != null) ? comboBox_BarLineSubdivide.SelectedIndex : 0;
 
             app.Default.FilterNearbyHitObjects = checkBox_FilterNearbyHitObjects.Checked;
             app.Default.WorkCancelAfter = (int)numericUpDown_timeOut.Value;

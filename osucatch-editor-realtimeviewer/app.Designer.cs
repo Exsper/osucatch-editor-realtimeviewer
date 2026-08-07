@@ -274,6 +274,18 @@ namespace osucatch_editor_realtimeviewer {
                 this["BarLine_Show"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int BarLine_Subdivide {
+            get {
+                return ((int)(this["BarLine_Subdivide"]));
+            }
+            set {
+                this["BarLine_Subdivide"] = value;
+            }
+        }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]

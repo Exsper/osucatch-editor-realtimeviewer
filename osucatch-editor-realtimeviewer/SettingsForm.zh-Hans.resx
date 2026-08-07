@@ -362,4 +362,13 @@
   <data name="$this.Text" xml:space="preserve">
     <value>设置</value>
   </data>
+  <data name="BarLineSubdivide_Item_None" xml:space="preserve">
+    <value>显示到小节</value>
+  </data>
+  <data name="BarLineSubdivide_Item_Half" xml:space="preserve">
+    <value>显示到2拍</value>
+  </data>
+  <data name="BarLineSubdivide_Item_Quarter" xml:space="preserve">
+    <value>显示到拍</value>
+  </data>
 </root>
