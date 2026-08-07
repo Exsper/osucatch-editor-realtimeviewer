@@ -18,6 +18,19 @@ namespace osucatch_editor_realtimeviewer
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+
+        private static int lastCursorX = int.MinValue;
+        private static int lastCursorY = int.MinValue;
+
         /// <summary>
         /// 判断前台窗口是否属于指定进程。
         /// 只做两次 P/Invoke + 进程 ID 比较，不再每次创建 Process 对象读取模块信息，
@@ -35,6 +48,20 @@ namespace osucatch_editor_realtimeviewer
             if (GetWindowThreadProcessId(foregroundWindow, out uint processId) == 0) return false;
 
             return processId == osuProcessId.Value;
+        }
+
+        /// <summary>
+        /// 鼠标是否正在移动（通过轮询光标位置变化判断）。
+        /// 编辑器操作通常是"悬停到目标位置再点击"，鼠标移动期间需要实时刷新预览。
+        /// </summary>
+        public static bool IsMouseMoving()
+        {
+            if (!GetCursorPos(out POINT pt)) return false;
+
+            bool moving = pt.X != lastCursorX || pt.Y != lastCursorY;
+            lastCursorX = pt.X;
+            lastCursorY = pt.Y;
+            return moving;
         }
     }
 }

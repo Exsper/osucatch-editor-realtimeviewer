@@ -26,20 +26,26 @@ namespace osucatch_editor_realtimeviewer
         private static Texture2D? BananaTexture;
         private static readonly Dictionary<string, Texture2D> textTextureCache = new();
         private static float textTextureCacheFontScale = -1;
+        /// <summary>
+        /// 文本纹理缓存上限：标签文本种类很多时（如每物件距离标签），
+        /// 无限缓存会导致 GPU 纹理与渲染批次无限增长，内存/GC/每帧遍历开销暴涨。
+        /// </summary>
+        private const int MaxTextTextureCache = 1024;
 
         // ---- 批量渲染缓冲（每帧复用，帧末按纹理/线组一次性 GL.DrawArrays）----
         private sealed class QuadBatch
         {
-            public float[] Positions = new float[2048];
-            public float[] TexCoords = new float[2048];
-            public float[] Colors = new float[4096];
+            // 惰性分配：初始只够 1 个四边形，按需倍增，避免每个纹理一个 32KB 大 batch
+            public float[] Positions = new float[8];
+            public float[] TexCoords = new float[8];
+            public float[] Colors = new float[16];
             public int VertexCount;
         }
 
         private sealed class LineBatch
         {
-            public float[] Positions = new float[2048];
-            public float[] Colors = new float[4096];
+            public float[] Positions = new float[8];
+            public float[] Colors = new float[16];
             public int VertexCount;
             public float Width;
             public bool StippleEnabled;
@@ -149,6 +155,14 @@ namespace osucatch_editor_realtimeviewer
                 }
 
                 if (textTextureCache.TryGetValue(s, out Texture2D? cached)) return cached;
+
+                // 超出上限时整体清空，避免标签种类多时纹理/批次无限增长
+                if (textTextureCache.Count >= MaxTextTextureCache)
+                {
+                    foreach (Texture2D texture in textTextureCache.Values) texture.Dispose();
+                    textTextureCache.Clear();
+                    textureBatches.Clear();
+                }
 
                 Texture2D newTexture = new Texture2D(s, fontscale);
                 textTextureCache[s] = newTexture;

@@ -582,7 +582,17 @@ namespace osucatch_editor_realtimeviewer
                 bool converterIsStable = app.Default.Use_Stable_Converter;
 
                 // 选中态不参与重建判定：绘制时通过 SelectionLines 实时查询，避免点击/框选触发全量解析
-                DifferenceType differenceType = thisReader.CheckDifference(_committed.Reader, false);
+                DifferenceType differenceType;
+                if (thisReader.IsFreshFetch || _committed.Reader == null ||
+                    mods != _committed.Mods || labelType != _committed.LabelType || converterIsStable != _committed.ConverterIsStable)
+                {
+                    differenceType = thisReader.CheckDifference(_committed.Reader, false);
+                }
+                else
+                {
+                    // 高频路径：数据与上次全量读取完全相同，无需逐物件比较
+                    differenceType = DifferenceType.None;
+                }
                 drawingHelper.SelectionLines = thisReader.HitObjectLines;
 
                 // Step5. Build osu file Path

@@ -29,7 +29,9 @@ namespace osucatch_editor_realtimeviewer
         private long lastEditorCheckTimestamp;
         private long lastFullFetchTimestamp;
         private bool editorCheckSucceeded;
-        private const long FullCheckIntervalMs = 150;
+        // 静止时全量读取间隔；编辑器前台且鼠标正在移动（正在编辑器中操作）时用更短间隔，让预览实时跟随
+        private const long FullCheckIntervalMs = 100;
+        private const long FullCheckIntervalMsEditing = 30;
 
         public EditorReaderHelper()
         {
@@ -238,13 +240,14 @@ namespace osucatch_editor_realtimeviewer
                     return null;
                 }
 
-                if (!IsFullFetchDue())
-                {
-                    // 高频路径：只刷新播放头时间，其余数据沿用上次全量读取
-                    cachedCollection!.EditorTime = reader.EditorTime();
-                    if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
-                    fetchAll_Failed_Count = 0;
-                    return cachedCollection;
+            if (!IsFullFetchDue())
+            {
+                // 高频路径：只刷新播放头时间，其余数据沿用上次全量读取
+                cachedCollection!.EditorTime = reader.EditorTime();
+                cachedCollection.IsFreshFetch = false;
+                if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
+                fetchAll_Failed_Count = 0;
+                return cachedCollection;
                 }
 
                 Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);
@@ -260,6 +263,7 @@ namespace osucatch_editor_realtimeviewer
                 cachedTitle = beatmap_title;
                 lastFullFetchTimestamp = stopwatch.ElapsedMilliseconds;
                 fetchAll_Failed_Count = 0;
+                thisReaderData.IsFreshFetch = true;
                 if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
                 return thisReaderData;
             }
@@ -309,7 +313,11 @@ namespace osucatch_editor_realtimeviewer
         {
             if (cachedCollection == null) return true;
             if (cachedTitle != beatmap_title) return true;
-            if (stopwatch.ElapsedMilliseconds - lastFullFetchTimestamp >= FullCheckIntervalMs) return true;
+
+            // 编辑器前台且鼠标正在移动时缩短全量读取间隔，保证编辑操作实时反映到预览
+            long interval = (ProcessFocus.IsEditorForeground(reader.OsuProcessId) && ProcessFocus.IsMouseMoving())
+                ? FullCheckIntervalMsEditing : FullCheckIntervalMs;
+            if (stopwatch.ElapsedMilliseconds - lastFullFetchTimestamp >= interval) return true;
 
             // 物件/控制点数量变化（增删）立即触发全量读取，不必等间隔
             if (reader.TryReadCounts(out int numObjects, out int numControlPoints, out _) &&
@@ -324,6 +332,11 @@ namespace osucatch_editor_realtimeviewer
     public class BeatmapInfoCollection
     {
         public bool IsFull;
+        /// <summary>
+        /// 本次 Fetch 是否为全量新数据。高频路径（数据未变）为 false，
+        /// 供调用方跳过昂贵的差异比较与重建判断。
+        /// </summary>
+        public bool IsFreshFetch;
 
         public int NumControlPoints;
         public int NumObjects;
