@@ -709,7 +709,7 @@
     <value>25</value>
   </data>
   <data name="RegisterHotKeyCheckBox.Text" xml:space="preserve">
-    <value>Register Alt+1~8 as Global HotKeys (Restart is required)</value>
+    <value>Register Alt+1~8 as Global Hotkeys (Restart Required)</value>
   </data>
   <data name="label7.Size" type="System.Drawing.Size, System.Drawing">
     <value>47, 17</value>

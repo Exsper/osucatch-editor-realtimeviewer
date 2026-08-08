@@ -341,7 +341,10 @@
     <value>高级</value>
   </data>
   <data name="button_timeOut_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>345, 66</value>
+    <value>345, 71</value>
+  </data>
+  <data name="label11.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 97</value>
   </data>
   <data name="label11.Size" type="System.Drawing.Size, System.Drawing">
     <value>272, 17</value>
@@ -350,7 +353,7 @@
     <value>当加载DTB或马拉松图遇到问题时尝试提高该值。</value>
   </data>
   <data name="label10.Location" type="System.Drawing.Point, System.Drawing">
-    <value>281, 68</value>
+    <value>281, 73</value>
   </data>
   <data name="label10.Size" type="System.Drawing.Size, System.Drawing">
     <value>56, 17</value>
@@ -359,13 +362,19 @@
     <value>毫秒时。</value>
   </data>
   <data name="numericUpDown_timeOut.Location" type="System.Drawing.Point, System.Drawing">
-    <value>203, 66</value>
+    <value>203, 71</value>
+  </data>
+  <data name="label9.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 73</value>
   </data>
   <data name="label9.Size" type="System.Drawing.Size, System.Drawing">
     <value>188, 17</value>
   </data>
   <data name="label9.Text" xml:space="preserve">
     <value>强制中止当前绘制进程当耗时超过</value>
+  </data>
+  <data name="checkBox_FilterNearbyHitObjects.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 27</value>
   </data>
   <data name="checkBox_FilterNearbyHitObjects.Size" type="System.Drawing.Size, System.Drawing">
     <value>447, 38</value>

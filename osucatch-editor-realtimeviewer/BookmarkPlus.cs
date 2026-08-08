@@ -164,7 +164,7 @@ namespace osucatch_editor_realtimeviewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show("An error occurred while saving bookmarkplus file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("An error occurred while saving the Bookmark+ file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Log.ConsoleLog("Save BookmarkPlus to file failed.\n" + ex, Log.LogType.Bookmark, Log.LogLevel.Error);
                 return false;
             }
@@ -185,7 +185,7 @@ namespace osucatch_editor_realtimeviewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show("An error occurred while reading bookmarkplus file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("An error occurred while reading the Bookmark+ file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Log.ConsoleLog("Read BookmarkPlus from file failed.\n" + ex, Log.LogType.Bookmark, Log.LogLevel.Error);
                 return new List<Bookmark>();
             }

@@ -46,7 +46,7 @@ namespace osucatch_editor_realtimeviewer
         {
             if (autoLoadSaveCheckBox.Checked && textBox_saveFolder.Text == "")
             {
-                MessageBox.Show("Please Select a folder for bookmark+ auto load/save!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                MessageBox.Show("Please select a folder for Bookmark+ auto load/save.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 return;
             }
 
@@ -312,7 +312,7 @@ namespace osucatch_editor_realtimeviewer
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("An error occurred while reading file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("An error occurred while reading the file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         Log.ConsoleLog("Read BookmarkPlus from file failed.\n" + ex, Log.LogType.Bookmark, Log.LogLevel.Error);
                         return;
                     }
@@ -360,7 +360,7 @@ namespace osucatch_editor_realtimeviewer
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("An error occurred while saving file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("An error occurred while saving the file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     Log.ConsoleLog("Save BookmarkPlus to file failed.\n" + ex, Log.LogType.Bookmark, Log.LogLevel.Error);
                     return;
                 }

@@ -195,7 +195,7 @@
             FolderBrowserDialog folder = new FolderBrowserDialog();
             folder.ShowNewFolderButton = false;
             folder.RootFolder = Environment.SpecialFolder.MyComputer;
-            folder.Description = "Select .osu Files Backup Folder";
+            folder.Description = "Select Backup Folder for .osu Files";
             DialogResult path = folder.ShowDialog();
             if (path == DialogResult.OK)
             {
