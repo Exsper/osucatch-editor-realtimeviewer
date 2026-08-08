@@ -28,6 +28,9 @@ namespace osucatch_editor_realtimeviewer
         private static string? configPath;
         private static bool migrationChecked;
 
+        /// <summary>配置文件路径（供崩溃日志引用）。</summary>
+        public static string SettingsFilePath => ConfigPath;
+
         private static string ConfigPath =>
             configPath ??= Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

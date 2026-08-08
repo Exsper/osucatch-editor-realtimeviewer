@@ -106,6 +106,7 @@ namespace osucatch_editor_realtimeviewer
 
         public Form1()
         {
+            Log.Breadcrumb("Form1: constructing...");
             InitializeComponent();
 
             // 模板菜单在构造函数里创建，确保语言资源能应用到它
@@ -134,6 +135,8 @@ namespace osucatch_editor_realtimeviewer
                 this.StartPosition = FormStartPosition.Manual;
                 this.Location = new System.Drawing.Point(app.Default.Window_X, app.Default.Window_Y);
             }
+
+            Log.Breadcrumb("Form1: constructed.");
         }
 
         private string Select_Osu_Path()
@@ -177,6 +180,8 @@ namespace osucatch_editor_realtimeviewer
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            Log.Breadcrumb("Form1_Load: begin.");
+
             // -----------------------reading settings-----------------------
             // show log console
             if (app.Default.Show_Console) Program.ShowConsole();
@@ -240,6 +245,8 @@ namespace osucatch_editor_realtimeviewer
             }
             // --------------------------------------------------------------
 
+            Log.Breadcrumb("Form1_Load: settings applied.");
+
             // ----------------------------get dpi---------------------------
             Graphics graphics = this.CreateGraphics();
             dpi = (Int32)graphics.DpiX;
@@ -251,7 +258,9 @@ namespace osucatch_editor_realtimeviewer
             // --------------------------------------------------------------
 
             // canvas init
+            Log.Breadcrumb("Form1_Load: initializing canvas (OpenGL)...");
             this.Canvas.Init();
+            Log.Breadcrumb("Form1_Load: canvas initialized.");
 
             // reader timer
             runner = new PeriodicTaskRunner(app.Default.Drawing_Interval, app.Default.Idle_Interval, reader_timer_Work);
@@ -265,6 +274,8 @@ namespace osucatch_editor_realtimeviewer
             Memory_Monitor_Timer.Elapsed += Memory_Monitor;
             Memory_Monitor_Timer.Start();
 
+            Log.Breadcrumb("Form1_Load: timers started.");
+
 
             // RegisterHotKey
             if (app.Default.Bookmark_RegisterHotKey)
@@ -272,6 +283,7 @@ namespace osucatch_editor_realtimeviewer
                 GlobalHotkey.RegisterGlobalHotKey(this.Handle);
             }
 
+            Log.Breadcrumb("Form1_Load: done.");
         }
 
         private void Memory_Monitor(object? sender, EventArgs e)
