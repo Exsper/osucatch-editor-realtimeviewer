@@ -548,6 +548,10 @@ namespace osucatch_editor_realtimeviewer
 
         private async Task reader_timer_Work(CancellationToken cancellationToken)
         {
+            // 让出当前线程：避免第一次执行时（runner.Start 调用）把读取/解析
+            // 同步跑在 UI 线程上，导致 Form1_Load 卡住、窗口启动时未响应
+            await Task.Yield();
+
             // Step0. check settings change
             if (NeedReapplySettings)
             {

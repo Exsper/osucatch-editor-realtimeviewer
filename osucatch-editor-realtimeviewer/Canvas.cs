@@ -56,6 +56,14 @@ namespace osucatch_editor_realtimeviewer
         private static readonly List<LineBatch> foregroundLineBatches = new();
         private static int firstFrameLogged;
 
+        /// <summary>
+        /// 是否使用批量渲染（客户端数组 + glDrawArrays）。
+        /// 默认 false：走 GL 1.1 立即模式（glBegin/glVertex），
+        /// 兼容旧显卡/软件 GL/虚拟机等客户端数组调用会崩溃的环境。
+        /// 在确认目标机器没问题后，可改为 true 提升大批量绘制性能。
+        /// </summary>
+        public static bool UseBatchRendering = false;
+
         private readonly float Border_Height = 32;
         private readonly float Border_Width = 32;
 
@@ -68,19 +76,45 @@ namespace osucatch_editor_realtimeviewer
         }
         public void Canvas_Paint(object? sender, PaintEventArgs? e)
         {
-            if (Interlocked.Exchange(ref firstFrameLogged, 1) == 0)
+            bool firstFrame = Interlocked.Exchange(ref firstFrameLogged, 1) == 0;
+            if (firstFrame)
             {
-                Log.Breadcrumb("Canvas: first frame rendered.");
+                Log.Breadcrumb("Canvas: first frame begin.");
             }
 
-            GL.Clear(ClearBufferMask.ColorBufferBit);
+            try
+            {
+                GL.Clear(ClearBufferMask.ColorBufferBit);
+                if (firstFrame) Log.Breadcrumb("Canvas: first frame cleared.");
 
-            BeginFrame();
-            DrawJudgementLine();
-            Form1.drawingHelper.Draw();
-            FlushFrame();
+                if (UseBatchRendering)
+                {
+                    BeginFrame();
+                    DrawJudgementLine();
+                    Form1.drawingHelper.Draw();
+                    if (firstFrame) Log.Breadcrumb("Canvas: first frame objects drawn.");
 
-            this.SwapBuffers();
+                    FlushFrame();
+                    if (firstFrame) Log.Breadcrumb("Canvas: first frame flushed.");
+                }
+                else
+                {
+                    DrawJudgementLine();
+                    Form1.drawingHelper.Draw();
+                    if (firstFrame) Log.Breadcrumb("Canvas: first frame objects drawn.");
+                    if (firstFrame) Log.Breadcrumb("Canvas: first frame flushed (immediate mode).");
+                }
+
+                this.SwapBuffers();
+                if (firstFrame) Log.Breadcrumb("Canvas: first frame completed.");
+            }
+            catch (Exception ex)
+            {
+                Log.Breadcrumb("Canvas paint failed: " + ex.GetType().Name + ": " + ex.Message);
+                // 交给全局异常处理器生成崩溃报告并退出；
+                // 若访问冲突能被 .NET 捕获（托管代码内的 AV），crash_*.log 会带完整堆栈
+                throw;
+            }
         }
 
         private void Canvas_Resize(object? sender, EventArgs? e)
@@ -440,6 +474,22 @@ namespace osucatch_editor_realtimeviewer
 
         internal static void AddQuad(Texture2D texture, float x, float y, float w, float h, Color4 color)
         {
+            // 立即模式：兼容客户端数组调用失败的显卡/软件 GL 环境
+            if (!UseBatchRendering)
+            {
+                GL.Color4(color);
+                GL.MatrixMode(MatrixMode.Modelview);
+                GL.LoadIdentity();
+                GL.BindTexture(TextureTarget.Texture2D, texture.TextureId);
+                GL.Begin(PrimitiveType.Quads);
+                GL.TexCoord2(0.0f, 0.0f); GL.Vertex2(x, y);
+                GL.TexCoord2(1.0f, 0.0f); GL.Vertex2(x + w, y);
+                GL.TexCoord2(1.0f, 1.0f); GL.Vertex2(x + w, y + h);
+                GL.TexCoord2(0.0f, 1.0f); GL.Vertex2(x, y + h);
+                GL.End();
+                return;
+            }
+
             if (!textureBatches.TryGetValue(texture, out QuadBatch? batch))
             {
                 batch = new QuadBatch();
@@ -478,6 +528,30 @@ namespace osucatch_editor_realtimeviewer
 
         private static void AddLine(Vector2 start, Vector2 end, Color4 color, float width, ushort stipplePattern, bool stippleEnabled, bool beforeTextures)
         {
+            // 立即模式：兼容客户端数组调用失败的显卡/软件 GL 环境
+            if (!UseBatchRendering)
+            {
+                GL.Disable(EnableCap.Texture2D);
+                GL.LineWidth(width);
+                GL.Color4(color);
+                if (stippleEnabled)
+                {
+                    GL.Enable(EnableCap.LineStipple);
+                    GL.LineStipple(2, stipplePattern);
+                }
+                else
+                {
+                    GL.Disable(EnableCap.LineStipple);
+                }
+                GL.Begin(PrimitiveType.Lines);
+                GL.Vertex2(start.X, start.Y);
+                GL.Vertex2(end.X, end.Y);
+                GL.End();
+                GL.Disable(EnableCap.LineStipple);
+                GL.Enable(EnableCap.Texture2D);
+                return;
+            }
+
             List<LineBatch> batches = beforeTextures ? backgroundLineBatches : foregroundLineBatches;
 
             LineBatch? batch = null;
