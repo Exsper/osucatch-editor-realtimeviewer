@@ -103,6 +103,7 @@ namespace osucatch_editor_realtimeviewer
         private static System.Timers.Timer Memory_Monitor_Timer = new System.Timers.Timer(200);
 
         private PeriodicTaskRunner runner;
+        private HealthMonitor? healthMonitor;
 
         public Form1()
         {
@@ -181,6 +182,7 @@ namespace osucatch_editor_realtimeviewer
         private void Form1_Load(object sender, EventArgs e)
         {
             Log.Breadcrumb("Form1_Load: begin.");
+            healthMonitor = new HealthMonitor(this);
 
             // -----------------------reading settings-----------------------
             // show log console
@@ -704,6 +706,9 @@ namespace osucatch_editor_realtimeviewer
 
         private async void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            healthMonitor?.Dispose();
+            healthMonitor = null;
+
             if (app.Default.Bookmark_RegisterHotKey)
             {
                 GlobalHotkey.UnRegisterGlobalHotKey(this.Handle);

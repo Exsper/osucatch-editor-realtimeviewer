@@ -38,6 +38,7 @@ namespace osucatch_editor_realtimeviewer
         static void Main()
         {
             InstallCrashHandlers();
+            CheckPreviousRunCleanExit();
 
             try
             {
@@ -52,11 +53,48 @@ namespace osucatch_editor_realtimeviewer
 
                 Log.Breadcrumb("Main: entering message loop.");
                 Application.Run(form);
+                WriteCleanExitMarker();
                 Log.Breadcrumb("Main: message loop exited normally.");
             }
             catch (Exception ex)
             {
                 HandleCrash("Main entry point", ex, exit: true);
+            }
+        }
+
+        /// <summary>
+        /// 正常退出时写一个标记文件；下次启动若发现标记不存在，
+        /// 说明上次运行不是正常关闭（崩溃/卡死被终止/强制结束），在日志里留痕。
+        /// </summary>
+        private static string CleanExitMarkerPath => Path.Combine(Log.LogDirectory, "clean_exit.flag");
+
+        private static void CheckPreviousRunCleanExit()
+        {
+            try
+            {
+                if (!File.Exists(CleanExitMarkerPath))
+                {
+                    Log.Breadcrumb("Previous run did not exit cleanly (no clean-exit marker).");
+                }
+                else
+                {
+                    File.Delete(CleanExitMarkerPath);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private static void WriteCleanExitMarker()
+        {
+            try
+            {
+                Directory.CreateDirectory(Log.LogDirectory);
+                File.WriteAllText(CleanExitMarkerPath, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            }
+            catch
+            {
             }
         }
 

@@ -42,5 +42,6 @@ Editor --(Editor Reader)--> Beatmap --(Osu BeatmapParser)--> HitObjects --(OpenG
 - `log_yyyyMMdd.log`：当天运行日志，包含启动里程碑（即使不开控制台也记录），卡死/崩溃后能看出程序走到了哪一步。
 - `crash_yyyyMMdd_HHmmss_fff.log`：发生未处理异常时生成的崩溃报告，包含系统信息、当前设置、异常与堆栈、崩溃前的最近日志。
 - `crash_latest.log`：最近一次崩溃报告的副本，方便直接打开。
+- `clean_exit.flag`：正常关闭时生成的标记；下次启动发现它缺失，会在日志里写明“上次运行未正常退出”。
 
-崩溃时程序会弹窗提示日志位置。把 `logs` 目录里的相关文件发给开发者即可定位问题；旧报告最多保留 20 份，单日日志超 5MB 自动截断尾部。
+日志中每 10 秒会出现一条 `Heartbeat: alive` 存活记录（卡死时仍会写入），若 UI 线程无响应会记录 `UI thread unresponsive`，用于区分“卡死”和“无托管异常的闪退”。崩溃时程序会弹窗提示日志位置。把 `logs` 目录里的相关文件发给开发者即可定位问题；旧报告最多保留 20 份，单日日志超 5MB 自动截断尾部。

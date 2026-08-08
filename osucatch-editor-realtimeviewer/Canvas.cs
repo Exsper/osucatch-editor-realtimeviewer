@@ -54,6 +54,7 @@ namespace osucatch_editor_realtimeviewer
         private static readonly Dictionary<Texture2D, QuadBatch> textureBatches = new();
         private static readonly List<LineBatch> backgroundLineBatches = new();
         private static readonly List<LineBatch> foregroundLineBatches = new();
+        private static int firstFrameLogged;
 
         private readonly float Border_Height = 32;
         private readonly float Border_Width = 32;
@@ -67,6 +68,11 @@ namespace osucatch_editor_realtimeviewer
         }
         public void Canvas_Paint(object? sender, PaintEventArgs? e)
         {
+            if (Interlocked.Exchange(ref firstFrameLogged, 1) == 0)
+            {
+                Log.Breadcrumb("Canvas: first frame rendered.");
+            }
+
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
             BeginFrame();
