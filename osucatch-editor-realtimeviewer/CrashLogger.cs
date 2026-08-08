@@ -11,8 +11,8 @@ namespace osucatch_editor_realtimeviewer
     /// </summary>
     public static class CrashLogger
     {
-        /// <summary>最多保留多少份崩溃报告。</summary>
-        private const int MaxCrashLogs = 20;
+        /// <summary>最多保留多少份崩溃报告（本地日志体积控制）。</summary>
+        private const int MaxCrashLogs = 2;
 
         private static readonly object crashWriteSync = new();
         private static int crashSerial;
