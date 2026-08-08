@@ -2,6 +2,8 @@
 
 namespace osucatch_editor_realtimeviewer
 {
+    using System.Diagnostics;
+
     public class EditorReaderHelper
     {
         private static readonly EditorReader reader = new();
@@ -11,16 +13,35 @@ namespace osucatch_editor_realtimeviewer
         private bool Is_Osu_Running = false;
         public bool Is_Editor_Running = false;
 
+        private int fetchEditor_Failed_Count = 0;
+        private const int FetchEditor_MaxRetry_Count = 10;
+
         public string beatmap_path = "";
         public string beatmap_title = "";
 
         private int fetchAll_Failed_Count = 0;
         private const int FetchAll_MaxRetry_Count = 10;
 
+        // 高频/低频分离：多数 tick 只读 EditorTime，全量读取有间隔限制
+        private BeatmapInfoCollection? cachedCollection;
+        private string cachedTitle = "";
+        private readonly Stopwatch stopwatch = Stopwatch.StartNew();
+        private long lastEditorCheckTimestamp;
+        private long lastFullFetchTimestamp;
+        private bool editorCheckSucceeded;
+        // 低频读取间隔（静止时）与全量读取间隔（编辑器前台且鼠标正在移动时），可在设置面板中自定义
+        private static long FullCheckIntervalMs => Math.Clamp(app.Default.LowFreqRead_Interval, 5, 10000);
+        private static long FullCheckIntervalMsEditing => Math.Clamp(app.Default.FullRead_Interval, 5, 10000);
+
         public EditorReaderHelper()
         {
             reader.autoDeStack = true;
         }
+
+        /// <summary>
+        /// 当前连接的 osu! 进程 ID。
+        /// </summary>
+        public int? OsuProcessId => reader.OsuProcessId;
 
         /// <summary>
         /// Fetch osu! process if needed for Editor Reader.
@@ -94,6 +115,13 @@ namespace osucatch_editor_realtimeviewer
         /// <returns>Is success or not.</returns>
         public bool FetchEditor()
         {
+            // 高频路径：FullCheckIntervalMs 内已经完整验证过 editor，直接复用上次结果
+            if (editorCheckSucceeded && stopwatch.ElapsedMilliseconds - lastEditorCheckTimestamp < FullCheckIntervalMs)
+            {
+                Is_Editor_Running = true;
+                return true;
+            }
+
             beatmap_title = "";
             string title = FetchTitle();
             if (title == "")
@@ -101,6 +129,7 @@ namespace osucatch_editor_realtimeviewer
                 Log.ConsoleLog("Empty osu title.", Log.LogType.EditorReader, Log.LogLevel.Info);
                 Is_Editor_Running = false;
                 beatmap_path = "";
+                editorCheckSucceeded = false;
                 return false;
             }
             if (!title.EndsWith(".osu"))
@@ -108,21 +137,24 @@ namespace osucatch_editor_realtimeviewer
                 Log.ConsoleLog("Osu title is not editor: " + title, Log.LogType.EditorReader, Log.LogLevel.Info);
                 Is_Editor_Running = false;
                 beatmap_path = "";
+                editorCheckSucceeded = false;
                 return false;
             }
-            if (reader.EditorNeedsReload())
+            try
             {
-                Log.ConsoleLog("Editor needs Reload.", Log.LogType.EditorReader, Log.LogLevel.Info);
-                try
+                if (reader.EditorNeedsReload())
                 {
+                    Log.ConsoleLog("Editor needs Reload.", Log.LogType.EditorReader, Log.LogLevel.Info);
                     if (Is_Doing_SetProcess || Is_Doing_FetchEditor)
                     {
                         Log.ConsoleLog("Still fetching editor.", Log.LogType.EditorReader, Log.LogLevel.Info);
+                        editorCheckSucceeded = false;
                         return false;
                     }
                     if (reader.ProcessNeedsReload())
                     {
                         Log.ConsoleLog("Process needs reload.", Log.LogType.EditorReader, Log.LogLevel.Info);
+                        editorCheckSucceeded = false;
                         return false;
                     }
                     Log.ConsoleLog("Try fetch editor.", Log.LogType.EditorReader, Log.LogLevel.Info);
@@ -133,17 +165,39 @@ namespace osucatch_editor_realtimeviewer
                     Is_Osu_Running = true;
                     Is_Editor_Running = true;
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                Log.ConsoleLog("Fetch editor failed.\r\n" + ex, Log.LogType.EditorReader, Log.LogLevel.Error);
+                Is_Doing_FetchEditor = false;
+                Is_Editor_Running = false;
+                beatmap_path = "";
+                editorCheckSucceeded = false;
+
+                // 连续失败（例如 osu! test mode 快速进出后旧地址失效）时，强制重新绑定进程并清空 editor 地址，
+                // 避免永远停留在"检测到失效却不去重新扫描"的状态
+                fetchEditor_Failed_Count++;
+                if (fetchEditor_Failed_Count > FetchEditor_MaxRetry_Count)
                 {
-                    Log.ConsoleLog("Fetch editor failed.\r\n" + ex, Log.LogType.EditorReader, Log.LogLevel.Error);
-                    Is_Doing_FetchEditor = false;
-                    Is_Editor_Running = false;
-                    beatmap_path = "";
-                    return false;
+                    Log.ConsoleLog("Refetching osu! process and editor...", Log.LogType.EditorReader, Log.LogLevel.Warning);
+                    fetchEditor_Failed_Count = 0;
+                    try
+                    {
+                        reader.SetProcess();
+                    }
+                    catch (Exception setProcessEx)
+                    {
+                        Log.ConsoleLog("Refetch osu! process failed.\r\n" + setProcessEx, Log.LogType.EditorReader, Log.LogLevel.Error);
+                    }
+                    reader.ResetEditor();
                 }
+                return false;
             }
             Is_Editor_Running = true;
             beatmap_title = title;
+            lastEditorCheckTimestamp = stopwatch.ElapsedMilliseconds;
+            editorCheckSucceeded = true;
+            fetchEditor_Failed_Count = 0;
             return true;
         }
 
@@ -154,32 +208,7 @@ namespace osucatch_editor_realtimeviewer
         /// <para />null if failed.</returns>
         public BeatmapInfoCollection? FetchAll()
         {
-            try
-            {
-                if (fetchAll_Failed_Count > FetchAll_MaxRetry_Count)
-                {
-                    Log.ConsoleLog("Refetching editor...", Log.LogType.EditorReader, Log.LogLevel.Warning);
-                    fetchAll_Failed_Count = 0;
-                    FetchEditor();
-                    return null;
-                }
-
-                Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);
-
-                bool needFetchFull = app.Default.Backup_Enabled && !app.Default.FilterNearbyHitObjects;
-                reader.FetchAll(needFetchFull);
-                var thisReaderData = new BeatmapInfoCollection(reader);
-
-                Log.ConsoleLog("FetchAll complete.", Log.LogType.EditorReader, Log.LogLevel.Debug);
-                fetchAll_Failed_Count = 0;
-                return thisReaderData;
-            }
-            catch (Exception ex)
-            {
-                Log.ConsoleLog("FetchAll failed.(" + fetchAll_Failed_Count + ")\r\n" + ex.ToString(), Log.LogType.EditorReader, Log.LogLevel.Error);
-                fetchAll_Failed_Count++;
-                return null;
-            }
+            return FetchWithCache(false, 0);
         }
 
         /// <summary>
@@ -191,6 +220,15 @@ namespace osucatch_editor_realtimeviewer
         /// <para />null if failed.</returns>
         public BeatmapInfoCollection? FetchAll(double partialLoadingHalfTimeSpan)
         {
+            return FetchWithCache(true, partialLoadingHalfTimeSpan);
+        }
+
+        /// <summary>
+        /// 高频/低频分离读取：多数 tick 只读 EditorTime 并复用缓存数据，
+        /// 只有在编辑器/地图变化、物件数量变化或超过 FullCheckIntervalMs 时才做全量读取。
+        /// </summary>
+        private BeatmapInfoCollection? FetchWithCache(bool filterNearby, double partialLoadingHalfTimeSpan)
+        {
             try
             {
                 if (fetchAll_Failed_Count > FetchAll_MaxRetry_Count)
@@ -198,17 +236,35 @@ namespace osucatch_editor_realtimeviewer
                     Log.ConsoleLog("Refetching editor...", Log.LogType.EditorReader, Log.LogLevel.Warning);
                     fetchAll_Failed_Count = 0;
                     FetchEditor();
+                    cachedCollection = null;
                     return null;
                 }
 
-                Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);
+                if (!IsFullFetchDue())
+                {
+                    // 高频路径：只刷新播放头时间，其余数据沿用上次全量读取
+                    cachedCollection!.EditorTime = reader.EditorTime();
+                    cachedCollection.IsFreshFetch = false;
+                    if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
+                    fetchAll_Failed_Count = 0;
+                    return cachedCollection;
+                }
 
-                bool needFetchFull = app.Default.Backup_Enabled && !app.Default.FilterNearbyHitObjects;
+                Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);
+                bool needFetchFull = app.Default.Backup_Enabled && !filterNearby;
                 reader.FetchAll(needFetchFull);
-                var thisReaderData = new BeatmapInfoCollection(reader, partialLoadingHalfTimeSpan);
+                BeatmapInfoCollection thisReaderData = filterNearby
+                    ? new BeatmapInfoCollection(reader, partialLoadingHalfTimeSpan)
+                    : new BeatmapInfoCollection(reader);
 
                 Log.ConsoleLog("FetchAll complete.", Log.LogType.EditorReader, Log.LogLevel.Debug);
+
+                cachedCollection = thisReaderData;
+                cachedTitle = beatmap_title;
+                lastFullFetchTimestamp = stopwatch.ElapsedMilliseconds;
                 fetchAll_Failed_Count = 0;
+                thisReaderData.IsFreshFetch = true;
+                if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
                 return thisReaderData;
             }
             catch (Exception ex)
@@ -218,11 +274,69 @@ namespace osucatch_editor_realtimeviewer
                 return null;
             }
         }
+
+        /// <summary>
+        /// 轻量刷新选中态：只读编辑器当前的选中列表（1~2 次 ReadProcessMemory），
+        /// 原位更新 <see cref="BeatmapInfoCollection.HitObjectLines"/> 中每行的选中标志，供绘制实时查表。
+        /// 读取失败时沿用旧状态，避免闪烁。
+        /// </summary>
+        private void RefreshSelection(BeatmapInfoCollection collection)
+        {
+            if (!reader.TryReadSelectedIndices(out int[] selectedIndices))
+            {
+                return;
+            }
+
+            if (selectionScratch.Length != collection.NumObjects)
+            {
+                selectionScratch = new bool[collection.NumObjects];
+            }
+
+            Array.Fill(selectionScratch, false);
+            foreach (int index in selectedIndices)
+            {
+                if (index >= 0 && index < selectionScratch.Length)
+                {
+                    selectionScratch[index] = true;
+                }
+            }
+
+            foreach (ReaderHitObjectWithSelect line in collection.HitObjectLines)
+            {
+                line.IsSelect = line.MasterIndex >= 0 && line.MasterIndex < selectionScratch.Length && selectionScratch[line.MasterIndex];
+            }
+        }
+
+        private bool[] selectionScratch = Array.Empty<bool>();
+
+        private bool IsFullFetchDue()
+        {
+            if (cachedCollection == null) return true;
+            if (cachedTitle != beatmap_title) return true;
+
+            // 编辑器前台且鼠标正在移动时缩短全量读取间隔，保证编辑操作实时反映到预览
+            long interval = (ProcessFocus.IsEditorForeground(reader.OsuProcessId) && ProcessFocus.IsMouseMoving())
+                ? FullCheckIntervalMsEditing : FullCheckIntervalMs;
+            if (stopwatch.ElapsedMilliseconds - lastFullFetchTimestamp >= interval) return true;
+
+            // 物件/控制点数量变化（增删）立即触发全量读取，不必等间隔
+            if (reader.TryReadCounts(out int numObjects, out int numControlPoints, out _) &&
+                (numObjects != cachedCollection.NumObjects || numControlPoints != cachedCollection.NumControlPoints))
+            {
+                return true;
+            }
+            return false;
+        }
     }
 
     public class BeatmapInfoCollection
     {
         public bool IsFull;
+        /// <summary>
+        /// 本次 Fetch 是否为全量新数据。高频路径（数据未变）为 false，
+        /// 供调用方跳过昂贵的差异比较与重建判断。
+        /// </summary>
+        public bool IsFreshFetch;
 
         public int NumControlPoints;
         public int NumObjects;
@@ -241,6 +355,8 @@ namespace osucatch_editor_realtimeviewer
         public int[] Bookmarks;
         public List<string> ControlPointLines;
         public List<ReaderHitObjectWithSelect> HitObjectLines;
+        public List<Editor_Reader.ControlPoint> ControlPoints;
+        public List<Editor_Reader.HitObject> HitObjects;
 
         public BeatmapInfoCollection()
         {
@@ -249,6 +365,8 @@ namespace osucatch_editor_realtimeviewer
             Bookmarks = [];
             ControlPointLines = new();
             HitObjectLines = new();
+            ControlPoints = new();
+            HitObjects = new();
             IsFull = false;
             NumControlPoints = 0;
             NumObjects = 0;
@@ -310,7 +428,9 @@ namespace osucatch_editor_realtimeviewer
             BeatmapVersion = reader.BeatmapVersion;
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
-            HitObjectLines = reader.hitObjects.Select((ho) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected)).ToList();
+            HitObjectLines = reader.hitObjects.Select((ho, i) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected, i)).ToList();
+            ControlPoints = reader.controlPoints;
+            HitObjects = reader.hitObjects;
 
             // We don't need breaks because editor force a new combo after every break.
         }
@@ -347,9 +467,9 @@ namespace osucatch_editor_realtimeviewer
 
             var NearbyHitObjects = FilterNearbyHitObjects(reader.hitObjects, partialLoadingHalfTimeSpan);
 
-            bool FindInvalid = NearbyHitObjects.Any(readerHitObject => readerHitObject.X > 1000 || readerHitObject.X < -1000 || readerHitObject.Y > 1000 || readerHitObject.Y < -1000 ||
-            readerHitObject.SegmentCount > 9000 || readerHitObject.Type == 0 || readerHitObject.SampleSet > 1000 ||
-            readerHitObject.SampleSetAdditions > 1000 || readerHitObject.SampleVolume > 1000);
+            bool FindInvalid = NearbyHitObjects.Any(pair => pair.Object.X > 1000 || pair.Object.X < -1000 || pair.Object.Y > 1000 || pair.Object.Y < -1000 ||
+            pair.Object.SegmentCount > 9000 || pair.Object.Type == 0 || pair.Object.SampleSet > 1000 ||
+            pair.Object.SampleSetAdditions > 1000 || pair.Object.SampleVolume > 1000);
             if (FindInvalid) throw new Exception("Find invalid hitObject.");
             // -----------------------
 
@@ -368,7 +488,9 @@ namespace osucatch_editor_realtimeviewer
             BeatmapVersion = reader.BeatmapVersion;
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
-            HitObjectLines = NearbyHitObjects.Select((ho) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected)).ToList();
+            HitObjectLines = NearbyHitObjects.Select((pair) => new ReaderHitObjectWithSelect(pair.Object.ToString(), pair.Object.IsSelected, pair.Index)).ToList();
+            ControlPoints = reader.controlPoints;
+            HitObjects = NearbyHitObjects.Select((pair) => pair.Object).ToList();
 
             // We don't need breaks because editor force a new combo after every break.
         }
@@ -376,18 +498,20 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>
         /// MUCH BOOST BUT IT CAUSE RANDOM ERROR.
         /// </summary>
-        private List<Editor_Reader.HitObject> FilterNearbyHitObjects(List<Editor_Reader.HitObject> hitObject, double halfTimeSpan)
+        private List<(int Index, Editor_Reader.HitObject Object)> FilterNearbyHitObjects(List<Editor_Reader.HitObject> hitObject, double halfTimeSpan)
         {
-            if (EditorTime < 0) return hitObject;
-            return hitObject.Where(ho =>
+            if (EditorTime < 0) return hitObject.Select((ho, i) => (i, ho)).ToList();
+            List<(int, Editor_Reader.HitObject)> result = new();
+            for (int i = 0; i < hitObject.Count; i++)
             {
-                // keep sliders & spins
-                if (EditorTime - ho.StartTime >= 0 && ho.EndTime - EditorTime >= 0) return true;
+                Editor_Reader.HitObject ho = hitObject[i];
+                // keep sliders & spins（跨过当前时间点的物件）
+                if (EditorTime - ho.StartTime >= 0 && ho.EndTime - EditorTime >= 0) { result.Add((i, ho)); continue; }
                 // keep the objects which |endtime - nowtime| < 10s, or which starttime - nowtime < 10s
-                if (EditorTime - ho.EndTime >= 0 && EditorTime - ho.EndTime <= halfTimeSpan) return true;
-                else if (ho.StartTime - EditorTime >= 0 && ho.StartTime - EditorTime <= halfTimeSpan) return true;
-                else return false;
-            }).ToList();
+                if (EditorTime - ho.EndTime >= 0 && EditorTime - ho.EndTime <= halfTimeSpan) { result.Add((i, ho)); continue; }
+                if (ho.StartTime - EditorTime >= 0 && ho.StartTime - EditorTime <= halfTimeSpan) { result.Add((i, ho)); continue; }
+            }
+            return result;
         }
 
 
@@ -419,19 +543,68 @@ namespace osucatch_editor_realtimeviewer
             if (SliderMultiplier != other.SliderMultiplier) return DifferenceType.DifferentObjects;
             if (SliderTickRate != other.SliderTickRate) return DifferenceType.DifferentObjects;
 
-            if (ControlPointLines.Count != other.ControlPointLines.Count) return DifferenceType.DifferentObjects;
-            for (int i = 0; i < ControlPointLines.Count; i++)
+            if (ControlPoints.Count != other.ControlPoints.Count) return DifferenceType.DifferentObjects;
+            for (int i = 0; i < ControlPoints.Count; i++)
             {
-                if (ControlPointLines[i] != other.ControlPointLines[i]) return DifferenceType.DifferentObjects;
+                if (!ControlPointEquals(ControlPoints[i], other.ControlPoints[i])) return DifferenceType.DifferentObjects;
             }
 
-            if (HitObjectLines.Count != other.HitObjectLines.Count) return DifferenceType.DifferentObjects;
-            for (int i = 0; i < HitObjectLines.Count; i++)
+            if (HitObjects.Count != other.HitObjects.Count) return DifferenceType.DifferentObjects;
+            for (int i = 0; i < HitObjects.Count; i++)
             {
-                if (!HitObjectLines[i].EqualTo(other.HitObjectLines[i], isCheckSelected)) return DifferenceType.DifferentObjects;
+                if (!HitObjectEquals(HitObjects[i], other.HitObjects[i], isCheckSelected)) return DifferenceType.DifferentObjects;
             }
 
             return DifferenceType.None;
+        }
+
+        private static bool ControlPointEquals(Editor_Reader.ControlPoint a, Editor_Reader.ControlPoint b)
+        {
+            return a.Offset == b.Offset && a.BeatLength == b.BeatLength &&
+                   a.TimeSignature == b.TimeSignature && a.SampleSet == b.SampleSet &&
+                   a.CustomSamples == b.CustomSamples && a.Volume == b.Volume &&
+                   a.TimingChange == b.TimingChange && a.EffectFlags == b.EffectFlags;
+        }
+
+        private static bool HitObjectEquals(Editor_Reader.HitObject a, Editor_Reader.HitObject b, bool isCheckSelected)
+        {
+            if (a.StartTime != b.StartTime || a.EndTime != b.EndTime || a.Type != b.Type || a.SoundType != b.SoundType ||
+                a.SegmentCount != b.SegmentCount || a.X != b.X || a.Y != b.Y || a.BaseX != b.BaseX || a.BaseY != b.BaseY ||
+                a.SpatialLength != b.SpatialLength || a.CurveType != b.CurveType || a.curveLength != b.curveLength ||
+                a.SampleVolume != b.SampleVolume || a.SampleSet != b.SampleSet || a.SampleSetAdditions != b.SampleSetAdditions ||
+                a.CustomSampleSet != b.CustomSampleSet || a.SampleFile != b.SampleFile || a.unifiedSoundAddition != b.unifiedSoundAddition)
+            {
+                return false;
+            }
+            if (isCheckSelected && a.IsSelected != b.IsSelected) return false;
+
+            if (!IntArrayEquals(a.SoundTypeList, b.SoundTypeList)) return false;
+            if (!IntArrayEquals(a.SampleSetList, b.SampleSetList)) return false;
+            if (!IntArrayEquals(a.SampleSetAdditionsList, b.SampleSetAdditionsList)) return false;
+            if (!FloatArrayEquals(a.sliderCurvePoints, b.sliderCurvePoints)) return false;
+            return true;
+        }
+
+        private static bool IntArrayEquals(int[]? a, int[]? b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
+        }
+
+        private static bool FloatArrayEquals(float[]? a, float[]? b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
         }
     }
 
@@ -439,11 +612,17 @@ namespace osucatch_editor_realtimeviewer
     {
         public string HitObjectLine;
         public bool IsSelect;
+        /// <summary>
+        /// 该物件在编辑器主物件列表中的下标（全量模式下与列表位置一致；
+        /// 过滤模式下用于把选中态映射回主列表下标）。
+        /// </summary>
+        public int MasterIndex = -1;
 
-        public ReaderHitObjectWithSelect(string hitObjectLine, bool IsSelect)
+        public ReaderHitObjectWithSelect(string hitObjectLine, bool IsSelect, int masterIndex = -1)
         {
             HitObjectLine = hitObjectLine;
             this.IsSelect = IsSelect;
+            MasterIndex = masterIndex;
         }
 
         public bool EqualTo(ReaderHitObjectWithSelect? other, bool isCheckSelected = false)

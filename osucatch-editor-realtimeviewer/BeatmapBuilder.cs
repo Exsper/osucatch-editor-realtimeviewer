@@ -110,17 +110,30 @@ namespace osucatch_editor_realtimeviewer
 
         #region Build beatmap
 
-        private static List<string> GetColourLinesFromBeatmapFilepath(string orgpath)
+        /// <summary>
+        /// 一次读取同时取得 beatmap 文件版本和 [Colours] 块内容（原实现会读两次文件）。
+        /// </summary>
+        private static void ReadBeatmapFileMetadata(string orgpath, out List<string>? colourLines, out int version)
         {
+            colourLines = new List<string>();
+            version = 14;
+            bool foundColours = false;
             using (StreamReader file = File.OpenText(orgpath))
             {
-                StringBuilder newfile = new StringBuilder();
-                List<string> colourLines = new List<string>();
                 string? line;
                 while ((line = file.ReadLine()) != null)
                 {
-                    if (Regex.IsMatch(line, @"^\[Colours\]"))
+                    if (line.StartsWith("osu file format v"))
                     {
+                        version = int.Parse(line.Substring(17));
+                        continue;
+                    }
+
+                    if (foundColours) continue;
+
+                    if (line.StartsWith("[Colours]"))
+                    {
+                        foundColours = true;
                         string? innerLine;
                         while ((innerLine = file.ReadLine()) != null)
                         {
@@ -128,24 +141,8 @@ namespace osucatch_editor_realtimeviewer
                             if (innerLine.Trim() == "") continue;
                             colourLines.Add(innerLine);
                         }
-                        return colourLines;
                     }
                 }
-                return colourLines;
-            }
-        }
-
-        private static int GetBeatmapVersionFromBeatmapFilepath(string orgpath)
-        {
-            using (StreamReader file = File.OpenText(orgpath))
-            {
-                string? line;
-                while ((line = file.ReadLine()) != null)
-                {
-                    if (line.StartsWith("osu file format v"))
-                        return int.Parse(line.Substring(17));
-                }
-                return 14;
             }
         }
 
@@ -153,8 +150,8 @@ namespace osucatch_editor_realtimeviewer
         {
             try
             {
-                colourLines = GetColourLinesFromBeatmapFilepath(beatmappath);
-                thisReaderData.BeatmapVersion = GetBeatmapVersionFromBeatmapFilepath(beatmappath);
+                ReadBeatmapFileMetadata(beatmappath, out colourLines, out int version);
+                thisReaderData.BeatmapVersion = version;
             }
             catch (Exception ex)
             {
@@ -272,8 +269,8 @@ namespace osucatch_editor_realtimeviewer
                     }
                 }
 
-                info.Filename = Path.GetFileName(info.Filename);
-                string? containingFolder = Path.GetDirectoryName(info.Filename);
+                info.Filename = Path.GetFileName(path);
+                string? containingFolder = Path.GetDirectoryName(path);
                 if (containingFolder != null)
                     info.ContainingFolder = containingFolder;
                 info.NumControlPoints = info.ControlPointLines.Count;

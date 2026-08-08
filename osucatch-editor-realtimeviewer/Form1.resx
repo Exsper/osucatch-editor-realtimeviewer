@@ -224,7 +224,7 @@
     <value>386, 22</value>
   </data>
   <data name="sameWithEditorToolStripMenuItem.Text" xml:space="preserve">
-    <value>Distance to Next: &amp;Same With Editor</value>
+    <value>Distance to Next: &amp;Same as Editor</value>
   </data>
   <data name="noSliderVelocityMultiplierToolStripMenuItem.ShortcutKeys" type="System.Windows.Forms.Keys, System.Windows.Forms">
     <value>Ctrl+2</value>
@@ -233,7 +233,7 @@
     <value>386, 22</value>
   </data>
   <data name="noSliderVelocityMultiplierToolStripMenuItem.Text" xml:space="preserve">
-    <value>Distance to Next: &amp;No Slider Velocity Multiplier</value>
+    <value>Distance to Next: &amp;Ignore Slider Velocity Multiplier</value>
   </data>
   <data name="compareWithWalkSpeedToolStripMenuItem.ShortcutKeys" type="System.Windows.Forms.Keys, System.Windows.Forms">
     <value>Ctrl+3</value>
@@ -242,7 +242,7 @@
     <value>386, 22</value>
   </data>
   <data name="compareWithWalkSpeedToolStripMenuItem.Text" xml:space="preserve">
-    <value>Distance to Next: &amp;Compare With Walk Speed</value>
+    <value>Distance to Next: &amp;Compare with Walk Speed</value>
   </data>
   <data name="difficultyStarsToolStripMenuItem.ShortcutKeys" type="System.Windows.Forms.Keys, System.Windows.Forms">
     <value>Ctrl+4</value>
@@ -251,7 +251,7 @@
     <value>386, 22</value>
   </data>
   <data name="difficultyStarsToolStripMenuItem.Text" xml:space="preserve">
-    <value>Difficulty to Last: &amp;Difficulty Stars</value>
+    <value>Difficulty of Last: &amp;Difficulty Stars</value>
   </data>
   <data name="fruitCountInComboToolStripMenuItem.ShortcutKeys" type="System.Windows.Forms.Keys, System.Windows.Forms">
     <value>Ctrl+5</value>
@@ -266,7 +266,7 @@
     <value>301, 22</value>
   </data>
   <data name="hitobjectLabelToolStripMenuItem.Text" xml:space="preserve">
-    <value>&amp;Fruits Label</value>
+    <value>&amp;Fruit Labels</value>
   </data>
   <data name="Screens1ToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>139, 22</value>
@@ -320,7 +320,7 @@
     <value>301, 22</value>
   </data>
   <data name="screenToolStripMenuItem.Text" xml:space="preserve">
-    <value>&amp;Range of Vision</value>
+    <value>&amp;Vision Range</value>
   </data>
   <data name="bookmarkSettingsToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>250, 22</value>
@@ -539,7 +539,7 @@
     <value>114, 22</value>
   </data>
   <data name="githubToolStripMenuItem1.Text" xml:space="preserve">
-    <value>&amp;Github</value>
+    <value>&amp;GitHub</value>
   </data>
   <data name="githubToolStripMenuItem.Size" type="System.Drawing.Size, System.Drawing">
     <value>55, 21</value>
@@ -581,7 +581,7 @@
     <value>29, 17</value>
   </data>
   <data name="StateToolStripStatusLabel.Text" xml:space="preserve">
-    <value>stat</value>
+    <value>Ready</value>
   </data>
   <data name="statusStrip1.Location" type="System.Drawing.Point, System.Drawing">
     <value>0, 560</value>
@@ -1002,5 +1002,14 @@
   </data>
   <data name="&gt;&gt;$this.Type" xml:space="preserve">
     <value>System.Windows.Forms.Form, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="templateToolStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Template</value>
+  </data>
+  <data name="selectTemplateStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Select Template...</value>
+  </data>
+  <data name="unloadTemplateStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Unload Template</value>
   </data>
 </root>

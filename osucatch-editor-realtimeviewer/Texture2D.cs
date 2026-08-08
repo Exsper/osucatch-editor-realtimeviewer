@@ -9,6 +9,7 @@ namespace osucatch_editor_realtimeviewer
     {
         public int Width { get; private set; }
         public int Height { get; private set; }
+        public int TextureId => textureId;
         private int textureId = 0;
         public Texture2D(Stream stream)
         {
@@ -70,38 +71,12 @@ namespace osucatch_editor_realtimeviewer
         public void Draw(Vector2 pos, Vector2 origin, Color4 color)
         {
             pos -= origin;
-            GL.Color4(color);
-            GL.MatrixMode(MatrixMode.Modelview);
-            GL.LoadIdentity();
-            GL.BindTexture(TextureTarget.Texture2D, this.textureId);
-            GL.Begin(PrimitiveType.Quads);
-            GL.TexCoord2(0.0f, 0.0f);
-            GL.Vertex2(pos.X, pos.Y);
-            GL.TexCoord2(1.0f, 0.0f);
-            GL.Vertex2(pos.X + this.Width, pos.Y);
-            GL.TexCoord2(1.0f, 1.0f);
-            GL.Vertex2(pos.X + this.Width, pos.Y + this.Height);
-            GL.TexCoord2(0.0f, 1.0f);
-            GL.Vertex2(pos.X, pos.Y + this.Height);
-            GL.End();
+            Canvas.AddQuad(this, pos.X, pos.Y, Width, Height, color);
         }
         public void Draw(Vector2 pos, float w, float h, Vector2 origin, Color4 color)
         {
             pos -= origin;
-            GL.Color4(color);
-            GL.MatrixMode(MatrixMode.Modelview);
-            GL.LoadIdentity();
-            GL.BindTexture(TextureTarget.Texture2D, this.textureId);
-            GL.Begin(PrimitiveType.Quads);
-            GL.TexCoord2(0.0f, 0.0f);
-            GL.Vertex2(pos.X, pos.Y);
-            GL.TexCoord2(1.0f, 0.0f);
-            GL.Vertex2(pos.X + w, pos.Y);
-            GL.TexCoord2(1.0f, 1.0f);
-            GL.Vertex2(pos.X + w, pos.Y + h);
-            GL.TexCoord2(0.0f, 1.0f);
-            GL.Vertex2(pos.X, pos.Y + h);
-            GL.End();
+            Canvas.AddQuad(this, pos.X, pos.Y, w, h, color);
         }
         public void Draw(Vector2 pos, Vector2 origin, Color4 color, float rotation, float scale)
         {

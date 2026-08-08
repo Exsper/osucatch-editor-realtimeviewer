@@ -2,6 +2,7 @@
 using OpenTK.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets.Catch.Objects;
 using osu.Game.Rulesets.Objects;
 
@@ -45,6 +46,16 @@ namespace osucatch_editor_realtimeviewer
         public ControlPointInfo? ControlPointInfo { get; set; }
         List<BarLine> BarLines { get; set; }
         public List<PalpableCatchHitObject> CatchHitObjects { get; set; }
+        public double SliderMultiplier { get; set; }
+
+        // 每帧复用的缓冲列表，避免反复分配
+        private readonly List<BarLine> scratchBarLines = new();
+        private readonly List<TimingControlPoint> timingControlPoints = new();
+        private readonly List<DifficultyControlPoint> difficultyControlPoints = new();
+        private readonly List<TimingControlPoint> scratchTimingPoints = new();
+        private readonly List<DifficultyControlPoint> scratchDifficultyPoints = new();
+        private readonly HashSet<TimingControlPoint> timingPointSeen = new();
+        private readonly HashSet<DifficultyControlPoint> difficultyPointSeen = new();
 
         /// <summary>
         /// CatchHitObjects which near the editor's current time.
@@ -71,6 +82,19 @@ namespace osucatch_editor_realtimeviewer
         public List<Bookmark> Bookmarks { get; set; } = new();
 
         /// <summary>
+        /// 编辑器读取的物件行（含最新选中态），顺序与解码后的 HitObjects 一致。
+        /// 高频 tick 时由 EditorReaderHelper 原位刷新 IsSelect，绘制时通过
+        /// <see cref="PalpableCatchHitObject.SourceIndex"/> 实时查询，
+        /// 这样选中变化不需要触发全量解析/转换重建。
+        /// </summary>
+        public List<ReaderHitObjectWithSelect>? SelectionLines { get; set; }
+
+        /// <summary>
+        /// 参考模板谱面（只读，仅用于绘制下层虚线透明参考物件）。
+        /// </summary>
+        public TemplateBeatmapData? Template { get; set; }
+
+        /// <summary>
         /// How many screens add up to the height of canvas.
         /// </summary>
         public int ScreensContain { get; set; }
@@ -90,6 +114,7 @@ namespace osucatch_editor_realtimeviewer
         {
             ControlPointInfo = convertedBeatmap.ControlPointInfo;
             BarLines = convertedBeatmap.BarLines;
+            SliderMultiplier = convertedBeatmap.Difficulty.SliderMultiplier;
             if (app.Default.Use_Stable_Converter)
             {
                 CatchHitObjects = Form1.stableBeatmapConverter.GetPalpableObjects(convertedBeatmap, mods);
@@ -110,14 +135,33 @@ namespace osucatch_editor_realtimeviewer
             if (CustomComboColours.Count <= 0) CustomComboColours = DefaultCustomComboColours;
         }
 
+        /// <summary>
+        /// 将后台流水线构建好的数据原子地应用到当前绘制实例。
+        /// 只替换装载期字段，不动 CurrentTime / NearbyHitObjects / Bookmarks 等运行时状态。
+        /// </summary>
+        public void ApplyBuildResult(DrawingHelper staged)
+        {
+            CatchHitObjects = staged.CatchHitObjects;
+            ControlPointInfo = staged.ControlPointInfo;
+            BarLines = staged.BarLines;
+            SliderMultiplier = staged.SliderMultiplier;
+            ApproachTime = staged.ApproachTime;
+            TimePerPixels = staged.TimePerPixels;
+            CircleDiameter = staged.CircleDiameter;
+            CustomComboColours = staged.CustomComboColours;
+            LabelType = staged.LabelType;
+        }
+
         public void Draw()
         {
             BuildNearby();
 
+            DrawTemplate();
+
             if (app.Default.Show_CubicFittingCurve) DrawSpline();
 
-            List<TimingControlPoint> timingControlPoints = new List<TimingControlPoint>();
-            List<DifficultyControlPoint> difficultyControlPoints = new List<DifficultyControlPoint>();
+            timingControlPoints.Clear();
+            difficultyControlPoints.Clear();
 
             double MaxStartTime = -1;
 
@@ -162,27 +206,117 @@ namespace osucatch_editor_realtimeviewer
 
             if (app.Default.BarLine_Show)
             {
-                List<BarLine> barLines = BarLines.Where((barLine) => barLine.StartTime >= 0 && barLine.StartTime <= MaxStartTime + 1).ToList();
-                DrawBarLines(barLines);
+                scratchBarLines.Clear();
+                foreach (BarLine barLine in BarLines)
+                {
+                    if (barLine.StartTime >= 0 && barLine.StartTime <= MaxStartTime + 1) scratchBarLines.Add(barLine);
+                }
+                DrawBarLines(scratchBarLines);
             }
 
             if (app.Default.TimingLine_ShowGreen)
             {
-                difficultyControlPoints = difficultyControlPoints.Distinct().ToList();
-                DrawDifficultyControPoints(difficultyControlPoints);
+                scratchDifficultyPoints.Clear();
+                difficultyPointSeen.Clear();
+                foreach (DifficultyControlPoint cp in difficultyControlPoints)
+                {
+                    if (difficultyPointSeen.Add(cp)) scratchDifficultyPoints.Add(cp);
+                }
+                DrawDifficultyControPoints(scratchDifficultyPoints);
             }
 
             if (app.Default.TimingLine_ShowRed)
             {
-                timingControlPoints = timingControlPoints.Distinct().ToList();
-                DrawTimingPoints(timingControlPoints);
+                scratchTimingPoints.Clear();
+                timingPointSeen.Clear();
+                foreach (TimingControlPoint cp in timingControlPoints)
+                {
+                    if (timingPointSeen.Add(cp)) scratchTimingPoints.Add(cp);
+                }
+                DrawTimingPoints(scratchTimingPoints);
             }
 
             DrawBookmarkPlus(Bookmarks);
+
+            DrawDistanceHelper();
+        }
+
+        /// <summary>
+        /// 绘制模板谱面的参考物件：半透明虚线圆（颜色/透明度可在设置中调整），置于主物件下层。
+        /// 与主物件共用同一条时间轴（主图的 TimePerPixels），只画当前时间窗口内的物件。
+        /// </summary>
+        private void DrawTemplate()
+        {
+            if (Template == null || Template.Objects.Count <= 0) return;
+
+            List<PalpableCatchHitObject> templateObjects = Template.Objects;
+            double timeSpan = ScreensContain * ApproachTime * 1.25 + CircleDiameter * TimePerPixels * 2;
+            int startIndex = TemplateLowerBound(templateObjects, CurrentTime - timeSpan);
+            int endIndex = TemplateUpperBound(templateObjects, CurrentTime + timeSpan);
+
+            Color templateArgb = app.Default.Template_Color;
+            float templateAlpha = Math.Clamp(app.Default.Template_Alpha, 0, 100) / 100f;
+            Color4 templateColor = new Color4(templateArgb.R / 255f, templateArgb.G / 255f, templateArgb.B / 255f, templateAlpha);
+            double baseY = (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
+
+            for (int k = startIndex; k <= endIndex; k++)
+            {
+                if (k < 0 || k >= templateObjects.Count) continue;
+                PalpableCatchHitObject obj = templateObjects[k];
+
+                double deltaTime = obj.StartTime - CurrentTime;
+                if (ScreensContain <= 1)
+                {
+                    double upTime = ApproachTime + CircleDiameter * TimePerPixels;
+                    double bottomTime = ApproachTime * 3 / 17 + CircleDiameter * TimePerPixels;
+                    if (deltaTime > upTime || deltaTime < -bottomTime) continue;
+                }
+                else
+                {
+                    double span = ScreensContain * ApproachTime * 1.25;
+                    if (deltaTime > span || deltaTime < -span) continue;
+                }
+
+                float diameter = Template.CircleDiameter;
+                if (obj is TinyDroplet) diameter *= obj.Scale / 2f;
+                else if (obj is Droplet) diameter *= obj.Scale;
+
+                float posY = (float)(baseY - deltaTime / TimePerPixels);
+                Canvas.DrawDashedCircleOutline(new Vector2(64 + obj.EffectiveX, posY), diameter / 2f, templateColor);
+            }
+        }
+
+        private static int TemplateLowerBound(List<PalpableCatchHitObject> objects, double target)
+        {
+            int left = 0;
+            int right = objects.Count - 1;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (objects[mid].StartTime < target) left = mid + 1;
+                else right = mid - 1;
+            }
+            return right >= 0 ? right : 0;
+        }
+
+        private static int TemplateUpperBound(List<PalpableCatchHitObject> objects, double target)
+        {
+            int left = 0;
+            int right = objects.Count - 1;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (objects[mid].StartTime <= target) left = mid + 1;
+                else right = mid - 1;
+            }
+            return left < objects.Count ? left : objects.Count - 1;
         }
 
         public void DrawBarLines(List<BarLine> barLines)
         {
+            int subdivide = app.Default.BarLine_Subdivide;
+            bool drawSubdivisions = subdivide > 0 && ControlPointInfo != null;
+
             barLines.ForEach(barLine =>
             {
                 if (barLine.StartTime < 0) return;
@@ -197,6 +331,7 @@ namespace osucatch_editor_realtimeviewer
                         Vector2 rp1 = new Vector2(576, posY);
                         if (barLine.Major) Canvas.DrawLine(rp0, rp1, Color.LightGray);
                         else Canvas.DrawLine(rp0, rp1, Color.Gray);
+                        if (drawSubdivisions) DrawBarLineSubdivisions(barLine, subdivide);
                     }
                 }
                 else
@@ -210,9 +345,206 @@ namespace osucatch_editor_realtimeviewer
                         Vector2 rp1 = new Vector2(576, posY);
                         if (barLine.Major) Canvas.DrawLine(rp0, rp1, Color.LightGray);
                         else Canvas.DrawLine(rp0, rp1, Color.Gray);
+                        if (drawSubdivisions) DrawBarLineSubdivisions(barLine, subdivide);
                     }
                 }
             });
+        }
+
+        /// <summary>
+        /// 绘制小节线的拍点细分线：
+        /// “显示到2拍”每隔 2 拍一条，“显示到拍”每一拍一条。
+        /// 统一用淡白线（比小节线更淡），避免与 editor 中表示“拍”的 1/2、1/4 混淆。
+        /// 不越过下一条小节线。
+        /// </summary>
+        private void DrawBarLineSubdivisions(BarLine barLine, int subdivide)
+        {
+            if (ControlPointInfo == null) return;
+
+            TimingControlPoint timing = ControlPointInfo.TimingPointAt(barLine.StartTime);
+            double beatLength = timing.BeatLength;
+            if (beatLength <= 0) return;
+
+            int beatsPerMeasure = timing.TimeSignature.Numerator;
+            double nextBarTime = NextBarLineTime(barLine.StartTime);
+            Color subdivisionColor = Color.FromArgb(90, Color.White);
+
+            if (subdivide >= 2)
+            {
+                // 每一拍一条（2 拍位置也包含在内，颜色相同无需去重）
+                for (int beat = 1; beat < beatsPerMeasure; beat++)
+                {
+                    double time = barLine.StartTime + beat * beatLength;
+                    if (time < nextBarTime) DrawSubdivisionLine(time, subdivisionColor);
+                }
+            }
+            else if (subdivide >= 1)
+            {
+                // 每隔 2 拍一条
+                for (int beat = 2; beat < beatsPerMeasure; beat += 2)
+                {
+                    double time = barLine.StartTime + beat * beatLength;
+                    if (time < nextBarTime) DrawSubdivisionLine(time, subdivisionColor);
+                }
+            }
+        }
+
+        private void DrawSubdivisionLine(double time, Color color)
+        {
+            double deltaTime = time - CurrentTime;
+            double baseY = (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
+
+            if (ScreensContain <= 1)
+            {
+                double upTime = ApproachTime;
+                double bottomTime = ApproachTime * 3 / 17;
+                if (deltaTime > upTime || deltaTime < -bottomTime) return;
+            }
+            else
+            {
+                double span = ScreensContain * ApproachTime * 1.25;
+                if (deltaTime > span || deltaTime < -span) return;
+            }
+
+            int posY = (int)(baseY - deltaTime / TimePerPixels);
+            Canvas.DrawLine(new Vector2(64, posY), new Vector2(576, posY), color);
+        }
+
+        /// <summary>
+        /// BarLines 按时间升序，二分查找第一条晚于指定时间的小节线。
+        /// </summary>
+        private double NextBarLineTime(double time)
+        {
+            int left = 0;
+            int right = BarLines.Count - 1;
+            double result = double.MaxValue;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (BarLines[mid].StartTime > time)
+                {
+                    result = BarLines[mid].StartTime;
+                    right = mid - 1;
+                }
+                else
+                {
+                    left = mid + 1;
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 距离辅助线（光锥）：当当前时间点上有 Fruit 时，
+        /// 从“上个物件”中心向左上/右上画两条放射线。
+        /// 白线默认 1x、红线默认 2x（SameWithEditor 速度倍率，可在设置中修改），
+        /// 用于判断当前放置物件相对上个物件的可达距离。
+        /// </summary>
+        private void DrawDistanceHelper()
+        {
+            if (!app.Default.Show_Distance_Helper) return;
+            if (CatchHitObjects == null || CatchHitObjects.Count <= 0) return;
+
+            int currentIndex = FindFruitIndexAtTime(CurrentTime);
+            if (currentIndex < 0) return;
+
+            PalpableCatchHitObject? previous = ((Fruit)CatchHitObjects[currentIndex]).lastObject;
+            if (previous == null) return;
+
+            double baseY = (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
+            double topY = (ScreensContain <= 1)
+                ? baseY - (ApproachTime + CircleDiameter * TimePerPixels)
+                : baseY - ScreensContain * ApproachTime * 1.25;
+            if (topY >= baseY) return;
+
+            double anchorX = 64 + previous.EffectiveX;
+            double anchorY = baseY - (previous.StartTime - CurrentTime) / TimePerPixels;
+
+            // SameWithEditor 速度换算（参考 BeatmapConverter.CalDistanceToNext）：
+            // 水平速度 = 倍率 × (SliderMultiplier × 100 × SliderVelocity) / BeatLength
+            double whiteSpeed = CalcSameWithEditorSpeed(app.Default.Distance_Helper_White_Speed);
+            double redSpeed = CalcSameWithEditorSpeed(app.Default.Distance_Helper_Red_Speed);
+
+            DrawConeRays(anchorX, anchorY, topY, whiteSpeed, Color.White);
+            DrawConeRays(anchorX, anchorY, topY, redSpeed, Color.Red);
+        }
+
+        /// <summary>
+        /// 按 SameWithEditor 语义换算水平速度（px/ms）：
+        /// speed = 倍率 × (SliderMultiplier × 100 × SliderVelocity) / BeatLength。
+        /// 与 <see cref="BeatmapConverter.CalDistanceToNext"/> 的 XDistToNext_SameWithEditor 一致，
+        /// 参数取当前播放头处的拍长与滑条速度。数据无效时返回 0（对应射线不画）。
+        /// </summary>
+        private double CalcSameWithEditorSpeed(double multiplier)
+        {
+            if (!(multiplier > 0) || ControlPointInfo == null || !(SliderMultiplier > 0)) return 0;
+
+            TimingControlPoint timing = ControlPointInfo.TimingPointAt(CurrentTime);
+            DifficultyControlPoint difficulty = (ControlPointInfo as LegacyControlPointInfo)?.DifficultyPointAt(CurrentTime) ?? DifficultyControlPoint.DEFAULT;
+
+            double beatLength = timing.BeatLength;
+            double sliderVelocity = difficulty.SliderVelocity;
+            if (!(beatLength > 0) || !(sliderVelocity > 0)) return 0;
+
+            return multiplier * (SliderMultiplier * 100 * sliderVelocity) / beatLength;
+        }
+
+        /// <summary>
+        /// 从锚点画两条对称的向上放射线（右上、左上），延伸到可视窗口顶部，超出 playfield 时在边缘截断。
+        /// 屏幕坐标下时间轴向上为未来，速度 s 的斜率为 dy/dx = -1/(s * TimePerPixels)。
+        /// </summary>
+        private void DrawConeRays(double anchorX, double anchorY, double topY, double speed, Color color)
+        {
+            if (speed <= 0 || TimePerPixels <= 0) return;
+
+            double slope = 1.0 / (speed * TimePerPixels);
+            Vector2 anchor = new Vector2((float)anchorX, (float)anchorY);
+
+            Canvas.DrawLine(anchor, ConeRayEndpoint(anchorX, anchorY, topY, slope, +1), color);
+            Canvas.DrawLine(anchor, ConeRayEndpoint(anchorX, anchorY, topY, slope, -1), color);
+        }
+
+        private static Vector2 ConeRayEndpoint(double anchorX, double anchorY, double topY, double slope, double direction)
+        {
+            const double playLeft = 64;
+            const double playRight = 576;
+
+            double dyToTop = anchorY - topY;
+            double xAtTop = anchorX + direction * dyToTop / slope;
+
+            if (direction > 0)
+            {
+                if (xAtTop > playRight)
+                    return new Vector2((float)playRight, (float)(anchorY - slope * (playRight - anchorX)));
+                return new Vector2((float)xAtTop, (float)topY);
+            }
+
+            if (xAtTop < playLeft)
+                return new Vector2((float)playLeft, (float)(anchorY - slope * (anchorX - playLeft)));
+            return new Vector2((float)xAtTop, (float)topY);
+        }
+
+        /// <summary>
+        /// 在 CatchHitObjects（按 StartTime 升序）中找时间点（±1ms）上的 Fruit。
+        /// </summary>
+        private int FindFruitIndexAtTime(double time)
+        {
+            const double tolerance = 1.0;
+
+            int left = 0;
+            int right = CatchHitObjects.Count - 1;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (CatchHitObjects[mid].StartTime < time - tolerance) left = mid + 1;
+                else right = mid - 1;
+            }
+
+            for (int i = left; i < CatchHitObjects.Count && CatchHitObjects[i].StartTime <= time + tolerance; i++)
+            {
+                if (CatchHitObjects[i] is Fruit) return i;
+            }
+            return -1;
         }
 
         public void DrawBookmarkPlus(List<Bookmark> bookmarks)
@@ -321,7 +653,15 @@ namespace osucatch_editor_realtimeviewer
             int comboColorIndex = (hitObject.ComboIndex) % CustomComboColours.Count;
             Color4 color = CustomComboColours[comboColorIndex];
 
-            bool isSelected = (app.Default.Selected_Show) ? hitObject.IsSelected : false;
+            bool isSelected = false;
+            if (app.Default.Selected_Show)
+            {
+                // 实时选中态优先（高频刷新，不依赖重建）；表不可用时回退到转换快照的选中标志
+                if (SelectionLines != null && hitObject.SourceIndex >= 0 && hitObject.SourceIndex < SelectionLines.Count)
+                    isSelected = SelectionLines[hitObject.SourceIndex].IsSelect;
+                else
+                    isSelected = hitObject.IsSelected;
+            }
 
             if (hitObject is TinyDroplet) Canvas.DrawTinyDroplet(pos, CircleDiameter, hitObject.Scale, color, withColor, hitObject.HyperDash, isSelected);
             else if (hitObject is Droplet) Canvas.DrawDroplet(pos, CircleDiameter, hitObject.Scale, color, withColor, hitObject.HyperDash, isSelected);
@@ -330,8 +670,13 @@ namespace osucatch_editor_realtimeviewer
 
             if (LabelType != HitObjectLabelType.None && (hitObject is Fruit || (hitObject is Droplet && hitObject is not TinyDroplet)))
             {
-                string labelString = hitObject.GetLabelString(LabelType);
-                Canvas.DrawHitObjectLabel(labelString, pos, CircleDiameter, app.Default.Color_HitObject_Label);
+                // 标签文本在重建后不再变化，按 LabelType 缓存避免每帧 ToString 分配
+                if (hitObject.CachedLabelType != LabelType)
+                {
+                    hitObject.CachedLabel = hitObject.GetLabelString(LabelType);
+                    hitObject.CachedLabelType = LabelType;
+                }
+                Canvas.DrawHitObjectLabel(hitObject.CachedLabel, pos, CircleDiameter, app.Default.Color_HitObject_Label);
             }
         }
 
@@ -367,7 +712,7 @@ namespace osucatch_editor_realtimeviewer
             this.NearbyHitObjects.ForEach((obj) =>
             {
                 if (obj is not Banana && obj is not TinyDroplet)
-                points.Add(new PointF(obj.EffectiveX, (float)obj.StartTime));
+                    points.Add(new PointF(obj.EffectiveX, (float)obj.StartTime));
             });
             if (points.Count <= 2) return;
             CubicSpline spline = new CubicSpline(points);
@@ -389,7 +734,7 @@ namespace osucatch_editor_realtimeviewer
             }
             for (int i = 1; i < splinePoints.Count; i++)
             {
-                Canvas.DrawLine(splinePoints[i - 1], splinePoints[i], app.Default.Curve_Color, app.Default.Curve_Width, (LineType)(app.Default.Curve_LineStyle * 2));
+                Canvas.DrawLine(splinePoints[i - 1], splinePoints[i], app.Default.Curve_Color, app.Default.Curve_Width, (LineType)(app.Default.Curve_LineStyle * 2), beforeTextures: true);
             }
         }
 

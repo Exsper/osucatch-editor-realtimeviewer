@@ -4,7 +4,6 @@
 // Decompiled with ICSharpCode.Decompiler 8.1.1.7464
 
 using osucatch_editor_realtimeviewer;
-using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -92,6 +91,12 @@ public class EditorReader
 
     private byte[] pObjects;
 
+    /// <summary>
+    /// 主物件列表指针 -> 主物件下标，用于轻量地把选中物件列表映射回 SourceIndex。
+    /// 每次 SetObjects 时重建。
+    /// </summary>
+    private Dictionary<IntPtr, int>? masterIndexByPointer;
+
     public List<HitObject> hitObjects;
 
     private IntPtr pClipboardL;
@@ -160,6 +165,14 @@ public class EditorReader
             throw new Exception("ReadProcessMemory Error. Reading cancelled.");
         }
         return result;
+    }
+
+    private static void EnsureBuffer(ref byte[] buf, int size)
+    {
+        if (buf == null || buf.Length < size)
+        {
+            buf = new byte[size];
+        }
     }
 
     private string ReadString(IntPtr pString)
@@ -269,6 +282,11 @@ public class EditorReader
         return true;
     }
 
+    /// <summary>
+    /// 当前连接的 osu! 进程 ID（用于前台窗口判断，避免每次创建 Process 对象）。
+    /// </summary>
+    public int? OsuProcessId => process?.Id;
+
     public string ProcessTitle()
     {
         if (ProcessNeedsReload())
@@ -295,16 +313,34 @@ public class EditorReader
         pEditor = FindEditorAddress();
     }
 
+    /// <summary>
+    /// 清空已缓存的编辑器地址，强制下一次检查时重新扫描内存。
+    /// </summary>
+    public void ResetEditor()
+    {
+        pEditor = IntPtr.Zero;
+    }
+
     public bool EditorNeedsReload()
     {
         if (ProcessNeedsReload())
         {
             return true;
         }
+        if (pEditor == IntPtr.Zero)
+        {
+            return true;
+        }
 
-        ReadProcessMemory(process.Handle, pEditor + 160, buffer16, 16, ref bytesRead);
-        ReadProcessMemory(process.Handle, pEditor + 208, buffer4, 4, ref bytesRead);
-        if (pEditor == IntPtr.Zero || BitConverter.ToBoolean(buffer4, 1) || BitConverter.ToInt32(buffer16, 0) != 35 || BitConverter.ToInt32(buffer16, 4) != 20 || BitConverter.ToInt32(buffer16, 8) != 25)
+        // 读取失败时必须视为需要重载，不能依赖上次成功读取残留的 buffer 值做判断
+        // （osu! 从 test mode 退出重建 editor 后，旧 pEditor 可能已失效，ReadProcessMemory 失败但 buffer 仍是旧签名）
+        if (!ReadProcessMemory(process.Handle, pEditor + 160, buffer16, 16, ref bytesRead) ||
+            !ReadProcessMemory(process.Handle, pEditor + 208, buffer4, 4, ref bytesRead))
+        {
+            return true;
+        }
+
+        if (BitConverter.ToBoolean(buffer4, 1) || BitConverter.ToInt32(buffer16, 0) != 35 || BitConverter.ToInt32(buffer16, 4) != 20 || BitConverter.ToInt32(buffer16, 8) != 25)
         {
             return true;
         }
@@ -314,16 +350,24 @@ public class EditorReader
 
     private bool EditorMissingObjects(IntPtr pE)
     {
-        SafeReadProcessMemory(process.Handle, pE + 28, buffer4, 4, ref bytesRead);
-        IntPtr intPtr = ToIntPtr(buffer4, 0);
-        SafeReadProcessMemory(process.Handle, intPtr + 72, buffer4, 4, ref bytesRead);
-        IntPtr intPtr2 = ToIntPtr(buffer4, 0);
-        if (!(intPtr == IntPtr.Zero))
+        try
         {
+            SafeReadProcessMemory(process.Handle, pE + 28, buffer4, 4, ref bytesRead);
+            IntPtr intPtr = ToIntPtr(buffer4, 0);
+            if (intPtr == IntPtr.Zero)
+            {
+                return true;
+            }
+            SafeReadProcessMemory(process.Handle, intPtr + 72, buffer4, 4, ref bytesRead);
+            IntPtr intPtr2 = ToIntPtr(buffer4, 0);
             return intPtr2 == IntPtr.Zero;
         }
-
-        return true;
+        catch
+        {
+            // 读取失败视为"对象缺失"：EditorNeedsReload 会据此返回 true（需要重载），
+            // FindEditorAddress 扫描中则跳过该候选继续扫描，避免假目标中断整次扫描
+            return true;
+        }
     }
 
     public int EditorTime()
@@ -342,13 +386,13 @@ public class EditorReader
 
     public void ReadHOM()
     {
-        buffer = new byte[80];
+        EnsureBuffer(ref buffer, 80);
         SafeReadProcessMemory(process.Handle, pHOM, buffer, 80, ref bytesRead);
         objectRadius = BitConverter.ToSingle(buffer, 24);
         stackOffset = BitConverter.ToSingle(buffer, 44);
         pBookmarksL = ToIntPtr(buffer, 56);
         pObjectsL = ToIntPtr(buffer, 72);
-        buffer = new byte[256];
+        EnsureBuffer(ref buffer, 256);
         SafeReadProcessMemory(process.Handle, pCompose, buffer, 256, ref bytesRead);
         pClipboardL = ToIntPtr(buffer, 48);
         pSelectedL = ToIntPtr(buffer, 72);
@@ -359,10 +403,108 @@ public class EditorReader
         SafeReadProcessMemory(process.Handle, pBookmarksL, buffer16, 16, ref bytesRead);
         pBookmarksA = ToIntPtr(buffer16, 4);
         numBookmarks = SafeBitConverterToInt32(buffer16, 12, "numBookmarks");
-        buffer = new byte[4 * numBookmarks];
+        EnsureBuffer(ref buffer, 4 * numBookmarks);
         bookmarks = new int[numBookmarks];
         SafeReadProcessMemory(process.Handle, pBookmarksA + 8, buffer, 4 * numBookmarks, ref bytesRead);
         Buffer.BlockCopy(buffer, 0, bookmarks, 0, 4 * numBookmarks);
+    }
+
+    /// <summary>
+    /// 轻量读取当前物件/控制点/书签数量，用于快速判断 beatmap 是否发生变化。
+    /// 不会抛异常；指针无效或读取失败时返回 false。
+    /// </summary>
+    public bool TryReadCounts(out int numObjects, out int numControlPoints, out int numBookmarks)
+    {
+        numObjects = numControlPoints = numBookmarks = -1;
+        if (process == null || pObjectsL == IntPtr.Zero || pControlPointsL == IntPtr.Zero || pBookmarksL == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        bool ok = true;
+        ok &= ReadListCount(pObjectsL, out numObjects);
+        ok &= ReadListCount(pControlPointsL, out numControlPoints);
+        ok &= ReadListCount(pBookmarksL, out numBookmarks);
+        return ok;
+    }
+
+    /// <summary>
+    /// 轻量读取当前选中物件在主物件列表中的下标（0..numObjects-1，顺序不保证与主列表一致）。
+    /// 高频 tick 时使用，避免等待 150ms 一次的全量读取。
+    /// 不会抛异常；指针无效、读取失败或主物件指针表未就绪时返回 false（调用方沿用旧状态）。
+    /// </summary>
+    public bool TryReadSelectedIndices(out int[] selectedIndices)
+    {
+        selectedIndices = Array.Empty<int>();
+        if (process == null || pSelectedL == IntPtr.Zero || masterIndexByPointer == null)
+        {
+            return false;
+        }
+
+        if (!ReadProcessMemory(process.Handle, pSelectedL, buffer16, 16, ref bytesRead))
+        {
+            return false;
+        }
+
+        IntPtr pSelA = ToIntPtr(buffer16, 4);
+        int selCount = BitConverter.ToInt32(buffer16, 12);
+        if (selCount < 0 || selCount > 1000000)
+        {
+            return false;
+        }
+
+        if (selCount == 0)
+        {
+            return true;
+        }
+
+        if (pSelA == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        EnsureBuffer(ref pSelected, 4 * selCount);
+        if (!ReadProcessMemory(process.Handle, pSelA + 8, pSelected, 4 * selCount, ref bytesRead))
+        {
+            return false;
+        }
+
+        int[] result = new int[selCount];
+        int found = 0;
+        for (int i = 0; i < selCount; i++)
+        {
+            IntPtr objPtr = ToIntPtr(pSelected, 4 * i);
+            if (masterIndexByPointer.TryGetValue(objPtr, out int index))
+            {
+                result[found++] = index;
+            }
+        }
+
+        if (found != selCount)
+        {
+            Array.Resize(ref result, found);
+        }
+
+        selectedIndices = result;
+        return true;
+    }
+
+    private bool ReadListCount(IntPtr pList, out int count)
+    {
+        count = -1;
+        if (!ReadProcessMemory(process.Handle, pList, buffer16, 16, ref bytesRead))
+        {
+            return false;
+        }
+
+        int value = BitConverter.ToInt32(buffer16, 12);
+        if (value < 0 || value > 1000000)
+        {
+            return false;
+        }
+
+        count = value;
+        return true;
     }
 
     public void SetBeatmap()
@@ -373,7 +515,7 @@ public class EditorReader
 
     public void ReadBeatmap()
     {
-        buffer = new byte[320];
+        EnsureBuffer(ref buffer, 320);
         SafeReadProcessMemory(process.Handle, pBeatmap, buffer, 320, ref bytesRead);
         SliderMultiplier = BitConverter.ToDouble(buffer, 8);
         SliderTickRate = BitConverter.ToDouble(buffer, 16);
@@ -391,13 +533,13 @@ public class EditorReader
 
     public void SetControlPoints()
     {
-        buffer = new byte[192];
+        EnsureBuffer(ref buffer, 192);
         SafeReadProcessMemory(process.Handle, pBeatmap, buffer, 192, ref bytesRead);
         pControlPointsL = ToIntPtr(buffer, 176);
         SafeReadProcessMemory(process.Handle, pControlPointsL, buffer16, 16, ref bytesRead);
         pControlPointsA = ToIntPtr(buffer16, 4);
         numControlPoints = SafeBitConverterToInt32(buffer16, 12, "numControlPoints");
-        pControlPoints = new byte[4 * numControlPoints];
+        EnsureBuffer(ref pControlPoints, 4 * numControlPoints);
         SafeReadProcessMemory(process.Handle, pControlPointsA + 8, pControlPoints, 4 * numControlPoints, ref bytesRead);
     }
 
@@ -431,8 +573,22 @@ public class EditorReader
         SafeReadProcessMemory(process.Handle, pObjectsL, buffer16, 16, ref bytesRead);
         pObjectsA = ToIntPtr(buffer16, 4);
         numObjects = SafeBitConverterToInt32(buffer16, 12, "numObjects");
-        pObjects = new byte[4 * numObjects];
+        EnsureBuffer(ref pObjects, 4 * numObjects);
         SafeReadProcessMemory(process.Handle, pObjectsA + 8, pObjects, 4 * numObjects, ref bytesRead);
+
+        // 建立指针 -> 主物件下标映射，供高频选中读取使用
+        if (masterIndexByPointer == null || masterIndexByPointer.Count != numObjects)
+        {
+            masterIndexByPointer = new Dictionary<IntPtr, int>(numObjects);
+        }
+        else
+        {
+            masterIndexByPointer.Clear();
+        }
+        for (int i = 0; i < numObjects; i++)
+        {
+            masterIndexByPointer[ToIntPtr(pObjects, 4 * i)] = i;
+        }
     }
 
     public void ReadObjects(bool fetchHitSound = true)
@@ -465,11 +621,11 @@ public class EditorReader
         hitObject.IsSelected = BitConverter.ToBoolean(bufferOb, 133);
         hitObject.BaseX = BitConverter.ToSingle(bufferOb, 140);
         hitObject.BaseY = BitConverter.ToSingle(bufferOb, 144);
-        hitObject.unifiedSoundAddition = (fetchHitSound) ? BitConverter.ToBoolean(bufferOb, 286) : true;
         if (hitObject.IsSlider())
         {
             hitObject.curveLength = BitConverter.ToDouble(bufferOb, 148);
             hitObject.CurveType = BitConverter.ToInt32(bufferOb, 248);
+            hitObject.unifiedSoundAddition = (fetchHitSound) ? BitConverter.ToBoolean(bufferOb, 286) : true;
             pPointsL = ToIntPtr(bufferOb, 196);
             pSTL = ToIntPtr(bufferOb, 224);
             pSSL = ToIntPtr(bufferOb, 228);
@@ -477,7 +633,7 @@ public class EditorReader
             SafeReadProcessMemory(process.Handle, pPointsL, buffer16, 16, ref bytesRead);
             pTempA = ToIntPtr(buffer16, 4);
             numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
-            bTemp = new byte[8 * numTemp];
+            EnsureBuffer(ref bTemp, 8 * numTemp);
             SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 8 * numTemp, ref bytesRead);
             hitObject.sliderCurvePoints = new float[2 * numTemp];
             Buffer.BlockCopy(bTemp, 0, hitObject.sliderCurvePoints, 0, 8 * numTemp);
@@ -486,21 +642,21 @@ public class EditorReader
                 SafeReadProcessMemory(process.Handle, pSTL, buffer16, 16, ref bytesRead);
                 pTempA = ToIntPtr(buffer16, 4);
                 numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
-                bTemp = new byte[4 * numTemp];
+                EnsureBuffer(ref bTemp, 4 * numTemp);
                 SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
                 hitObject.SoundTypeList = new int[numTemp];
                 Buffer.BlockCopy(bTemp, 0, hitObject.SoundTypeList, 0, 4 * numTemp);
                 SafeReadProcessMemory(process.Handle, pSSL, buffer16, 16, ref bytesRead);
                 pTempA = ToIntPtr(buffer16, 4);
                 numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
-                bTemp = new byte[4 * numTemp];
+                EnsureBuffer(ref bTemp, 4 * numTemp);
                 SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
                 hitObject.SampleSetList = new int[numTemp];
                 Buffer.BlockCopy(bTemp, 0, hitObject.SampleSetList, 0, 4 * numTemp);
                 SafeReadProcessMemory(process.Handle, pSSAL, buffer16, 16, ref bytesRead);
                 pTempA = ToIntPtr(buffer16, 4);
                 numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
-                bTemp = new byte[4 * numTemp];
+                EnsureBuffer(ref bTemp, 4 * numTemp);
                 SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
                 hitObject.SampleSetAdditionsList = new int[numTemp];
                 Buffer.BlockCopy(bTemp, 0, hitObject.SampleSetAdditionsList, 0, 4 * numTemp);

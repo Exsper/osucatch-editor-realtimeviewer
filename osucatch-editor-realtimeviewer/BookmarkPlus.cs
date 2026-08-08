@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Formats.Asn1;
-using System.Linq;
-using System.Reflection;
-using System.Text;
+﻿using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -168,8 +162,9 @@ namespace osucatch_editor_realtimeviewer
                 SaveBookmarkData(filePath, currentBookmarkData);
                 return true;
             }
-            catch (Exception ex) {
-                MessageBox.Show("An error occurred while saving bookmarkplus file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            catch (Exception ex)
+            {
+                MessageBox.Show("An error occurred while saving the Bookmark+ file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Log.ConsoleLog("Save BookmarkPlus to file failed.\n" + ex, Log.LogType.Bookmark, Log.LogLevel.Error);
                 return false;
             }
@@ -190,7 +185,7 @@ namespace osucatch_editor_realtimeviewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show("An error occurred while reading bookmarkplus file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("An error occurred while reading the Bookmark+ file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Log.ConsoleLog("Read BookmarkPlus from file failed.\n" + ex, Log.LogType.Bookmark, Log.LogLevel.Error);
                 return new List<Bookmark>();
             }
@@ -335,7 +330,8 @@ namespace osucatch_editor_realtimeviewer
             Bookmarks.Sort();
         }
 
-        public void DelBookmarkByIndex(int index) {
+        public void DelBookmarkByIndex(int index)
+        {
             Bookmarks.RemoveAt(index);
             // 应该不用重新排序
         }

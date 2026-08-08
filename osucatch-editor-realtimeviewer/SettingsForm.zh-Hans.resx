@@ -157,6 +157,12 @@
   <data name="label4.Text" xml:space="preserve">
     <value>绘制时</value>
   </data>
+  <data name="label_LowFreqReadInterval.Text" xml:space="preserve">
+    <value>低频读取</value>
+  </data>
+  <data name="label_FullReadInterval.Text" xml:space="preserve">
+    <value>全量读取</value>
+  </data>
   <data name="groupBox4.Text" xml:space="preserve">
     <value>备份</value>
   </data>
@@ -207,6 +213,12 @@
   </data>
   <data name="groupBox6.Text" xml:space="preserve">
     <value>调试</value>
+  </data>
+  <data name="checkBox_Log_BookmarkPlus.Size" type="System.Drawing.Size, System.Drawing">
+    <value>135, 21</value>
+  </data>
+  <data name="checkBox_Log_BookmarkPlus.Text" xml:space="preserve">
+    <value>BookmarkPlus日志</value>
   </data>
   <data name="checkBox_Log_BeatmapBuilder.Size" type="System.Drawing.Size, System.Drawing">
     <value>99, 21</value>
@@ -274,6 +286,18 @@
   <data name="checkBox_showConsole.Text" xml:space="preserve">
     <value>启动时显示控制台</value>
   </data>
+  <data name="checkBox_UseBatchRendering.Size" type="System.Drawing.Size, System.Drawing">
+    <value>231, 21</value>
+  </data>
+  <data name="checkBox_UseBatchRendering.Text" xml:space="preserve">
+    <value>批量渲染（更快，部分机型可能闪退）</value>
+  </data>
+  <data name="label_UseBatchRenderingWarning.Size" type="System.Drawing.Size, System.Drawing">
+    <value>447, 54</value>
+  </data>
+  <data name="label_UseBatchRenderingWarning.Text" xml:space="preserve">
+    <value>警告：部分显卡/驱动不支持批量渲染，启动或绘制时可能闪退。若发生闪退，下次启动会自动关闭此项。</value>
+  </data>
   <data name="groupBox7.Text" xml:space="preserve">
     <value>时间点</value>
   </data>
@@ -295,11 +319,32 @@
   <data name="checkBox_TimingLine_ShowRed.Text" xml:space="preserve">
     <value>显示非继承时间点 (红线)</value>
   </data>
+  <data name="comboBox_BarLineSubdivide.Items" xml:space="preserve">
+    <value>显示到小节</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items1" xml:space="preserve">
+    <value>显示到2拍</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items2" xml:space="preserve">
+    <value>显示到拍</value>
+  </data>
+  <data name="checkBox_ShowDistanceHelper.Text" xml:space="preserve">
+    <value>显示距离辅助线</value>
+  </data>
+  <data name="label_WhiteSpeed.Text" xml:space="preserve">
+    <value>白线速度倍率 (x)</value>
+  </data>
+  <data name="label_RedSpeed.Text" xml:space="preserve">
+    <value>红线速度倍率 (x)</value>
+  </data>
   <data name="groupBox8.Text" xml:space="preserve">
     <value>高级</value>
   </data>
   <data name="button_timeOut_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>345, 66</value>
+    <value>345, 71</value>
+  </data>
+  <data name="label11.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 97</value>
   </data>
   <data name="label11.Size" type="System.Drawing.Size, System.Drawing">
     <value>272, 17</value>
@@ -308,7 +353,7 @@
     <value>当加载DTB或马拉松图遇到问题时尝试提高该值。</value>
   </data>
   <data name="label10.Location" type="System.Drawing.Point, System.Drawing">
-    <value>281, 68</value>
+    <value>281, 73</value>
   </data>
   <data name="label10.Size" type="System.Drawing.Size, System.Drawing">
     <value>56, 17</value>
@@ -317,13 +362,19 @@
     <value>毫秒时。</value>
   </data>
   <data name="numericUpDown_timeOut.Location" type="System.Drawing.Point, System.Drawing">
-    <value>203, 66</value>
+    <value>203, 71</value>
+  </data>
+  <data name="label9.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 73</value>
   </data>
   <data name="label9.Size" type="System.Drawing.Size, System.Drawing">
     <value>188, 17</value>
   </data>
   <data name="label9.Text" xml:space="preserve">
     <value>强制中止当前绘制进程当耗时超过</value>
+  </data>
+  <data name="checkBox_FilterNearbyHitObjects.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 27</value>
   </data>
   <data name="checkBox_FilterNearbyHitObjects.Size" type="System.Drawing.Size, System.Drawing">
     <value>447, 38</value>
@@ -358,6 +409,15 @@
   </data>
   <data name="label13.Text" xml:space="preserve">
     <value>线宽</value>
+  </data>
+  <data name="groupBox_Template.Text" xml:space="preserve">
+    <value>模板</value>
+  </data>
+  <data name="label_TemplateColor.Text" xml:space="preserve">
+    <value>轮廓颜色</value>
+  </data>
+  <data name="label_TemplateAlpha.Text" xml:space="preserve">
+    <value>透明度 (%)</value>
   </data>
   <data name="$this.Text" xml:space="preserve">
     <value>设置</value>

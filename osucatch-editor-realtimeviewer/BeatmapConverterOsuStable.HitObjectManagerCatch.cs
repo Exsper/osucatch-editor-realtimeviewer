@@ -1,9 +1,7 @@
-﻿using System.Net.Quic;
-using System.Runtime.InteropServices;
-using osu.Game.Beatmaps;
+﻿using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Catch.Objects;
-using osu.Game.Rulesets.Objects;
 using osu.Game.Utils;
+using System.Runtime.InteropServices;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -31,13 +29,14 @@ namespace osucatch_editor_realtimeviewer
             private static extern int RandomNextStableCompat0(int value, int lowerBound, int upperBound);
 
             private int RandomNextStableCompat(int lowerBound, int upperBound) => RandomNextStableCompat0(random.Next(), lowerBound, upperBound);
-            
-            internal List<PalpableCatchHitObject> AddFruit(Fruit fruit)
+
+            internal List<PalpableCatchHitObject> AddFruit(Fruit fruit, int sourceIndex)
             {
                 if (isHardRock)
                 {
                     fruit = WarpSpacing(fruit);
                 }
+                fruit.SourceIndex = sourceIndex;
                 palpableObjects.Add(fruit);
                 return [fruit];
             }
@@ -47,12 +46,12 @@ namespace osucatch_editor_realtimeviewer
                 if (lastStartX == 0)
                 {
                     lastStartX = fruit.OriginalX;
-                    lastStartTime = (int) fruit.StartTime;
+                    lastStartTime = (int)fruit.StartTime;
                     return fruit;
                 }
 
                 float diff = lastStartX - fruit.OriginalX;
-                int timeDiff = (int) fruit.StartTime - lastStartTime;
+                int timeDiff = (int)fruit.StartTime - lastStartTime;
 
                 if (timeDiff > 1000)
                 {
@@ -117,7 +116,7 @@ namespace osucatch_editor_realtimeviewer
                 }
             }
 
-            internal List<PalpableCatchHitObject> AddJuiceStream(JuiceStream juiceStream)
+            internal List<PalpableCatchHitObject> AddJuiceStream(JuiceStream juiceStream, int sourceIndex)
             {
                 var hitObjects = ConvertSlider(beatmap, juiceStream, out LegacySliderAdditionalData data, isHardRock && !isConversionMapping);
 
@@ -129,13 +128,14 @@ namespace osucatch_editor_realtimeviewer
                     if (juice is PalpableCatchHitObject palpableObject)
                     {
                         juice.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
+                        palpableObject.SourceIndex = sourceIndex;
                         palpableObjects.Add(palpableObject);
                     }
                 }
                 return hitObjects;
             }
 
-            internal List<PalpableCatchHitObject> AddBananaShower(BananaShower bananaShower)
+            internal List<PalpableCatchHitObject> AddBananaShower(BananaShower bananaShower, int sourceIndex)
             {
                 var hitObjects = ConvertSpinner(beatmap, bananaShower);
                 foreach (var banana in hitObjects)
@@ -143,6 +143,7 @@ namespace osucatch_editor_realtimeviewer
                     if (banana is PalpableCatchHitObject palpableObject)
                     {
                         banana.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
+                        palpableObject.SourceIndex = sourceIndex;
                         palpableObjects.Add(palpableObject);
                     }
                 }

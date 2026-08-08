@@ -433,4 +433,13 @@
   <data name="$this.Text" xml:space="preserve">
     <value>Osu!Catch 编辑器实时预览</value>
   </data>
+  <data name="templateToolStripMenuItem.Text" xml:space="preserve">
+    <value>模板 (&amp;T)</value>
+  </data>
+  <data name="selectTemplateStripMenuItem.Text" xml:space="preserve">
+    <value>选择模板谱面...</value>
+  </data>
+  <data name="unloadTemplateStripMenuItem.Text" xml:space="preserve">
+    <value>卸载模板</value>
+  </data>
 </root>

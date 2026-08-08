@@ -42,12 +42,18 @@
             textBox_osuFolder = new TextBox();
             label3 = new Label();
             groupBox3 = new GroupBox();
+            button_FullReadInterval_reset = new Button();
+            button_LowFreqReadInterval_reset = new Button();
             button_drawingInterval_reset = new Button();
             numericUpDown_idleInterval = new NumericUpDown();
             button_idleInterval_reset = new Button();
             label5 = new Label();
             numericUpDown_drawingInterval = new NumericUpDown();
             label4 = new Label();
+            label_LowFreqReadInterval = new Label();
+            numericUpDown_LowFreqReadInterval = new NumericUpDown();
+            label_FullReadInterval = new Label();
+            numericUpDown_FullReadInterval = new NumericUpDown();
             groupBox4 = new GroupBox();
             checkBox_enableBackup = new CheckBox();
             numericUpDown_backupInterval = new NumericUpDown();
@@ -76,10 +82,18 @@
             checkBox_Log_EditorReader = new CheckBox();
             checkBox_Log_Program = new CheckBox();
             checkBox_showConsole = new CheckBox();
+            checkBox_UseBatchRendering = new CheckBox();
+            label_UseBatchRenderingWarning = new Label();
             groupBox7 = new GroupBox();
             checkBox_BarLine_Show = new CheckBox();
             checkBox_TimingLine_ShowGreen = new CheckBox();
             checkBox_TimingLine_ShowRed = new CheckBox();
+            comboBox_BarLineSubdivide = new ComboBox();
+            checkBox_ShowDistanceHelper = new CheckBox();
+            label_WhiteSpeed = new Label();
+            numericUpDown_WhiteSpeed = new NumericUpDown();
+            label_RedSpeed = new Label();
+            numericUpDown_RedSpeed = new NumericUpDown();
             groupBox8 = new GroupBox();
             button_timeOut_reset = new Button();
             label11 = new Label();
@@ -94,6 +108,11 @@
             label15 = new Label();
             label14 = new Label();
             label13 = new Label();
+            groupBox_Template = new GroupBox();
+            label_TemplateColor = new Label();
+            button_TemplateColor = new Button();
+            label_TemplateAlpha = new Label();
+            numericUpDown_TemplateAlpha = new NumericUpDown();
             groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_height).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_width).BeginInit();
@@ -101,14 +120,20 @@
             groupBox3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_idleInterval).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_drawingInterval).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_LowFreqReadInterval).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_FullReadInterval).BeginInit();
             groupBox4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_backupInterval).BeginInit();
             groupBox5.SuspendLayout();
             groupBox6.SuspendLayout();
             groupBox7.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_WhiteSpeed).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_RedSpeed).BeginInit();
             groupBox8.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_timeOut).BeginInit();
             groupBox9.SuspendLayout();
+            groupBox_Template.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_TemplateAlpha).BeginInit();
             SuspendLayout();
             // 
             // groupBox1
@@ -200,14 +225,34 @@
             // groupBox3
             // 
             resources.ApplyResources(groupBox3, "groupBox3");
+            groupBox3.Controls.Add(button_FullReadInterval_reset);
+            groupBox3.Controls.Add(button_LowFreqReadInterval_reset);
             groupBox3.Controls.Add(button_drawingInterval_reset);
             groupBox3.Controls.Add(numericUpDown_idleInterval);
             groupBox3.Controls.Add(button_idleInterval_reset);
             groupBox3.Controls.Add(label5);
             groupBox3.Controls.Add(numericUpDown_drawingInterval);
             groupBox3.Controls.Add(label4);
+            groupBox3.Controls.Add(label_LowFreqReadInterval);
+            groupBox3.Controls.Add(numericUpDown_LowFreqReadInterval);
+            groupBox3.Controls.Add(label_FullReadInterval);
+            groupBox3.Controls.Add(numericUpDown_FullReadInterval);
             groupBox3.Name = "groupBox3";
             groupBox3.TabStop = false;
+            // 
+            // button_FullReadInterval_reset
+            // 
+            resources.ApplyResources(button_FullReadInterval_reset, "button_FullReadInterval_reset");
+            button_FullReadInterval_reset.Name = "button_FullReadInterval_reset";
+            button_FullReadInterval_reset.UseVisualStyleBackColor = true;
+            button_FullReadInterval_reset.Click += button_FullReadInterval_reset_Click;
+            // 
+            // button_LowFreqReadInterval_reset
+            // 
+            resources.ApplyResources(button_LowFreqReadInterval_reset, "button_LowFreqReadInterval_reset");
+            button_LowFreqReadInterval_reset.Name = "button_LowFreqReadInterval_reset";
+            button_LowFreqReadInterval_reset.UseVisualStyleBackColor = true;
+            button_LowFreqReadInterval_reset.Click += button_LowFreqReadInterval_reset_Click;
             // 
             // button_drawingInterval_reset
             // 
@@ -248,6 +293,34 @@
             // 
             resources.ApplyResources(label4, "label4");
             label4.Name = "label4";
+            // 
+            // label_LowFreqReadInterval
+            // 
+            resources.ApplyResources(label_LowFreqReadInterval, "label_LowFreqReadInterval");
+            label_LowFreqReadInterval.Name = "label_LowFreqReadInterval";
+            // 
+            // numericUpDown_LowFreqReadInterval
+            // 
+            resources.ApplyResources(numericUpDown_LowFreqReadInterval, "numericUpDown_LowFreqReadInterval");
+            numericUpDown_LowFreqReadInterval.Increment = new decimal(new int[] { 5, 0, 0, 0 });
+            numericUpDown_LowFreqReadInterval.Maximum = new decimal(new int[] { 10000, 0, 0, 0 });
+            numericUpDown_LowFreqReadInterval.Minimum = new decimal(new int[] { 5, 0, 0, 0 });
+            numericUpDown_LowFreqReadInterval.Name = "numericUpDown_LowFreqReadInterval";
+            numericUpDown_LowFreqReadInterval.Value = new decimal(new int[] { 100, 0, 0, 0 });
+            // 
+            // label_FullReadInterval
+            // 
+            resources.ApplyResources(label_FullReadInterval, "label_FullReadInterval");
+            label_FullReadInterval.Name = "label_FullReadInterval";
+            // 
+            // numericUpDown_FullReadInterval
+            // 
+            resources.ApplyResources(numericUpDown_FullReadInterval, "numericUpDown_FullReadInterval");
+            numericUpDown_FullReadInterval.Increment = new decimal(new int[] { 5, 0, 0, 0 });
+            numericUpDown_FullReadInterval.Maximum = new decimal(new int[] { 10000, 0, 0, 0 });
+            numericUpDown_FullReadInterval.Minimum = new decimal(new int[] { 5, 0, 0, 0 });
+            numericUpDown_FullReadInterval.Name = "numericUpDown_FullReadInterval";
+            numericUpDown_FullReadInterval.Value = new decimal(new int[] { 20, 0, 0, 0 });
             // 
             // groupBox4
             // 
@@ -445,12 +518,29 @@
             checkBox_showConsole.Name = "checkBox_showConsole";
             checkBox_showConsole.UseVisualStyleBackColor = true;
             // 
+            // checkBox_UseBatchRendering
+            // 
+            resources.ApplyResources(checkBox_UseBatchRendering, "checkBox_UseBatchRendering");
+            checkBox_UseBatchRendering.Name = "checkBox_UseBatchRendering";
+            checkBox_UseBatchRendering.UseVisualStyleBackColor = true;
+            // 
+            // label_UseBatchRenderingWarning
+            // 
+            resources.ApplyResources(label_UseBatchRenderingWarning, "label_UseBatchRenderingWarning");
+            label_UseBatchRenderingWarning.Name = "label_UseBatchRenderingWarning";
+            // 
             // groupBox7
             // 
             resources.ApplyResources(groupBox7, "groupBox7");
             groupBox7.Controls.Add(checkBox_BarLine_Show);
             groupBox7.Controls.Add(checkBox_TimingLine_ShowGreen);
             groupBox7.Controls.Add(checkBox_TimingLine_ShowRed);
+            groupBox7.Controls.Add(comboBox_BarLineSubdivide);
+            groupBox7.Controls.Add(checkBox_ShowDistanceHelper);
+            groupBox7.Controls.Add(label_WhiteSpeed);
+            groupBox7.Controls.Add(numericUpDown_WhiteSpeed);
+            groupBox7.Controls.Add(label_RedSpeed);
+            groupBox7.Controls.Add(numericUpDown_RedSpeed);
             groupBox7.Name = "groupBox7";
             groupBox7.TabStop = false;
             // 
@@ -472,6 +562,50 @@
             checkBox_TimingLine_ShowRed.Name = "checkBox_TimingLine_ShowRed";
             checkBox_TimingLine_ShowRed.UseVisualStyleBackColor = true;
             // 
+            // comboBox_BarLineSubdivide
+            // 
+            resources.ApplyResources(comboBox_BarLineSubdivide, "comboBox_BarLineSubdivide");
+            comboBox_BarLineSubdivide.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBox_BarLineSubdivide.FormattingEnabled = true;
+            comboBox_BarLineSubdivide.Items.AddRange(new object[] { resources.GetString("comboBox_BarLineSubdivide.Items"), resources.GetString("comboBox_BarLineSubdivide.Items1"), resources.GetString("comboBox_BarLineSubdivide.Items2") });
+            comboBox_BarLineSubdivide.Name = "comboBox_BarLineSubdivide";
+            // 
+            // checkBox_ShowDistanceHelper
+            // 
+            resources.ApplyResources(checkBox_ShowDistanceHelper, "checkBox_ShowDistanceHelper");
+            checkBox_ShowDistanceHelper.Name = "checkBox_ShowDistanceHelper";
+            checkBox_ShowDistanceHelper.UseVisualStyleBackColor = true;
+            // 
+            // label_WhiteSpeed
+            // 
+            resources.ApplyResources(label_WhiteSpeed, "label_WhiteSpeed");
+            label_WhiteSpeed.Name = "label_WhiteSpeed";
+            // 
+            // numericUpDown_WhiteSpeed
+            // 
+            resources.ApplyResources(numericUpDown_WhiteSpeed, "numericUpDown_WhiteSpeed");
+            numericUpDown_WhiteSpeed.DecimalPlaces = 2;
+            numericUpDown_WhiteSpeed.Increment = new decimal(new int[] { 25, 0, 0, 131072 });
+            numericUpDown_WhiteSpeed.Maximum = new decimal(new int[] { 10, 0, 0, 0 });
+            numericUpDown_WhiteSpeed.Minimum = new decimal(new int[] { 1, 0, 0, 65536 });
+            numericUpDown_WhiteSpeed.Name = "numericUpDown_WhiteSpeed";
+            numericUpDown_WhiteSpeed.Value = new decimal(new int[] { 1, 0, 0, 65536 });
+            // 
+            // label_RedSpeed
+            // 
+            resources.ApplyResources(label_RedSpeed, "label_RedSpeed");
+            label_RedSpeed.Name = "label_RedSpeed";
+            // 
+            // numericUpDown_RedSpeed
+            // 
+            resources.ApplyResources(numericUpDown_RedSpeed, "numericUpDown_RedSpeed");
+            numericUpDown_RedSpeed.DecimalPlaces = 2;
+            numericUpDown_RedSpeed.Increment = new decimal(new int[] { 25, 0, 0, 131072 });
+            numericUpDown_RedSpeed.Maximum = new decimal(new int[] { 10, 0, 0, 0 });
+            numericUpDown_RedSpeed.Minimum = new decimal(new int[] { 1, 0, 0, 65536 });
+            numericUpDown_RedSpeed.Name = "numericUpDown_RedSpeed";
+            numericUpDown_RedSpeed.Value = new decimal(new int[] { 1, 0, 0, 65536 });
+            // 
             // groupBox8
             // 
             resources.ApplyResources(groupBox8, "groupBox8");
@@ -481,6 +615,8 @@
             groupBox8.Controls.Add(numericUpDown_timeOut);
             groupBox8.Controls.Add(label9);
             groupBox8.Controls.Add(checkBox_FilterNearbyHitObjects);
+            groupBox8.Controls.Add(label_UseBatchRenderingWarning);
+            groupBox8.Controls.Add(checkBox_UseBatchRendering);
             groupBox8.Name = "groupBox8";
             groupBox8.TabStop = false;
             // 
@@ -572,10 +708,44 @@
             resources.ApplyResources(label13, "label13");
             label13.Name = "label13";
             // 
+            // groupBox_Template
+            // 
+            resources.ApplyResources(groupBox_Template, "groupBox_Template");
+            groupBox_Template.Controls.Add(label_TemplateColor);
+            groupBox_Template.Controls.Add(button_TemplateColor);
+            groupBox_Template.Controls.Add(label_TemplateAlpha);
+            groupBox_Template.Controls.Add(numericUpDown_TemplateAlpha);
+            groupBox_Template.Name = "groupBox_Template";
+            groupBox_Template.TabStop = false;
+            // 
+            // label_TemplateColor
+            // 
+            resources.ApplyResources(label_TemplateColor, "label_TemplateColor");
+            label_TemplateColor.Name = "label_TemplateColor";
+            // 
+            // button_TemplateColor
+            // 
+            resources.ApplyResources(button_TemplateColor, "button_TemplateColor");
+            button_TemplateColor.Name = "button_TemplateColor";
+            button_TemplateColor.UseVisualStyleBackColor = true;
+            button_TemplateColor.Click += button_TemplateColor_Click;
+            // 
+            // label_TemplateAlpha
+            // 
+            resources.ApplyResources(label_TemplateAlpha, "label_TemplateAlpha");
+            label_TemplateAlpha.Name = "label_TemplateAlpha";
+            // 
+            // numericUpDown_TemplateAlpha
+            // 
+            resources.ApplyResources(numericUpDown_TemplateAlpha, "numericUpDown_TemplateAlpha");
+            numericUpDown_TemplateAlpha.Increment = new decimal(new int[] { 5, 0, 0, 0 });
+            numericUpDown_TemplateAlpha.Name = "numericUpDown_TemplateAlpha";
+            // 
             // SettingsForm
             // 
             resources.ApplyResources(this, "$this");
             AutoScaleMode = AutoScaleMode.Font;
+            Controls.Add(groupBox_Template);
             Controls.Add(groupBox9);
             Controls.Add(groupBox8);
             Controls.Add(groupBox7);
@@ -601,6 +771,8 @@
             groupBox3.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_idleInterval).EndInit();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_drawingInterval).EndInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_LowFreqReadInterval).EndInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_FullReadInterval).EndInit();
             groupBox4.ResumeLayout(false);
             groupBox4.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_backupInterval).EndInit();
@@ -610,11 +782,15 @@
             groupBox6.PerformLayout();
             groupBox7.ResumeLayout(false);
             groupBox7.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_WhiteSpeed).EndInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_RedSpeed).EndInit();
             groupBox8.ResumeLayout(false);
             groupBox8.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_timeOut).EndInit();
             groupBox9.ResumeLayout(false);
             groupBox9.PerformLayout();
+            groupBox_Template.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_TemplateAlpha).EndInit();
             ResumeLayout(false);
         }
 
@@ -678,6 +854,8 @@
         private Label label12;
         private Button button_Label_Color;
         private CheckBox checkBox_Log_BookmarkPlus;
+        private CheckBox checkBox_UseBatchRendering;
+        private Label label_UseBatchRenderingWarning;
         private GroupBox groupBox9;
         private Label label15;
         private Label label14;
@@ -685,5 +863,22 @@
         private ComboBox CurveDashStyleComboBox;
         private ComboBox CurveWidthComboBox;
         private Button CurveColorButton;
+        private ComboBox comboBox_BarLineSubdivide;
+        private CheckBox checkBox_ShowDistanceHelper;
+        private Label label_WhiteSpeed;
+        private NumericUpDown numericUpDown_WhiteSpeed;
+        private Label label_RedSpeed;
+        private NumericUpDown numericUpDown_RedSpeed;
+        private Label label_FullReadInterval;
+        private NumericUpDown numericUpDown_FullReadInterval;
+        private Label label_LowFreqReadInterval;
+        private NumericUpDown numericUpDown_LowFreqReadInterval;
+        private GroupBox groupBox_Template;
+        private Label label_TemplateColor;
+        private Button button_TemplateColor;
+        private Label label_TemplateAlpha;
+        private NumericUpDown numericUpDown_TemplateAlpha;
+        private Button button_FullReadInterval_reset;
+        private Button button_LowFreqReadInterval_reset;
     }
 }

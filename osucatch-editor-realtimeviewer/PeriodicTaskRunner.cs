@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -15,6 +11,8 @@ namespace osucatch_editor_realtimeviewer
         private long _lastStartTimestamp;
         private long _intervalTicks;
         private long _errorDelayTicks;
+        private string? _lastErrorKey;
+        private long _lastErrorLogTicks;
 
         public PeriodicTaskRunner(double intervalTime, double errorDelayTime, Func<CancellationToken, Task> task)
         {
@@ -30,6 +28,8 @@ namespace osucatch_editor_realtimeviewer
 
         public void Start()
         {
+            // 提高系统时钟分辨率到 1ms，让 Task.Delay 在 10ms 级间隔下减少抖动
+            timeBeginPeriod(1);
             _cts = new CancellationTokenSource();
             _runTask = RunLoopAsync(_cts.Token);
         }
@@ -48,8 +48,15 @@ namespace osucatch_editor_realtimeviewer
             {
                 _cts.Dispose();
                 _cts = null;
+                timeEndPeriod(1);
             }
         }
+
+        [DllImport("winmm.dll")]
+        private static extern uint timeBeginPeriod(uint uPeriod);
+
+        [DllImport("winmm.dll")]
+        private static extern uint timeEndPeriod(uint uPeriod);
 
         private async Task RunLoopAsync(CancellationToken ct)
         {
@@ -81,7 +88,7 @@ namespace osucatch_editor_realtimeviewer
                 }
                 catch (Exception ex)
                 {
-                    // Log.ConsoleLog(ex.ToString(), Log.LogType.Program, Log.LogLevel.Error);
+                    LogThrottled(ex);
                     taskFailed = true;
                 }
 
@@ -100,6 +107,22 @@ namespace osucatch_editor_realtimeviewer
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 后台任务失败的日志会反复出现（如没开 osu! 时每 3 秒失败一次），
+        /// 这里限流：同一错误每 30 秒最多记一条面包屑，避免刷屏又能留下线索。
+        /// </summary>
+        private void LogThrottled(Exception ex)
+        {
+            const long throttleTicks = 30 * TimeSpan.TicksPerSecond;
+            long now = DateTime.UtcNow.Ticks;
+            string key = ex.GetType().Name + ": " + ex.Message;
+            if (key == _lastErrorKey && now - _lastErrorLogTicks < throttleTicks) return;
+
+            _lastErrorKey = key;
+            _lastErrorLogTicks = now;
+            Log.Breadcrumb("Periodic task error: " + key);
         }
     }
 }

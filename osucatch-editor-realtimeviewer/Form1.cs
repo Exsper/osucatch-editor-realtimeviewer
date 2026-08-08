@@ -1,11 +1,9 @@
 ﻿using Microsoft.Win32;
 using osu.Game.Beatmaps;
-using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Catch.Objects;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Timers;
-using System.Windows.Forms;
-using static System.Windows.Forms.DataFormats;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -20,13 +18,65 @@ namespace osucatch_editor_realtimeviewer
         public static BeatmapConverter lazerBeatmapConverter => new BeatmapConverter();
         public static BeatmapConverter stableBeatmapConverter => new BeatmapConverterOsuStable();
 
-        BeatmapInfoCollection? lastReader = null;
-        List<string>? lastColourLines = null;
-        Beatmap? lastBeatmap = null;
-        IBeatmap? lastConvertedBeatmap = null;
-        int lastMods = -1;
-        HitObjectLabelType lastLabelType = HitObjectLabelType.None;
-        bool lastConverterIsStable = app.Default.Use_Stable_Converter;
+        // 后台流水线：_committed 是当前正在绘制的数据；重建在后台线程完成后才原子切换
+        private CommittedState _committed = new CommittedState();
+        private Task<CommittedState>? _rebuildTask;
+        private int _rebuildTaskGeneration;
+        private int _rebuildGeneration;
+        private long _rebuildRetryTicks;
+
+        // 模板谱面（只读参考）
+        private ToolStripMenuItem? templateToolStripMenuItem;
+        private ToolStripMenuItem? selectTemplateStripMenuItem;
+        private ToolStripMenuItem? unloadTemplateStripMenuItem;
+        private TemplateBeatmapData? templateData;
+
+        /// <summary>
+        /// 已提交（正在绘制）的解析/转换结果快照。
+        /// </summary>
+        private sealed class CommittedState
+        {
+            public BeatmapInfoCollection? Reader;
+            public List<string>? ColourLines;
+            public Beatmap? Beatmap;
+            public IBeatmap? ConvertedBeatmap;
+            public DrawingHelper Drawing = new();
+            public int Mods = -1;
+            public HitObjectLabelType LabelType = HitObjectLabelType.None;
+            public bool ConverterIsStable;
+        }
+
+        /// <summary>
+        /// 消费后台重建任务的结果：任务已完成且代次未过期时，把新数据原子地提交到绘制状态。
+        /// </summary>
+        private void ConsumeFinishedRebuild()
+        {
+            if (_rebuildTask == null || !_rebuildTask.IsCompleted) return;
+
+            try
+            {
+                CommittedState? newState = _rebuildTask.GetAwaiter().GetResult();
+                if (newState != null && _rebuildTaskGeneration == _rebuildGeneration)
+                {
+                    CommitState(newState);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ConsoleLog("Background rebuild failed.\r\n" + ex, Log.LogType.BeatmapBuilder, Log.LogLevel.Error);
+                _rebuildRetryTicks = DateTime.Now.Ticks;
+            }
+            finally
+            {
+                _rebuildTask = null;
+            }
+        }
+
+        private void CommitState(CommittedState newState)
+        {
+            _committed = newState;
+            drawingHelper.ApplyBuildResult(newState.Drawing);
+        }
 
         bool Need_Backup = false;
         Int64 LastDrawingTimeStamp = DateTime.Now.Ticks;
@@ -34,6 +84,8 @@ namespace osucatch_editor_realtimeviewer
         float fontscale = 1;
 
         bool topmostCheck = false;
+        bool lastTopmostApplied = false;
+        bool lastMemoryOverThreshold = false;
 
         private SettingsForm? SettingsFormInstance = null;
         private BookmarkSettingsForm? BookmarkSettingsFormInstance = null;
@@ -51,10 +103,15 @@ namespace osucatch_editor_realtimeviewer
         private static System.Timers.Timer Memory_Monitor_Timer = new System.Timers.Timer(200);
 
         private PeriodicTaskRunner runner;
+        private HealthMonitor? healthMonitor;
 
         public Form1()
         {
+            Log.Breadcrumb("Form1: constructing...");
             InitializeComponent();
+
+            // 模板菜单在构造函数里创建，确保语言资源能应用到它
+            CreateTemplateMenu();
 
             if (app.Default.Language_String != "")
             {
@@ -70,6 +127,8 @@ namespace osucatch_editor_realtimeviewer
                 defaultLanguageToolStripMenuItem.Checked = true;
                 englishLanguageToolStripMenuItem.Checked = false;
                 zhHansLanguageToolStripMenuItem.Checked = false;
+                // 跟随系统语言：模板菜单也要应用资源文本
+                Form1.ApplyResources(this);
             }
 
             if (app.Default.Window_X >= 0 && app.Default.Window_Y >= 0)
@@ -77,6 +136,8 @@ namespace osucatch_editor_realtimeviewer
                 this.StartPosition = FormStartPosition.Manual;
                 this.Location = new System.Drawing.Point(app.Default.Window_X, app.Default.Window_Y);
             }
+
+            Log.Breadcrumb("Form1: constructed.");
         }
 
         private string Select_Osu_Path()
@@ -120,6 +181,9 @@ namespace osucatch_editor_realtimeviewer
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            Log.Breadcrumb("Form1_Load: begin.");
+            healthMonitor = new HealthMonitor(this);
+
             // -----------------------reading settings-----------------------
             // show log console
             if (app.Default.Show_Console) Program.ShowConsole();
@@ -166,6 +230,7 @@ namespace osucatch_editor_realtimeviewer
             // contain screens count
             drawingHelper.ScreensContain = app.Default.ScreensContain;
             Canvas.screensContain = app.Default.ScreensContain;
+            Canvas.UseBatchRendering = app.Default.Use_Batch_Rendering;
             ToolStripMenuItem[] screensMenuItems = {
                 Screens1ToolStripMenuItem,
                 Screens2ToolStripMenuItem,
@@ -183,6 +248,8 @@ namespace osucatch_editor_realtimeviewer
             }
             // --------------------------------------------------------------
 
+            Log.Breadcrumb("Form1_Load: settings applied.");
+
             // ----------------------------get dpi---------------------------
             Graphics graphics = this.CreateGraphics();
             dpi = (Int32)graphics.DpiX;
@@ -194,7 +261,9 @@ namespace osucatch_editor_realtimeviewer
             // --------------------------------------------------------------
 
             // canvas init
+            Log.Breadcrumb("Form1_Load: initializing canvas (OpenGL)...");
             this.Canvas.Init();
+            Log.Breadcrumb("Form1_Load: canvas initialized.");
 
             // reader timer
             runner = new PeriodicTaskRunner(app.Default.Drawing_Interval, app.Default.Idle_Interval, reader_timer_Work);
@@ -208,6 +277,8 @@ namespace osucatch_editor_realtimeviewer
             Memory_Monitor_Timer.Elapsed += Memory_Monitor;
             Memory_Monitor_Timer.Start();
 
+            Log.Breadcrumb("Form1_Load: timers started.");
+
 
             // RegisterHotKey
             if (app.Default.Bookmark_RegisterHotKey)
@@ -215,6 +286,7 @@ namespace osucatch_editor_realtimeviewer
                 GlobalHotkey.RegisterGlobalHotKey(this.Handle);
             }
 
+            Log.Breadcrumb("Form1_Load: done.");
         }
 
         private void Memory_Monitor(object? sender, EventArgs e)
@@ -222,14 +294,11 @@ namespace osucatch_editor_realtimeviewer
             long memorySize = System.GC.GetTotalMemory(false);
             long requiredMemory = 1024 * 1024 * 1000; // 1G
 
-            if (memorySize > requiredMemory)
+            bool overThreshold = memorySize > requiredMemory;
+            if (overThreshold != lastMemoryOverThreshold)
             {
-                Log.ConsoleLog("Total Memory: " + (1.0 * memorySize / 1024 / 1024).ToString("F3") + "MB", Log.LogType.Program, Log.LogLevel.Warning);
-                //ConsoleLog(newBeatmap, LogType.BeatmapBuilder, LogLevel.Warning);
-            }
-            else
-            {
-                Log.ConsoleLog("Total Memory: " + (1.0 * memorySize / 1024 / 1024).ToString("F3") + "MB", Log.LogType.Program, Log.LogLevel.Debug);
+                lastMemoryOverThreshold = overThreshold;
+                Log.ConsoleLog("Total Memory: " + (1.0 * memorySize / 1024 / 1024).ToString("F3") + "MB", Log.LogType.Program, overThreshold ? Log.LogLevel.Warning : Log.LogLevel.Debug);
             }
 
             CheckTopmost();
@@ -241,32 +310,18 @@ namespace osucatch_editor_realtimeviewer
             {
                 return;
             }
-            if (!topmostCheck || (SettingsFormInstance != null) || (BookmarkSettingsFormInstance != null))
+
+            bool shouldTopmost = topmostCheck && (SettingsFormInstance == null) && (BookmarkSettingsFormInstance == null)
+                && ProcessFocus.IsEditorForeground(editorReaderHelper.OsuProcessId);
+
+            // 状态没变化就不 Invoke，避免每 200ms 无条件设置 TopMost
+            if (shouldTopmost == lastTopmostApplied) return;
+
+            lastTopmostApplied = shouldTopmost;
+            Invoke(new MethodInvoker(delegate ()
             {
-                if (this.TopMost == true)
-                {
-                    Invoke(new MethodInvoker(delegate ()
-                    {
-                        if (this != null && !this.IsDisposed && !this.Disposing) this.TopMost = false;
-                    }));
-                    return;
-                }
-                return;
-            }
-            if (ProcessFocus.IsEditorForeground())
-            {
-                Invoke(new MethodInvoker(delegate ()
-                {
-                    if (this != null && !this.IsDisposed && !this.Disposing) this.TopMost = true;
-                }));
-            }
-            else
-            {
-                Invoke(new MethodInvoker(delegate ()
-                {
-                    if (this != null && !this.IsDisposed && !this.Disposing) this.TopMost = false;
-                }));
-            }
+                if (this != null && !this.IsDisposed && !this.Disposing) this.TopMost = shouldTopmost;
+            }));
         }
 
         private void ReapplySettings()
@@ -333,7 +388,7 @@ namespace osucatch_editor_realtimeviewer
                 {
                     StateToolStripStatusLabel.Text = "Osu!.exe is not running";
                 }));
-                lastReader = null;
+                _committed.Reader = null;
                 return false;
             }
             return true;
@@ -347,7 +402,7 @@ namespace osucatch_editor_realtimeviewer
                 {
                     StateToolStripStatusLabel.Text = "Editor is not running";
                 }));
-                lastReader = null;
+                _committed.Reader = null;
                 return false;
             }
             else
@@ -356,22 +411,43 @@ namespace osucatch_editor_realtimeviewer
             }
         }
 
-        private Beatmap? BuildNewBeatmap(BeatmapInfoCollection thisReader, DifferenceType differenceType, string filepath)
+        /// <summary>
+        /// 在后台线程执行完整解析链路：构建 beatmap → 转换 → 装载绘图对象。
+        /// 物件处理顺序与原来的同步实现完全一致，因此转换阶段的随机数序列不变。
+        /// </summary>
+        private CommittedState BuildNewState(
+            BeatmapInfoCollection thisReader,
+            CommittedState committed,
+            string filepath,
+            int mods,
+            HitObjectLabelType labelType,
+            bool converterIsStable,
+            DifferenceType differenceType)
         {
-            Beatmap? beatmap = null;
+            var newState = new CommittedState
+            {
+                Reader = thisReader,
+                Mods = mods,
+                LabelType = labelType,
+                ConverterIsStable = converterIsStable,
+                ColourLines = committed.ColourLines,
+            };
+
+            Log.ConsoleLog("Start build new beatmap.", Log.LogType.BeatmapBuilder, Log.LogLevel.Debug);
+            Beatmap? beatmap;
             if (differenceType == DifferenceType.DifferentFile)
             {
                 // fetch colors and beatmap version because editor reader doesn't fetch it.
                 try
                 {
-                    beatmap = BeatmapBuilder.BuildNewBeatmapWithFilePath(thisReader, filepath, out lastColourLines);
+                    beatmap = BeatmapBuilder.BuildNewBeatmapWithFilePath(thisReader, filepath, out var colourLines);
+                    newState.ColourLines = colourLines;
                 }
                 catch (Exception ex)
                 {
                     Log.ConsoleLog("Build new beatmap from beatmap file failed.\r\n" + ex, Log.LogType.BeatmapBuilder, Log.LogLevel.Error);
-                    return null;
+                    throw;
                 }
-                lastBeatmap = beatmap;
             }
             else if (differenceType == DifferenceType.DifferentObjects)
             {
@@ -380,40 +456,57 @@ namespace osucatch_editor_realtimeviewer
                 try
                 {
                     thisReader.BeatmapVersion = 14;
-                    beatmap = BeatmapBuilder.BuildNewBeatmapWithColorString(thisReader, lastColourLines);
+                    beatmap = BeatmapBuilder.BuildNewBeatmapWithColorString(thisReader, newState.ColourLines);
                 }
                 catch (Exception ex)
                 {
                     Log.ConsoleLog("Build new beatmap from reader failed.\r\n" + ex, Log.LogType.BeatmapBuilder, Log.LogLevel.Error);
-                    return null;
+                    throw;
                 }
-                lastBeatmap = beatmap;
             }
-            else if (differenceType == DifferenceType.None)
+            else
             {
-                beatmap = lastBeatmap;
+                beatmap = committed.Beatmap;
             }
-            return beatmap;
+            if (beatmap == null) throw new Exception("Build beatmap error.");
+            newState.Beatmap = beatmap;
+            Log.ConsoleLog("Build new beatmap successfully.", Log.LogType.BeatmapBuilder, Log.LogLevel.Debug);
+
+            // convert beatmap to catch（按物件顺序消费随机数，保持与原来一致的时序）
+            IBeatmap? convertedBeatmap;
+            if (differenceType != DifferenceType.None || committed.ConvertedBeatmap == null || mods != committed.Mods || converterIsStable != committed.ConverterIsStable)
+            {
+                convertedBeatmap = converterIsStable
+                    ? stableBeatmapConverter.GetConvertedBeatmap(beatmap, mods)
+                    : lazerBeatmapConverter.GetConvertedBeatmap(beatmap, mods);
+            }
+            else
+            {
+                convertedBeatmap = committed.ConvertedBeatmap;
+            }
+            if (convertedBeatmap == null) throw new Exception("Convert beatmap error.");
+            newState.ConvertedBeatmap = convertedBeatmap;
+
+            // prepare drawing objects
+            Log.ConsoleLog("Try building drawing objects.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
+            var stagingDrawing = new DrawingHelper();
+            stagingDrawing.LabelType = labelType;
+            stagingDrawing.LoadBeatmap(convertedBeatmap, mods);
+            newState.Drawing = stagingDrawing;
+            Log.ConsoleLog("Build drawing objects successfully.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
+
+            return newState;
         }
 
-        private int GetMods(out bool isSameMods)
+        private int GetMods()
         {
             int mods = 0;
             if (hRToolStripMenuItem.Checked) mods = (1 << 4);
             else if (eZToolStripMenuItem.Checked) mods = (1 << 1);
-            if (mods == lastMods)
-            {
-                isSameMods = true;
-            }
-            else
-            {
-                isSameMods = false;
-                lastMods = mods;
-            }
             return mods;
         }
 
-        private HitObjectLabelType GetHitObjectLabelType(out bool isSameLabelType)
+        private HitObjectLabelType GetHitObjectLabelType()
         {
             HitObjectLabelType labelType = HitObjectLabelType.None;
             if (hideToolStripMenuItem.Checked) labelType = HitObjectLabelType.None;
@@ -423,15 +516,6 @@ namespace osucatch_editor_realtimeviewer
             else if (difficultyStarsToolStripMenuItem.Checked) labelType = HitObjectLabelType.Difficulty_Stars;
             else if (fruitCountInComboToolStripMenuItem.Checked) labelType = HitObjectLabelType.FruitCountInCombo;
             else labelType = HitObjectLabelType.None;
-            if (labelType == lastLabelType)
-            {
-                isSameLabelType = true;
-            }
-            else
-            {
-                isSameLabelType = false;
-                lastLabelType = labelType;
-            }
             return labelType;
         }
 
@@ -465,6 +549,10 @@ namespace osucatch_editor_realtimeviewer
 
         private async Task reader_timer_Work(CancellationToken cancellationToken)
         {
+            // 让出当前线程：避免第一次执行时（runner.Start 调用）把读取/解析
+            // 同步跑在 UI 线程上，导致 Form1_Load 卡住、窗口启动时未响应
+            await Task.Yield();
+
             // Step0. check settings change
             if (NeedReapplySettings)
             {
@@ -501,12 +589,29 @@ namespace osucatch_editor_realtimeviewer
                 }
                 else thisReader = editorReaderHelper.FetchAll();
                 if (thisReader == null) throw new Exception("FetchAll error.");
-                // save last reader
-                DifferenceType differenceType = thisReader.CheckDifference(lastReader, app.Default.Selected_Show);
-                lastReader = thisReader;
 
+                // Step4. 后台流水线：先消费已完成的重建结果，再判断是否需要启动新重建
+                ConsumeFinishedRebuild();
 
-                // Step4. Build osu file Path
+                int mods = GetMods();
+                HitObjectLabelType labelType = GetHitObjectLabelType();
+                bool converterIsStable = app.Default.Use_Stable_Converter;
+
+                // 选中态不参与重建判定：绘制时通过 SelectionLines 实时查询，避免点击/框选触发全量解析
+                DifferenceType differenceType;
+                if (thisReader.IsFreshFetch || _committed.Reader == null ||
+                    mods != _committed.Mods || labelType != _committed.LabelType || converterIsStable != _committed.ConverterIsStable)
+                {
+                    differenceType = thisReader.CheckDifference(_committed.Reader, false);
+                }
+                else
+                {
+                    // 高频路径：数据与上次全量读取完全相同，无需逐物件比较
+                    differenceType = DifferenceType.None;
+                }
+                drawingHelper.SelectionLines = thisReader.HitObjectLines;
+
+                // Step5. Build osu file Path
                 string filepath = "";
                 try
                 {
@@ -517,39 +622,31 @@ namespace osucatch_editor_realtimeviewer
                     Log.ConsoleLog("Path is invalid.\r\n" + ex.ToString(), Log.LogType.EditorReader, Log.LogLevel.Error);
                     Log.ConsoleLog("ContainingFolder: " + thisReader.ContainingFolder, Log.LogType.EditorReader, Log.LogLevel.Error);
                     Log.ConsoleLog("Filename: " + thisReader.Filename, Log.LogType.EditorReader, Log.LogLevel.Error);
-                    lastReader = null;
+                    _committed.Reader = null;
                     throw new Exception("Build Filepath error.");
                 }
 
 
-                // Step5. build new beatmap
-                Log.ConsoleLog("Start build new beatmap.", Log.LogType.BeatmapBuilder, Log.LogLevel.Debug);
-                Beatmap? beatmap = BuildNewBeatmap(thisReader, differenceType, filepath);
-                if (beatmap == null) throw new Exception("Build beatmap error.");
-                Log.ConsoleLog("Build new beatmap successfully.", Log.LogType.BeatmapBuilder, Log.LogLevel.Debug);
+                // Step6. 需要重建时，把解析/转换/装载丢到后台线程，绘制循环继续用旧数据跑
+                bool needRebuild = differenceType != DifferenceType.None
+                    || _committed.ConvertedBeatmap == null
+                    || mods != _committed.Mods
+                    || labelType != _committed.LabelType
+                    || converterIsStable != _committed.ConverterIsStable;
 
-
-                // Step6. cache mods & distanceType
-                bool isSameMods = false;
-                bool isSameLabelType = false;
-                // isSameMods
-                int mods = GetMods(out isSameMods);
-                // isSameDistanceType
-                drawingHelper.LabelType = GetHitObjectLabelType(out isSameLabelType);
-
-                // isSameConverter
-                bool isSameConverter = true;
-                if (lastConverterIsStable != app.Default.Use_Stable_Converter)
+                if (needRebuild && _rebuildTask == null && DateTime.Now.Ticks - _rebuildRetryTicks > TimeSpan.FromMilliseconds(500).Ticks)
                 {
-                    isSameConverter = false;
-                    lastConverterIsStable = app.Default.Use_Stable_Converter;
+                    int generation = _rebuildGeneration;
+                    CommittedState committedSnapshot = _committed;
+                    _rebuildTask = Task.Run(() => BuildNewState(thisReader, committedSnapshot, filepath, mods, labelType, converterIsStable, differenceType), cancellationToken);
+                    _rebuildTaskGeneration = generation;
                 }
 
 
                 // Step7. Backup
                 if (!blockBackup & Need_Backup)
                 {
-                    if (editorReaderHelper.Is_Editor_Running && beatmap != null)
+                    if (editorReaderHelper.Is_Editor_Running && _committed.Beatmap != null)
                     {
                         BackupBeatmap(thisReader, filepath);
                     }
@@ -564,41 +661,6 @@ namespace osucatch_editor_realtimeviewer
                 }
 
 
-                // Step9. convert beatmap to catch
-                IBeatmap? convertedBeatmap = null;
-                if (differenceType != DifferenceType.None || lastConvertedBeatmap == null || !isSameMods || !isSameConverter)
-                {
-                    if (app.Default.Use_Stable_Converter) convertedBeatmap = stableBeatmapConverter.GetConvertedBeatmap(beatmap, mods);
-                    else convertedBeatmap = lazerBeatmapConverter.GetConvertedBeatmap(beatmap, mods);
-                    lastConvertedBeatmap = convertedBeatmap;
-                }
-                else
-                {
-                    convertedBeatmap = lastConvertedBeatmap;
-                }
-
-
-                // Step10. prepare drawing objects
-                if (drawingHelper.CatchHitObjects != null && drawingHelper.CatchHitObjects.Count > 0 && differenceType == DifferenceType.None && isSameMods && isSameLabelType && isSameConverter)
-                {
-                    Log.ConsoleLog("Beatmap no changes. Using last data.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
-                }
-                else
-                {
-                    Log.ConsoleLog("Try building drawing objects.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
-                    drawingHelper.LoadBeatmap(convertedBeatmap, mods);
-
-                    Log.ConsoleLog("Build drawing objects successfully.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
-                }
-
-                // change form's title
-                Invoke(new MethodInvoker(delegate ()
-                {
-                    if (drawingHelper.LabelType == HitObjectLabelType.Difficulty_Stars && !app.Default.FilterNearbyHitObjects)
-                        this.Text = "Stars: " + convertedBeatmap.BeatmapInfo.StarRating.ToString("0.00") + "*";
-                    else this.Text = editorReaderHelper.beatmap_title;
-                }));
-
                 // set bookmarkplus
                 if (bookmarkManager.IsBeatmapChanged(thisReader.ContainingFolder, thisReader.Filename))
                 {
@@ -606,13 +668,20 @@ namespace osucatch_editor_realtimeviewer
                 }
 
 
-                // Step11. drawing
+                // Step11. drawing（标题/状态栏/绘制合成一次跨线程调用，减少每 tick 的 Invoke 次数）
                 try
                 {
                     drawingHelper.CurrentTime = thisReader.EditorTime;
                     Log.ConsoleLog("Start drawing.", Log.LogType.Drawing, Log.LogLevel.Debug);
+
+                    string title = editorReaderHelper.beatmap_title;
+                    if (drawingHelper.LabelType == HitObjectLabelType.Difficulty_Stars && !app.Default.FilterNearbyHitObjects && _committed.ConvertedBeatmap != null)
+                        title = "Stars: " + _committed.ConvertedBeatmap.BeatmapInfo.StarRating.ToString("0.00") + "*";
+
                     Invoke(new MethodInvoker(delegate ()
                     {
+                        if (this.Text != title) this.Text = title;
+                        StateToolStripStatusLabel.Text = "Drawing";
                         this.Canvas.Canvas_Paint(null, null);
                     }));
                     Log.ConsoleLog("Draw a frame successful.", Log.LogType.Drawing, Log.LogLevel.Debug);
@@ -624,12 +693,6 @@ namespace osucatch_editor_realtimeviewer
 
 
                 if (DateTime.Now.Ticks > LastDrawingTimeStamp) LastDrawingTimeStamp = DateTime.Now.Ticks;
-
-
-                this.Invoke((MethodInvoker)delegate
-                {
-                    StateToolStripStatusLabel.Text = "Drawing";
-                });
 
             }
 
@@ -648,6 +711,9 @@ namespace osucatch_editor_realtimeviewer
 
         private async void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            healthMonitor?.Dispose();
+            healthMonitor = null;
+
             if (app.Default.Bookmark_RegisterHotKey)
             {
                 GlobalHotkey.UnRegisterGlobalHotKey(this.Handle);
@@ -944,8 +1010,23 @@ namespace osucatch_editor_realtimeviewer
         public static void ApplyResources(Form form)
         {
             ComponentResourceManager rm = new System.ComponentModel.ComponentResourceManager(form.GetType());
+
+            // $this 资源里含有设计时的 ClientSize/Location，语言切换时不应重置用户调整过的窗口布局，
+            // 因此在应用前后保存并恢复窗体的大小和位置（Text 等语言资源仍会正常应用）
+            Size formSize = form.Size;
+            Point formLocation = form.Location;
+
             rm.ApplyResources(form, "$this");
             AppLang(form, rm);
+
+            form.Size = formSize;
+            form.Location = formLocation;
+
+            // 模板菜单文本跟随语言切换（并保留已加载模板的文件名后缀）
+            if (form is Form1 form1)
+            {
+                form1.RestoreTemplateMenuText();
+            }
         }
 
         private static void AppLang(ToolStripMenuItem item, System.ComponentModel.ComponentResourceManager resources)
@@ -1027,12 +1108,10 @@ namespace osucatch_editor_realtimeviewer
 
         private async void forceResetStripMenuItem_Click(object sender, EventArgs e)
         {
-            lastReader = null;
-            lastColourLines = null;
-            lastBeatmap = null;
-            lastConvertedBeatmap = null;
-            lastMods = -1;
-            lastLabelType = HitObjectLabelType.None;
+            _committed = new CommittedState();
+            _rebuildGeneration++;
+            _rebuildTask = null;
+            _rebuildRetryTicks = 0;
 
             editorReaderHelper = new();
 
@@ -1052,6 +1131,129 @@ namespace osucatch_editor_realtimeviewer
 
             // 关闭当前应用程序
             Application.Exit();
+        }
+
+        private async void selectTemplateStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Title = "选择模板谱面";
+                openFileDialog.Filter = "osu Beatmap (*.osu)|*.osu";
+
+                // 默认文件夹为当前读取的 osu 文件所在文件夹
+                string defaultFolder = "";
+                if (_committed.Reader != null && _committed.Reader.ContainingFolder != "")
+                {
+                    defaultFolder = Path.Combine(app.Default.osu_path, "Songs", _committed.Reader.ContainingFolder);
+                    if (!Directory.Exists(defaultFolder)) defaultFolder = "";
+                }
+                if (defaultFolder == "") defaultFolder = Path.Combine(app.Default.osu_path, "Songs");
+                if (Directory.Exists(defaultFolder)) openFileDialog.InitialDirectory = defaultFolder;
+
+                if (openFileDialog.ShowDialog() != DialogResult.OK) return;
+
+                string filePath = openFileDialog.FileName;
+                selectTemplateStripMenuItem.Enabled = false;
+                try
+                {
+                    TemplateBeatmapData? data = await Task.Run(() => LoadTemplate(filePath));
+                    if (data == null)
+                    {
+                        MessageBox.Show("模板加载失败，文件可能不是有效的 osu 谱面。", "模板", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    templateData = data;
+                    drawingHelper.Template = data;
+                    unloadTemplateStripMenuItem.Enabled = true;
+                    RestoreTemplateMenuText();
+                    Log.ConsoleLog("Template loaded: " + filePath, Log.LogType.Program, Log.LogLevel.Info);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("模板加载失败：\r\n" + ex.Message, "模板", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    selectTemplateStripMenuItem.Enabled = true;
+                }
+            }
+        }
+
+        private void unloadTemplateStripMenuItem_Click(object sender, EventArgs e)
+        {
+            templateData = null;
+            drawingHelper.Template = null;
+            unloadTemplateStripMenuItem.Enabled = false;
+            RestoreTemplateMenuText();
+            Log.ConsoleLog("Template unloaded.", Log.LogType.Program, Log.LogLevel.Info);
+        }
+
+        /// <summary>
+        /// 程序内创建模板菜单（设在构造函数中，早于语言资源的应用）。
+        /// </summary>
+        private void CreateTemplateMenu()
+        {
+            templateToolStripMenuItem = new ToolStripMenuItem();
+            templateToolStripMenuItem.Name = "templateToolStripMenuItem";
+            templateToolStripMenuItem.Text = "模板";
+            selectTemplateStripMenuItem = new ToolStripMenuItem();
+            selectTemplateStripMenuItem.Name = "selectTemplateStripMenuItem";
+            selectTemplateStripMenuItem.Text = "选择模板谱面...";
+            selectTemplateStripMenuItem.Click += selectTemplateStripMenuItem_Click;
+            unloadTemplateStripMenuItem = new ToolStripMenuItem();
+            unloadTemplateStripMenuItem.Name = "unloadTemplateStripMenuItem";
+            unloadTemplateStripMenuItem.Text = "卸载模板";
+            unloadTemplateStripMenuItem.Enabled = false;
+            unloadTemplateStripMenuItem.Click += unloadTemplateStripMenuItem_Click;
+            templateToolStripMenuItem.DropDownItems.Add(selectTemplateStripMenuItem);
+            templateToolStripMenuItem.DropDownItems.Add(unloadTemplateStripMenuItem);
+            menuStrip1.Items.Insert(1, templateToolStripMenuItem);
+        }
+
+        /// <summary>
+        /// 在语言资源应用后恢复“卸载模板”菜单文本：
+        /// 去掉可能已附加的文件名后缀，若已加载模板则按当前语言文本补回后缀。
+        /// </summary>
+        private void RestoreTemplateMenuText()
+        {
+            if (unloadTemplateStripMenuItem == null) return;
+
+            string baseText = unloadTemplateStripMenuItem.Text;
+            int suffixIndex = baseText.LastIndexOf(" (");
+            if (suffixIndex > 0) baseText = baseText.Substring(0, suffixIndex);
+
+            unloadTemplateStripMenuItem.Text = (templateData != null) ? baseText + " (" + templateData.Filename + ")" : baseText;
+        }
+
+        /// <summary>
+        /// 解析模板 .osu 文件并转换为可接物件（在后台线程执行）。
+        /// 只读使用，不影响主谱面的解析/转换时序。
+        /// </summary>
+        private static TemplateBeatmapData? LoadTemplate(string path)
+        {
+            Beatmap? beatmap = BeatmapBuilder.BuildNewBeatmapFromBeatmapFile(path);
+            if (beatmap == null) return null;
+
+            BeatmapConverter converter = app.Default.Use_Stable_Converter ? new BeatmapConverterOsuStable() : new BeatmapConverter();
+            IBeatmap? converted = converter.GetConvertedBeatmap(beatmap, 0);
+            if (converted == null) return null;
+
+            List<PalpableCatchHitObject> objects = converter.GetPalpableObjects(converted, 0);
+            if (objects.Count <= 0) return null;
+
+            float circleDiameter = (float)(108.848 - converted.Difficulty.CircleSize * 8.9646);
+            int approachTime = (int)((converted.Difficulty.ApproachRate < 5)
+                ? 1800 - converted.Difficulty.ApproachRate * 120
+                : 1200 - (converted.Difficulty.ApproachRate - 5) * 150);
+
+            return new TemplateBeatmapData
+            {
+                FilePath = path,
+                Filename = Path.GetFileName(path),
+                Objects = objects,
+                CircleDiameter = circleDiameter,
+                ApproachTime = approachTime,
+            };
         }
 
         private void TopWhenEditorFocusToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1248,9 +1450,9 @@ namespace osucatch_editor_realtimeviewer
 
         private void generateConversionMappingToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (lastConvertedBeatmap != null)
+            if (_committed.ConvertedBeatmap != null)
             {
-                string conversionMapping = ((BeatmapConverterOsuStable)stableBeatmapConverter).BuildConversionMapping(lastConvertedBeatmap, lastMods);
+                string conversionMapping = ((BeatmapConverterOsuStable)stableBeatmapConverter).BuildConversionMapping(_committed.ConvertedBeatmap, _committed.Mods);
                 StreamWriter writer = new("expected-conversion.json");
                 writer.Write(conversionMapping);
                 writer.Close();

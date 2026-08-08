@@ -72,17 +72,24 @@ namespace osucatch_editor_realtimeviewer
 
             List<PalpableCatchHitObject> palpableObjects = new List<PalpableCatchHitObject>();
 
-            foreach (var currentObject in beatmap.HitObjects)
+            for (int i = 0; i < beatmap.HitObjects.Count; i++)
             {
+                var currentObject = beatmap.HitObjects[i];
                 if (currentObject is Fruit fruitObject)
+                {
+                    fruitObject.SourceIndex = i;
                     palpableObjects.Add(fruitObject);
+                }
 
                 else if (currentObject is JuiceStream)
                 {
                     foreach (var juice in currentObject.NestedHitObjects)
                     {
                         if (juice is PalpableCatchHitObject palpableObject)
+                        {
+                            palpableObject.SourceIndex = i;
                             palpableObjects.Add(palpableObject);
+                        }
                     }
                 }
                 else if (currentObject is BananaShower)
@@ -90,7 +97,10 @@ namespace osucatch_editor_realtimeviewer
                     foreach (var banana in currentObject.NestedHitObjects)
                     {
                         if (banana is PalpableCatchHitObject palpableObject)
+                        {
+                            palpableObject.SourceIndex = i;
                             palpableObjects.Add(palpableObject);
+                        }
                     }
                 }
             }

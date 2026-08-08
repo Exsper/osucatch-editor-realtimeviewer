@@ -1,5 +1,5 @@
-﻿using System.Runtime.InteropServices;
-using osuTK;
+﻿using osuTK;
+using System.Runtime.InteropServices;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -16,7 +16,8 @@ namespace osucatch_editor_realtimeviewer
 
             internal float Length
             {
-                get {
+                get
+                {
                     Vector2 diff = End - Start;
                     return getLength0(diff.X, diff.Y);
                 }

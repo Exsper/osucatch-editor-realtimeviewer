@@ -1,18 +1,8 @@
-using System;
-using System.Globalization;
-using System.Collections.Generic;
-using System.Drawing.Drawing2D;
-using System.Linq;
-using System.Net.Quic;
-using System.Text;
-using Editor_Reader;
-using OpenTK.Graphics.OpenGL;
-using osu.Game.Beatmaps;
-using osu.Game.Beatmaps.ControlPoints;
+﻿using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Catch.Beatmaps;
 using osu.Game.Rulesets.Catch.Objects;
-using osu.Game.Rulesets.Catch.UI;
-using osu.Game.Rulesets.Mods;
+using System.Globalization;
+using System.Text;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -29,20 +19,22 @@ namespace osucatch_editor_realtimeviewer
             double lastStartTime = 0;
             bool isFirstSame = true;
 
+            int sourceIndex = 0;
             foreach (var currentObject in beatmap.HitObjects)
             {
                 if (currentObject is Fruit fruitObject)
                 {
-                    manager.AddFruit(fruitObject);
+                    manager.AddFruit(fruitObject, sourceIndex);
                 }
                 else if (currentObject is JuiceStream juiceStream)
                 {
-                    manager.AddJuiceStream(juiceStream);
+                    manager.AddJuiceStream(juiceStream, sourceIndex);
                 }
                 else if (currentObject is BananaShower bananaShower)
                 {
-                    manager.AddBananaShower(bananaShower);
+                    manager.AddBananaShower(bananaShower, sourceIndex);
                 }
+                sourceIndex++;
             }
 
             return manager.GetPalpableObjects();
@@ -55,22 +47,24 @@ namespace osucatch_editor_realtimeviewer
             List<(osu.Game.Rulesets.Objects.HitObject original, List<PalpableCatchHitObject> converted)> palpableObjects = new();
             HitObjectManagerCatch manager = new(beatmap, mods, true);
 
+            int sourceIndex = 0;
             foreach (var currentObject in beatmap.HitObjects)
             {
                 List<PalpableCatchHitObject> currentObjectConvert = new List<PalpableCatchHitObject>();
                 if (currentObject is Fruit fruitObject)
                 {
-                    currentObjectConvert = manager.AddFruit(fruitObject);
+                    currentObjectConvert = manager.AddFruit(fruitObject, sourceIndex);
                 }
                 else if (currentObject is JuiceStream juiceStream)
                 {
-                    currentObjectConvert = manager.AddJuiceStream(juiceStream);
+                    currentObjectConvert = manager.AddJuiceStream(juiceStream, sourceIndex);
                 }
                 else if (currentObject is BananaShower bananaShower)
                 {
-                    currentObjectConvert = manager.AddBananaShower(bananaShower);
+                    currentObjectConvert = manager.AddBananaShower(bananaShower, sourceIndex);
                 }
                 palpableObjects.Add(new(currentObject, currentObjectConvert));
+                sourceIndex++;
             }
 
             palpableObjects.Sort((h1, h2) => h1.original.StartTime.CompareTo(h2.original.StartTime));

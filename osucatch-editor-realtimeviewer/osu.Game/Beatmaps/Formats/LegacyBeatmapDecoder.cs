@@ -86,7 +86,20 @@ namespace osu.Game.Beatmaps.Formats
             // Unfortunately there are ranked maps in this state (example: https://osu.ppy.sh/s/594828).
             // OrderBy is used to guarantee that the parsing order of hitobjects with equal start times is maintained (stably-sorted)
             // The parsing order of hitobjects matters in mania difficulty calculation
-            this.beatmap.HitObjects = this.beatmap.HitObjects.OrderBy(h => h.StartTime).ToList();
+            // 编辑器来源的数据已经按时间有序：先检查，仅在乱序时才排序。排序结果与原逻辑完全一致，
+            // 不会改变物件处理顺序，因此不影响转换阶段的随机数序列。
+            List<HitObject> parsedObjects = this.beatmap.HitObjects;
+            bool isSorted = true;
+            for (int i = 1; i < parsedObjects.Count; i++)
+            {
+                if (parsedObjects[i].StartTime < parsedObjects[i - 1].StartTime)
+                {
+                    isSorted = false;
+                    break;
+                }
+            }
+            if (!isSorted)
+                this.beatmap.HitObjects = parsedObjects.OrderBy(h => h.StartTime).ToList();
 
             foreach (var hitObject in this.beatmap.HitObjects)
             {

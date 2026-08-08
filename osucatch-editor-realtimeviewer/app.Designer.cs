@@ -274,6 +274,54 @@ namespace osucatch_editor_realtimeviewer {
                 this["BarLine_Show"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int BarLine_Subdivide {
+            get {
+                return ((int)(this["BarLine_Subdivide"]));
+            }
+            set {
+                this["BarLine_Subdivide"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool Show_Distance_Helper {
+            get {
+                return ((bool)(this["Show_Distance_Helper"]));
+            }
+            set {
+                this["Show_Distance_Helper"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public double Distance_Helper_White_Speed {
+            get {
+                return ((double)(this["Distance_Helper_White_Speed"]));
+            }
+            set {
+                this["Distance_Helper_White_Speed"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2")]
+        public double Distance_Helper_Red_Speed {
+            get {
+                return ((double)(this["Distance_Helper_Red_Speed"]));
+            }
+            set {
+                this["Distance_Helper_Red_Speed"] = value;
+            }
+        }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
@@ -898,5 +946,66 @@ namespace osucatch_editor_realtimeviewer {
                 this["Curve_Color"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("White")]
+        public global::System.Drawing.Color Template_Color {
+            get {
+                return ((global::System.Drawing.Color)(this["Template_Color"]));
+            }
+            set {
+                this["Template_Color"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("35")]
+        public int Template_Alpha {
+            get {
+                return ((int)(this["Template_Alpha"]));
+            }
+            set {
+                this["Template_Alpha"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("20")]
+        public int FullRead_Interval {
+            get {
+                return ((int)(this["FullRead_Interval"]));
+            }
+            set {
+                this["FullRead_Interval"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("100")]
+        public int LowFreqRead_Interval {
+            get {
+                return ((int)(this["LowFreqRead_Interval"]));
+            }
+            set {
+                this["LowFreqRead_Interval"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool Use_Batch_Rendering {
+            get {
+                return ((bool)(this["Use_Batch_Rendering"]));
+            }
+            set {
+                this["Use_Batch_Rendering"] = value;
+            }
+        }
+        
     }
 }

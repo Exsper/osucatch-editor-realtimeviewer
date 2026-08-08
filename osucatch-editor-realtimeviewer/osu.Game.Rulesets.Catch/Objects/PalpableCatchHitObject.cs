@@ -17,6 +17,22 @@ namespace osu.Game.Rulesets.Catch.Objects
     public abstract class PalpableCatchHitObject : CatchHitObject, IHasComboInformation
     {
         /// <summary>
+        /// 该物件在解码后 beatmap.HitObjects 中的下标（与 EditorReader 的 HitObjectLines 顺序一致），
+        /// 用于绘制时实时查询选中态，避免选中变化触发全量重建。
+        /// </summary>
+        public int SourceIndex = -1;
+
+        /// <summary>
+        /// 按 LabelType 缓存的标签文本，避免每帧重复格式化。
+        /// </summary>
+        public string CachedLabel = "";
+
+        /// <summary>
+        /// 生成 <see cref="CachedLabel"/> 时使用的标签类型。
+        /// </summary>
+        public HitObjectLabelType CachedLabelType = (HitObjectLabelType)(-1);
+
+        /// <summary>
         /// Difference between the distance to the next object
         /// and the distance that would have triggered a hyper dash.
         /// A value close to 0 indicates a difficult jump (for difficulty calculation).
