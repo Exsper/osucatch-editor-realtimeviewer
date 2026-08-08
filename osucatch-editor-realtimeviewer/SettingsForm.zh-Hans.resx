@@ -157,6 +157,12 @@
   <data name="label4.Text" xml:space="preserve">
     <value>绘制时</value>
   </data>
+  <data name="label_LowFreqReadInterval.Text" xml:space="preserve">
+    <value>低频读取</value>
+  </data>
+  <data name="label_FullReadInterval.Text" xml:space="preserve">
+    <value>全量读取</value>
+  </data>
   <data name="groupBox4.Text" xml:space="preserve">
     <value>备份</value>
   </data>
@@ -207,6 +213,12 @@
   </data>
   <data name="groupBox6.Text" xml:space="preserve">
     <value>调试</value>
+  </data>
+  <data name="checkBox_Log_BookmarkPlus.Size" type="System.Drawing.Size, System.Drawing">
+    <value>135, 21</value>
+  </data>
+  <data name="checkBox_Log_BookmarkPlus.Text" xml:space="preserve">
+    <value>BookmarkPlus日志</value>
   </data>
   <data name="checkBox_Log_BeatmapBuilder.Size" type="System.Drawing.Size, System.Drawing">
     <value>99, 21</value>
@@ -295,6 +307,24 @@
   <data name="checkBox_TimingLine_ShowRed.Text" xml:space="preserve">
     <value>显示非继承时间点 (红线)</value>
   </data>
+  <data name="comboBox_BarLineSubdivide.Items" xml:space="preserve">
+    <value>显示到小节</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items1" xml:space="preserve">
+    <value>显示到2拍</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items2" xml:space="preserve">
+    <value>显示到拍</value>
+  </data>
+  <data name="checkBox_ShowDistanceHelper.Text" xml:space="preserve">
+    <value>显示距离辅助线</value>
+  </data>
+  <data name="label_WhiteSpeed.Text" xml:space="preserve">
+    <value>白线速度倍率 (x)</value>
+  </data>
+  <data name="label_RedSpeed.Text" xml:space="preserve">
+    <value>红线速度倍率 (x)</value>
+  </data>
   <data name="groupBox8.Text" xml:space="preserve">
     <value>高级</value>
   </data>
@@ -359,40 +389,16 @@
   <data name="label13.Text" xml:space="preserve">
     <value>线宽</value>
   </data>
-  <data name="$this.Text" xml:space="preserve">
-    <value>设置</value>
-  </data>
-  <data name="BarLineSubdivide_Item_None" xml:space="preserve">
-    <value>显示到小节</value>
-  </data>
-  <data name="BarLineSubdivide_Item_Half" xml:space="preserve">
-    <value>显示到2拍</value>
-  </data>
-  <data name="BarLineSubdivide_Item_Quarter" xml:space="preserve">
-    <value>显示到拍</value>
-  </data>
-  <data name="ShowDistanceHelper_Checkbox" xml:space="preserve">
-    <value>显示距离辅助线</value>
-  </data>
-  <data name="DistanceHelper_WhiteSpeed_Label" xml:space="preserve">
-    <value>白线速度倍率 (x)</value>
-  </data>
-  <data name="DistanceHelper_RedSpeed_Label" xml:space="preserve">
-    <value>红线速度倍率 (x)</value>
-  </data>
-  <data name="Template_GroupBox" xml:space="preserve">
+  <data name="groupBox_Template.Text" xml:space="preserve">
     <value>模板</value>
   </data>
-  <data name="Template_Color_Label" xml:space="preserve">
+  <data name="label_TemplateColor.Text" xml:space="preserve">
     <value>轮廓颜色</value>
   </data>
-  <data name="Template_Alpha_Label" xml:space="preserve">
+  <data name="label_TemplateAlpha.Text" xml:space="preserve">
     <value>透明度 (%)</value>
   </data>
-  <data name="ReadInterval_Full_Label" xml:space="preserve">
-    <value>全量读取</value>
-  </data>
-  <data name="ReadInterval_LowFreq_Label" xml:space="preserve">
-    <value>低频读取</value>
+  <data name="$this.Text" xml:space="preserve">
+    <value>设置</value>
   </data>
 </root>

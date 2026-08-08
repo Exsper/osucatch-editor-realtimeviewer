@@ -4,7 +4,6 @@
 // Decompiled with ICSharpCode.Decompiler 8.1.1.7464
 
 using osucatch_editor_realtimeviewer;
-using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 

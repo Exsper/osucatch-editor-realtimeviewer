@@ -1,9 +1,7 @@
-﻿using System.Net.Quic;
-using System.Runtime.InteropServices;
-using osu.Game.Beatmaps;
+﻿using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Catch.Objects;
-using osu.Game.Rulesets.Objects;
 using osu.Game.Utils;
+using System.Runtime.InteropServices;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -31,7 +29,7 @@ namespace osucatch_editor_realtimeviewer
             private static extern int RandomNextStableCompat0(int value, int lowerBound, int upperBound);
 
             private int RandomNextStableCompat(int lowerBound, int upperBound) => RandomNextStableCompat0(random.Next(), lowerBound, upperBound);
-            
+
             internal List<PalpableCatchHitObject> AddFruit(Fruit fruit, int sourceIndex)
             {
                 if (isHardRock)
@@ -48,12 +46,12 @@ namespace osucatch_editor_realtimeviewer
                 if (lastStartX == 0)
                 {
                     lastStartX = fruit.OriginalX;
-                    lastStartTime = (int) fruit.StartTime;
+                    lastStartTime = (int)fruit.StartTime;
                     return fruit;
                 }
 
                 float diff = lastStartX - fruit.OriginalX;
-                int timeDiff = (int) fruit.StartTime - lastStartTime;
+                int timeDiff = (int)fruit.StartTime - lastStartTime;
 
                 if (timeDiff > 1000)
                 {

@@ -1,7 +1,6 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Configuration;
-using System.Linq;
 using System.Xml.Linq;
 
 namespace osucatch_editor_realtimeviewer

@@ -240,14 +240,14 @@ namespace osucatch_editor_realtimeviewer
                     return null;
                 }
 
-            if (!IsFullFetchDue())
-            {
-                // 高频路径：只刷新播放头时间，其余数据沿用上次全量读取
-                cachedCollection!.EditorTime = reader.EditorTime();
-                cachedCollection.IsFreshFetch = false;
-                if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
-                fetchAll_Failed_Count = 0;
-                return cachedCollection;
+                if (!IsFullFetchDue())
+                {
+                    // 高频路径：只刷新播放头时间，其余数据沿用上次全量读取
+                    cachedCollection!.EditorTime = reader.EditorTime();
+                    cachedCollection.IsFreshFetch = false;
+                    if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
+                    fetchAll_Failed_Count = 0;
+                    return cachedCollection;
                 }
 
                 Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);

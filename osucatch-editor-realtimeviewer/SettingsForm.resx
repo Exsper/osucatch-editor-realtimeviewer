@@ -117,1722 +117,2931 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="&gt;&gt;checkBox_showConsole.ZOrder" xml:space="preserve">
-    <value>10</value>
-  </data>
-  <data name="&gt;&gt;button_Label_Color.Parent" xml:space="preserve">
-    <value>groupBox5</value>
-  </data>
-  <data name="&gt;&gt;label13.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
-  <data name="textBox_backupFolder.Location" type="System.Drawing.Point, System.Drawing">
-    <value>109, 49</value>
-  </data>
-  <assembly alias="mscorlib" name="mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
-  <data name="button_backupFolder_reset.TabIndex" type="System.Int32, mscorlib">
-    <value>9</value>
-  </data>
-  <data name="label8.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 46</value>
-  </data>
-  <data name="comboBox_Log_Level.Items1" xml:space="preserve">
-    <value>Info</value>
-  </data>
-  <data name="&gt;&gt;button_width_reset.Name" xml:space="preserve">
-    <value>button_width_reset</value>
-  </data>
-  <data name="&gt;&gt;groupBox5.Type" xml:space="preserve">
-    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;checkBox_enableBackup.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="label15.Size" type="System.Drawing.Size, System.Drawing">
-    <value>40, 17</value>
-  </data>
-  <data name="label8.Text" xml:space="preserve">
-    <value>Log Level</value>
-  </data>
-  <data name="&gt;&gt;label8.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;label5.Parent" xml:space="preserve">
-    <value>groupBox3</value>
-  </data>
-  <data name="button_timeOut_reset.Size" type="System.Drawing.Size, System.Drawing">
-    <value>25, 23</value>
-  </data>
-  <data name="checkBox_withColor.TabIndex" type="System.Int32, mscorlib">
-    <value>0</value>
-  </data>
-  <data name="&gt;&gt;checkBox_BarLine_Show.Name" xml:space="preserve">
-    <value>checkBox_BarLine_Show</value>
-  </data>
-  <data name="groupBox2.Text" xml:space="preserve">
-    <value>osu! Folder</value>
-  </data>
-  <data name="&gt;&gt;groupBox7.Type" xml:space="preserve">
-    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="label11.Text" xml:space="preserve">
-    <value>Attempting to increase this value when when DTB or Marathon beatmaps etc.
-</value>
-  </data>
-  <data name="label9.Text" xml:space="preserve">
-    <value>Cancel current drawing process after</value>
-  </data>
-  <data name="&gt;&gt;label4.Name" xml:space="preserve">
-    <value>label4</value>
-  </data>
-  <data name="&gt;&gt;button_width_reset.Parent" xml:space="preserve">
-    <value>groupBox1</value>
-  </data>
-  <data name="button_cancel.TabIndex" type="System.Int32, mscorlib">
-    <value>5</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_EditorReader.ZOrder" xml:space="preserve">
-    <value>8</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Drawing.Name" xml:space="preserve">
-    <value>checkBox_Log_Drawing</value>
-  </data>
-  <data name="checkBox_BarLine_Show.TabIndex" type="System.Int32, mscorlib">
-    <value>2</value>
-  </data>
-  <data name="checkBox_FilterNearbyHitObjects.Text" xml:space="preserve">
-    <value>Filter HitObjects. Speed up but cause banana and droplets error.
-Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="groupBox3.TabIndex" type="System.Int32, mscorlib">
-    <value>2</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_backupInterval.Name" xml:space="preserve">
-    <value>numericUpDown_backupInterval</value>
-  </data>
-  <data name="button_idleInterval_reset.Size" type="System.Drawing.Size, System.Drawing">
-    <value>26, 23</value>
-  </data>
-  <data name="&gt;&gt;label2.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_enableBackup.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 22</value>
-  </data>
-  <data name="button_osuFolder_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>491, 27</value>
-  </data>
-  <data name="&gt;&gt;label9.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="groupBox3.Location" type="System.Drawing.Point, System.Drawing">
-    <value>12, 117</value>
-  </data>
-  <data name="groupBox3.Text" xml:space="preserve">
-    <value>Interval (ms)</value>
-  </data>
-  <data name="&gt;&gt;label12.Parent" xml:space="preserve">
-    <value>groupBox5</value>
-  </data>
-  <data name="label13.Size" type="System.Drawing.Size, System.Drawing">
-    <value>42, 17</value>
-  </data>
-  <data name="numericUpDown_height.Location" type="System.Drawing.Point, System.Drawing">
-    <value>54, 61</value>
-  </data>
-  <data name="&gt;&gt;button_drawingInterval_reset.Parent" xml:space="preserve">
-    <value>groupBox3</value>
-  </data>
-  <data name="&gt;&gt;CurveColorButton.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;CurveDashStyleComboBox.Parent" xml:space="preserve">
-    <value>groupBox9</value>
-  </data>
-  <data name="CurveDashStyleComboBox.Items" xml:space="preserve">
-    <value>Solid</value>
-  </data>
-  <data name="&gt;&gt;groupBox4.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="&gt;&gt;textBox_osuFolder.Parent" xml:space="preserve">
-    <value>groupBox2</value>
-  </data>
-  <data name="label10.Size" type="System.Drawing.Size, System.Drawing">
-    <value>28, 17</value>
-  </data>
-  <data name="numericUpDown_height.TabIndex" type="System.Int32, mscorlib">
-    <value>3</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowRed.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;checkBox_withColor.Name" xml:space="preserve">
-    <value>checkBox_withColor</value>
-  </data>
-  <data name="CurveDashStyleComboBox.TabIndex" type="System.Int32, mscorlib">
-    <value>3</value>
-  </data>
-  <data name="label9.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;groupBox6.Type" xml:space="preserve">
-    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_enableBackup.Text" xml:space="preserve">
-    <value>Enable Auto Backup (Slightly affecting performance)</value>
-  </data>
-  <data name="CurveWidthComboBox.Items2" xml:space="preserve">
-    <value>3px</value>
-  </data>
-  <data name="&gt;&gt;label9.Parent" xml:space="preserve">
-    <value>groupBox8</value>
-  </data>
-  <data name="button_osuFolder_select.TabIndex" type="System.Int32, mscorlib">
-    <value>2</value>
-  </data>
-  <data name="checkBox_Log_Timer.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 236</value>
-  </data>
-  <data name="&gt;&gt;checkBox_ShowSelected.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_showConsole.Text" xml:space="preserve">
-    <value>Show Console When Start</value>
-  </data>
-  <data name="groupBox4.Location" type="System.Drawing.Point, System.Drawing">
-    <value>260, 117</value>
-  </data>
-  <data name="numericUpDown_idleInterval.TabIndex" type="System.Int32, mscorlib">
-    <value>8</value>
-  </data>
-  <data name="button_backupFolder_reset.Size" type="System.Drawing.Size, System.Drawing">
-    <value>25, 23</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;groupBox1.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="&gt;&gt;groupBox4.Name" xml:space="preserve">
-    <value>groupBox4</value>
-  </data>
-  <data name="button_drawingInterval_reset.TabIndex" type="System.Int32, mscorlib">
-    <value>11</value>
-  </data>
-  <data name="groupBox9.TabIndex" type="System.Int32, mscorlib">
-    <value>10</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_timeOut.Parent" xml:space="preserve">
-    <value>groupBox8</value>
-  </data>
-  <data name="&gt;&gt;button_idleInterval_reset.Name" xml:space="preserve">
-    <value>button_idleInterval_reset</value>
-  </data>
-  <data name="label4.Size" type="System.Drawing.Size, System.Drawing">
-    <value>103, 17</value>
-  </data>
-  <data name="groupBox5.Text" xml:space="preserve">
-    <value>Hit Objects</value>
-  </data>
-  <data name="CurveWidthComboBox.TabIndex" type="System.Int32, mscorlib">
-    <value>5</value>
-  </data>
-  <data name="&gt;&gt;label11.Parent" xml:space="preserve">
-    <value>groupBox8</value>
-  </data>
-  <data name="groupBox6.Size" type="System.Drawing.Size, System.Drawing">
-    <value>239, 334</value>
-  </data>
-  <data name="button_osuFolder_reset.Text" xml:space="preserve">
-    <value>↺</value>
-  </data>
-  <data name="&gt;&gt;groupBox4.Type" xml:space="preserve">
-    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;label7.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_ShowSelected.TabIndex" type="System.Int32, mscorlib">
-    <value>1</value>
-  </data>
-  <data name="groupBox7.Location" type="System.Drawing.Point, System.Drawing">
-    <value>260, 295</value>
-  </data>
-  <data name="&gt;&gt;label4.Parent" xml:space="preserve">
-    <value>groupBox3</value>
-  </data>
-  <data name="groupBox6.TabIndex" type="System.Int32, mscorlib">
-    <value>7</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_timeOut.Type" xml:space="preserve">
-    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;checkBox_showConsole.Name" xml:space="preserve">
-    <value>checkBox_showConsole</value>
-  </data>
-  <data name="label1.TabIndex" type="System.Int32, mscorlib">
-    <value>0</value>
-  </data>
-  <data name="label5.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="label15.TabIndex" type="System.Int32, mscorlib">
-    <value>2</value>
-  </data>
-  <data name="button_apply.Size" type="System.Drawing.Size, System.Drawing">
-    <value>102, 33</value>
-  </data>
-  <data name="CurveWidthComboBox.Items3" xml:space="preserve">
-    <value>4px</value>
-  </data>
-  <data name="&gt;&gt;label13.Parent" xml:space="preserve">
-    <value>groupBox9</value>
-  </data>
-  <data name="&gt;&gt;button_backupInterval_reset.Name" xml:space="preserve">
-    <value>button_backupInterval_reset</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_height.Type" xml:space="preserve">
-    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="groupBox6.Location" type="System.Drawing.Point, System.Drawing">
-    <value>12, 233</value>
-  </data>
-  <data name="&gt;&gt;button_timeOut_reset.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;button_osuFolder_reset.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="&gt;&gt;button_Label_Color.Name" xml:space="preserve">
-    <value>button_Label_Color</value>
-  </data>
-  <data name="button_backupFolder_select.TabIndex" type="System.Int32, mscorlib">
-    <value>8</value>
-  </data>
-  <data name="groupBox5.TabIndex" type="System.Int32, mscorlib">
-    <value>6</value>
-  </data>
-  <data name="button_backupFolder_reset.Text" xml:space="preserve">
-    <value>↺</value>
-  </data>
-  <data name="label8.TabIndex" type="System.Int32, mscorlib">
-    <value>14</value>
-  </data>
-  <data name="label4.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;label5.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="groupBox7.Text" xml:space="preserve">
-    <value>Timing Lines</value>
-  </data>
-  <data name="groupBox8.Location" type="System.Drawing.Point, System.Drawing">
-    <value>260, 500</value>
-  </data>
-  <data name="&gt;&gt;button_timeOut_reset.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="groupBox7.TabIndex" type="System.Int32, mscorlib">
-    <value>8</value>
-  </data>
-  <data name="label2.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 63</value>
-  </data>
-  <data name="&gt;&gt;checkBox_BarLine_Show.Parent" xml:space="preserve">
-    <value>groupBox7</value>
-  </data>
-  <data name="&gt;&gt;label5.Name" xml:space="preserve">
-    <value>label5</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowGreen.Size" type="System.Drawing.Size, System.Drawing">
-    <value>233, 21</value>
-  </data>
-  <data name="&gt;&gt;checkBox_showConsole.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.Name" xml:space="preserve">
-    <value>checkBox_FilterNearbyHitObjects</value>
-  </data>
-  <data name="checkBox_Log_BeatmapConverter.Size" type="System.Drawing.Size, System.Drawing">
-    <value>159, 21</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="label15.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="groupBox1.Location" type="System.Drawing.Point, System.Drawing">
-    <value>12, 12</value>
-  </data>
-  <data name="numericUpDown_timeOut.TabIndex" type="System.Int32, mscorlib">
-    <value>5</value>
-  </data>
-  <data name="checkBox_ShowSelected.Location" type="System.Drawing.Point, System.Drawing">
-    <value>109, 22</value>
-  </data>
-  <data name="&gt;&gt;label10.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;button_backupFolder_select.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="label7.TabIndex" type="System.Int32, mscorlib">
-    <value>11</value>
-  </data>
-  <data name="&gt;&gt;groupBox1.Name" xml:space="preserve">
-    <value>groupBox1</value>
-  </data>
-  <data name="&gt;&gt;button_timeOut_reset.Name" xml:space="preserve">
-    <value>button_timeOut_reset</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_width.Parent" xml:space="preserve">
-    <value>groupBox1</value>
-  </data>
-  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_idleInterval.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="&gt;&gt;label7.Name" xml:space="preserve">
-    <value>label7</value>
-  </data>
-  <data name="label7.Location" type="System.Drawing.Point, System.Drawing">
-    <value>11, 82</value>
-  </data>
-  <data name="label1.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 29</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Timer.ZOrder" xml:space="preserve">
-    <value>4</value>
-  </data>
-  <data name="&gt;&gt;groupBox4.ZOrder" xml:space="preserve">
-    <value>7</value>
-  </data>
-  <data name="label5.Text" xml:space="preserve">
-    <value>Idle Interval</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_height.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="checkBox_Log_Timer.Text" xml:space="preserve">
-    <value>Timer log</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.ZOrder" xml:space="preserve">
-    <value>7</value>
-  </data>
-  <data name="&gt;&gt;CurveWidthComboBox.Parent" xml:space="preserve">
-    <value>groupBox9</value>
-  </data>
-  <data name="numericUpDown_backupInterval.TabIndex" type="System.Int32, mscorlib">
-    <value>12</value>
-  </data>
-  <data name="checkBox_Log_BeatmapBuilder.Size" type="System.Drawing.Size, System.Drawing">
-    <value>143, 21</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_idleInterval.Parent" xml:space="preserve">
-    <value>groupBox3</value>
-  </data>
-  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.Name" xml:space="preserve">
-    <value>checkBox_TimingLine_ShowGreen</value>
-  </data>
-  <data name="&gt;&gt;CurveColorButton.Parent" xml:space="preserve">
-    <value>groupBox9</value>
-  </data>
-  <data name="checkBox_Log_Backup.Size" type="System.Drawing.Size, System.Drawing">
-    <value>93, 21</value>
-  </data>
-  <data name="button_height_reset.Text" xml:space="preserve">
-    <value>↺</value>
-  </data>
-  <data name="&gt;&gt;groupBox9.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="numericUpDown_drawingInterval.TabIndex" type="System.Int32, mscorlib">
-    <value>9</value>
-  </data>
-  <data name="checkBox_Log_BeatmapConverter.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 155</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_drawingInterval.Name" xml:space="preserve">
-    <value>numericUpDown_drawingInterval</value>
-  </data>
-  <data name="&gt;&gt;groupBox5.Name" xml:space="preserve">
-    <value>groupBox5</value>
-  </data>
-  <data name="&gt;&gt;groupBox8.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.Parent" xml:space="preserve">
-    <value>groupBox8</value>
-  </data>
-  <data name="button_width_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>138, 27</value>
-  </data>
-  <data name="button_apply.TabIndex" type="System.Int32, mscorlib">
-    <value>4</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Backup.Name" xml:space="preserve">
-    <value>checkBox_Log_Backup</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Drawing.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="label10.Text" xml:space="preserve">
-    <value>ms.</value>
-  </data>
-  <data name="&gt;&gt;checkBox_ShowSelected.Name" xml:space="preserve">
-    <value>checkBox_ShowSelected</value>
-  </data>
-  <data name="textBox_backupFolder.TabIndex" type="System.Int32, mscorlib">
-    <value>7</value>
-  </data>
-  <data name="button_cancel.Location" type="System.Drawing.Point, System.Drawing">
-    <value>623, 625</value>
-  </data>
-  <data name="numericUpDown_timeOut.Location" type="System.Drawing.Point, System.Drawing">
-    <value>235, 66</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_drawingInterval.ZOrder" xml:space="preserve">
-    <value>4</value>
-  </data>
-  <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
-  <data name="checkBox_FilterNearbyHitObjects.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
-    <value>NoControl</value>
-  </data>
-  <data name="&gt;&gt;label14.Parent" xml:space="preserve">
-    <value>groupBox9</value>
-  </data>
-  <data name="&gt;&gt;textBox_osuFolder.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="&gt;&gt;label7.ZOrder" xml:space="preserve">
-    <value>5</value>
-  </data>
-  <data name="label13.Text" xml:space="preserve">
-    <value>Width</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="&gt;&gt;button_osuFolder_reset.Name" xml:space="preserve">
-    <value>button_osuFolder_reset</value>
-  </data>
-  <data name="comboBox_Log_Level.Size" type="System.Drawing.Size, System.Drawing">
-    <value>98, 25</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.Parent" xml:space="preserve">
-    <value>groupBox6</value>
-  </data>
-  <data name="checkBox_enableBackup.TabIndex" type="System.Int32, mscorlib">
-    <value>14</value>
-  </data>
-  <data name="button_backupFolder_select.Text" xml:space="preserve">
-    <value>...</value>
-  </data>
-  <data name="groupBox7.Size" type="System.Drawing.Size, System.Drawing">
-    <value>243, 185</value>
-  </data>
-  <data name="numericUpDown_timeOut.Size" type="System.Drawing.Size, System.Drawing">
-    <value>75, 23</value>
-  </data>
-  <data name="&gt;&gt;label1.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="CurveWidthComboBox.Items1" xml:space="preserve">
-    <value>2px</value>
-  </data>
-  <data name="&gt;&gt;CurveWidthComboBox.Name" xml:space="preserve">
-    <value>CurveWidthComboBox</value>
-  </data>
-  <data name="&gt;&gt;label8.Name" xml:space="preserve">
-    <value>label8</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;textBox_osuFolder.Name" xml:space="preserve">
-    <value>textBox_osuFolder</value>
-  </data>
-  <data name="button_apply.Location" type="System.Drawing.Point, System.Drawing">
-    <value>495, 625</value>
-  </data>
-  <data name="button_timeOut_reset.Text" xml:space="preserve">
-    <value>↺</value>
-  </data>
-  <data name="&gt;&gt;textBox_backupFolder.ZOrder" xml:space="preserve">
-    <value>4</value>
-  </data>
-  <data name="&gt;&gt;label6.ZOrder" xml:space="preserve">
-    <value>6</value>
-  </data>
-  <data name="&gt;&gt;label12.Name" xml:space="preserve">
-    <value>label12</value>
-  </data>
-  <data name="&gt;&gt;button_height_reset.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="&gt;&gt;label13.ZOrder" xml:space="preserve">
-    <value>5</value>
-  </data>
-  <data name="groupBox4.Size" type="System.Drawing.Size, System.Drawing">
-    <value>465, 110</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowGreen.Text" xml:space="preserve">
-    <value>Show Inherited Points (Green Lines)</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_width.Name" xml:space="preserve">
-    <value>numericUpDown_width</value>
-  </data>
-  <data name="checkBox_BarLine_Show.Size" type="System.Drawing.Size, System.Drawing">
-    <value>115, 21</value>
-  </data>
-  <data name="label12.TabIndex" type="System.Int32, mscorlib">
-    <value>3</value>
-  </data>
-  <data name="&gt;&gt;CurveDashStyleComboBox.Type" xml:space="preserve">
-    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;groupBox6.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_EditorReader.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowGreen.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 49</value>
-  </data>
-  <data name="label1.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="numericUpDown_width.Size" type="System.Drawing.Size, System.Drawing">
-    <value>78, 23</value>
-  </data>
-  <data name="groupBox5.Location" type="System.Drawing.Point, System.Drawing">
-    <value>260, 233</value>
-  </data>
-  <data name="&gt;&gt;label8.Parent" xml:space="preserve">
-    <value>groupBox6</value>
-  </data>
-  <data name="&gt;&gt;button_height_reset.Parent" xml:space="preserve">
-    <value>groupBox1</value>
-  </data>
-  <data name="checkBox_Log_Program.Size" type="System.Drawing.Size, System.Drawing">
-    <value>101, 21</value>
-  </data>
-  <data name="&gt;&gt;groupBox6.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.Name" xml:space="preserve">
-    <value>checkBox_Log_BeatmapConverter</value>
-  </data>
-  <data name="checkBox_ShowSelected.Size" type="System.Drawing.Size, System.Drawing">
-    <value>111, 21</value>
-  </data>
-  <data name="checkBox_Log_EditorReader.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;CurveDashStyleComboBox.Name" xml:space="preserve">
-    <value>CurveDashStyleComboBox</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_width.Type" xml:space="preserve">
-    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;groupBox7.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="label12.Location" type="System.Drawing.Point, System.Drawing">
-    <value>256, 23</value>
-  </data>
-  <data name="numericUpDown_height.Size" type="System.Drawing.Size, System.Drawing">
-    <value>78, 23</value>
-  </data>
-  <data name="&gt;&gt;button_Label_Color.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="checkBox_Log_Program.TabIndex" type="System.Int32, mscorlib">
-    <value>8</value>
-  </data>
-  <data name="&gt;&gt;label2.Name" xml:space="preserve">
-    <value>label2</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowRed.Size" type="System.Drawing.Size, System.Drawing">
-    <value>208, 21</value>
-  </data>
-  <data name="label10.Location" type="System.Drawing.Point, System.Drawing">
-    <value>320, 68</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowGreen.TabIndex" type="System.Int32, mscorlib">
-    <value>1</value>
-  </data>
-  <data name="&gt;&gt;CurveColorButton.Name" xml:space="preserve">
-    <value>CurveColorButton</value>
-  </data>
-  <data name="button_width_reset.TabIndex" type="System.Int32, mscorlib">
-    <value>4</value>
-  </data>
-  <data name="numericUpDown_width.TabIndex" type="System.Int32, mscorlib">
-    <value>2</value>
-  </data>
-  <data name="&gt;&gt;groupBox3.Type" xml:space="preserve">
-    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="CurveColorButton.Size" type="System.Drawing.Size, System.Drawing">
-    <value>30, 30</value>
-  </data>
-  <data name="label7.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="numericUpDown_idleInterval.Size" type="System.Drawing.Size, System.Drawing">
-    <value>78, 23</value>
-  </data>
-  <data name="$this.AutoScaleDimensions" type="System.Drawing.SizeF, System.Drawing">
-    <value>7, 17</value>
-  </data>
-  <data name="&gt;&gt;groupBox5.ZOrder" xml:space="preserve">
-    <value>6</value>
-  </data>
-  <data name="checkBox_Log_Backup.Text" xml:space="preserve">
-    <value>Backup log</value>
-  </data>
-  <data name="&gt;&gt;label3.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="checkBox_Log_Drawing.TabIndex" type="System.Int32, mscorlib">
-    <value>11</value>
-  </data>
-  <data name="button_apply.Text" xml:space="preserve">
-    <value>Apply</value>
-  </data>
-  <data name="label6.TabIndex" type="System.Int32, mscorlib">
-    <value>6</value>
-  </data>
-  <data name="CurveWidthComboBox.Items4" xml:space="preserve">
-    <value>5px</value>
-  </data>
-  <data name="button_backupInterval_reset.Size" type="System.Drawing.Size, System.Drawing">
-    <value>26, 23</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Backup.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="label14.Text" xml:space="preserve">
-    <value>Style</value>
-  </data>
-  <data name="numericUpDown_drawingInterval.Size" type="System.Drawing.Size, System.Drawing">
-    <value>78, 23</value>
-  </data>
-  <data name="groupBox2.Size" type="System.Drawing.Size, System.Drawing">
-    <value>528, 99</value>
-  </data>
-  <data name="&gt;&gt;CurveWidthComboBox.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="button_width_reset.Text" xml:space="preserve">
-    <value>↺</value>
-  </data>
-  <data name="&gt;&gt;label15.Name" xml:space="preserve">
-    <value>label15</value>
-  </data>
-  <data name="$this.Text" xml:space="preserve">
-    <value>Settings</value>
-  </data>
-  <data name="button_osuFolder_select.Text" xml:space="preserve">
-    <value>...</value>
-  </data>
-  <data name="&gt;&gt;label14.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;button_osuFolder_select.Parent" xml:space="preserve">
-    <value>groupBox2</value>
-  </data>
-  <data name="label3.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 29</value>
-  </data>
-  <data name="numericUpDown_idleInterval.Location" type="System.Drawing.Point, System.Drawing">
-    <value>118, 32</value>
-  </data>
-  <data name="label14.TabIndex" type="System.Int32, mscorlib">
-    <value>1</value>
-  </data>
-  <data name="CurveWidthComboBox.Items" xml:space="preserve">
-    <value>1px</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Timer.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;comboBox_Log_Level.Name" xml:space="preserve">
-    <value>comboBox_Log_Level</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_timeOut.Name" xml:space="preserve">
-    <value>numericUpDown_timeOut</value>
-  </data>
-  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_Log_EditorReader.Text" xml:space="preserve">
-    <value>EditorReader log</value>
-  </data>
-  <data name="label14.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="label9.Size" type="System.Drawing.Size, System.Drawing">
-    <value>223, 17</value>
-  </data>
-  <data name="&gt;&gt;button_backupFolder_reset.Name" xml:space="preserve">
-    <value>button_backupFolder_reset</value>
-  </data>
-  <data name="label2.Text" xml:space="preserve">
-    <value>Height</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Program.Parent" xml:space="preserve">
-    <value>groupBox6</value>
-  </data>
-  <data name="label14.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 50</value>
-  </data>
-  <data name="&gt;&gt;button_drawingInterval_reset.Name" xml:space="preserve">
-    <value>button_drawingInterval_reset</value>
-  </data>
-  <data name="button_timeOut_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>354, 66</value>
-  </data>
-  <data name="groupBox1.TabIndex" type="System.Int32, mscorlib">
-    <value>0</value>
-  </data>
-  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_BarLine_Show.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 76</value>
-  </data>
-  <data name="groupBox8.Size" type="System.Drawing.Size, System.Drawing">
-    <value>465, 118</value>
-  </data>
-  <data name="&gt;&gt;label10.Parent" xml:space="preserve">
-    <value>groupBox8</value>
-  </data>
-  <data name="button_timeOut_reset.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
-    <value>NoControl</value>
-  </data>
-  <data name="&gt;&gt;label13.Name" xml:space="preserve">
-    <value>label13</value>
-  </data>
-  <data name="&gt;&gt;checkBox_enableBackup.Name" xml:space="preserve">
-    <value>checkBox_enableBackup</value>
-  </data>
-  <data name="&gt;&gt;button_cancel.ZOrder" xml:space="preserve">
-    <value>4</value>
-  </data>
-  <data name="&gt;&gt;groupBox3.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="&gt;&gt;button_backupFolder_select.Parent" xml:space="preserve">
-    <value>groupBox4</value>
-  </data>
   <data name="&gt;&gt;button_height_reset.Name" xml:space="preserve">
     <value>button_height_reset</value>
-  </data>
-  <data name="&gt;&gt;groupBox5.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="checkBox_Log_BeatmapBuilder.Text" xml:space="preserve">
-    <value>BeatmapBuilder log</value>
-  </data>
-  <data name="&gt;&gt;checkBox_showConsole.Parent" xml:space="preserve">
-    <value>groupBox6</value>
-  </data>
-  <data name="button_backupFolder_select.Location" type="System.Drawing.Point, System.Drawing">
-    <value>373, 49</value>
-  </data>
-  <data name="CurveColorButton.TabIndex" type="System.Int32, mscorlib">
-    <value>4</value>
-  </data>
-  <data name="button_height_reset.TabIndex" type="System.Int32, mscorlib">
-    <value>5</value>
-  </data>
-  <data name="&gt;&gt;checkBox_ShowSelected.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowRed.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 22</value>
-  </data>
-  <data name="checkBox_FilterNearbyHitObjects.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 22</value>
-  </data>
-  <data name="&gt;&gt;groupBox8.Type" xml:space="preserve">
-    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;label8.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="button_timeOut_reset.TabIndex" type="System.Int32, mscorlib">
-    <value>6</value>
-  </data>
-  <data name="checkBox_Log_Backup.TabIndex" type="System.Int32, mscorlib">
-    <value>12</value>
-  </data>
-  <data name="&gt;&gt;button_width_reset.ZOrder" xml:space="preserve">
-    <value>1</value>
   </data>
   <data name="&gt;&gt;button_height_reset.Type" xml:space="preserve">
     <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="checkBox_Log_Program.Text" xml:space="preserve">
-    <value>Program log</value>
-  </data>
-  <data name="label15.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 77</value>
-  </data>
-  <data name="checkBox_Log_Timer.Size" type="System.Drawing.Size, System.Drawing">
-    <value>83, 21</value>
-  </data>
-  <data name="checkBox_Log_BookmarkPlus.TabIndex" type="System.Int32, mscorlib">
-    <value>17</value>
-  </data>
-  <data name="&gt;&gt;button_cancel.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="button_backupInterval_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>217, 80</value>
-  </data>
-  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="label3.Text" xml:space="preserve">
-    <value>osu! Folder</value>
-  </data>
-  <data name="CurveDashStyleComboBox.Items1" xml:space="preserve">
-    <value>Dash</value>
-  </data>
-  <data name="&gt;&gt;button_cancel.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Backup.Parent" xml:space="preserve">
-    <value>groupBox6</value>
-  </data>
-  <data name="&gt;&gt;button_backupFolder_reset.Parent" xml:space="preserve">
-    <value>groupBox4</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_backupInterval.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="&gt;&gt;CurveWidthComboBox.Type" xml:space="preserve">
-    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;groupBox9.Name" xml:space="preserve">
-    <value>groupBox9</value>
-  </data>
-  <data name="label12.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_drawingInterval.Parent" xml:space="preserve">
-    <value>groupBox3</value>
-  </data>
-  <data name="button_Label_Color.Location" type="System.Drawing.Point, System.Drawing">
-    <value>337, 16</value>
-  </data>
-  <data name="&gt;&gt;label12.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="&gt;&gt;label4.ZOrder" xml:space="preserve">
-    <value>5</value>
-  </data>
-  <data name="textBox_backupFolder.Size" type="System.Drawing.Size, System.Drawing">
-    <value>258, 23</value>
-  </data>
-  <data name="button_cancel.Text" xml:space="preserve">
-    <value>Cancel</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_EditorReader.Parent" xml:space="preserve">
-    <value>groupBox6</value>
-  </data>
-  <data name="groupBox8.Text" xml:space="preserve">
-    <value>Advanced</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_idleInterval.Type" xml:space="preserve">
-    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;button_apply.ZOrder" xml:space="preserve">
-    <value>5</value>
-  </data>
-  <data name="checkBox_FilterNearbyHitObjects.TabIndex" type="System.Int32, mscorlib">
-    <value>3</value>
-  </data>
-  <data name="checkBox_Log_BookmarkPlus.Size" type="System.Drawing.Size, System.Drawing">
-    <value>134, 21</value>
-  </data>
-  <data name="checkBox_showConsole.TabIndex" type="System.Int32, mscorlib">
-    <value>0</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Program.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="comboBox_Log_Level.Items2" xml:space="preserve">
-    <value>Warning</value>
-  </data>
-  <data name="&gt;&gt;checkBox_ShowSelected.Parent" xml:space="preserve">
-    <value>groupBox5</value>
-  </data>
-  <data name="groupBox2.Location" type="System.Drawing.Point, System.Drawing">
-    <value>197, 12</value>
-  </data>
-  <data name="checkBox_Log_BookmarkPlus.Text" xml:space="preserve">
-    <value>BookmarkPlus log</value>
-  </data>
-  <data name="&gt;&gt;label14.Name" xml:space="preserve">
-    <value>label14</value>
-  </data>
-  <data name="button_osuFolder_select.Size" type="System.Drawing.Size, System.Drawing">
-    <value>46, 24</value>
-  </data>
-  <data name="&gt;&gt;label11.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_enableBackup.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="checkBox_Log_BookmarkPlus.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 263</value>
-  </data>
-  <data name="&gt;&gt;button_backupFolder_select.Name" xml:space="preserve">
-    <value>button_backupFolder_select</value>
-  </data>
-  <data name="groupBox9.Location" type="System.Drawing.Point, System.Drawing">
-    <value>516, 295</value>
-  </data>
-  <data name="button_Label_Color.TabIndex" type="System.Int32, mscorlib">
-    <value>2</value>
-  </data>
-  <data name="&gt;&gt;label10.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="&gt;&gt;label4.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;button_Label_Color.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="button_idleInterval_reset.TabIndex" type="System.Int32, mscorlib">
-    <value>10</value>
-  </data>
-  <data name="&gt;&gt;textBox_osuFolder.Type" xml:space="preserve">
-    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="label6.Size" type="System.Drawing.Size, System.Drawing">
-    <value>92, 17</value>
-  </data>
-  <data name="checkBox_Log_BeatmapBuilder.TabIndex" type="System.Int32, mscorlib">
-    <value>16</value>
-  </data>
-  <data name="label11.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Backup.ZOrder" xml:space="preserve">
-    <value>5</value>
-  </data>
-  <data name="checkBox_Log_Timer.TabIndex" type="System.Int32, mscorlib">
-    <value>13</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_drawingInterval.Type" xml:space="preserve">
-    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;button_idleInterval_reset.Parent" xml:space="preserve">
-    <value>groupBox3</value>
-  </data>
-  <data name="&gt;&gt;textBox_backupFolder.Type" xml:space="preserve">
-    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_Log_Drawing.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="label10.TabIndex" type="System.Int32, mscorlib">
-    <value>6</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_height.Name" xml:space="preserve">
-    <value>numericUpDown_height</value>
-  </data>
-  <data name="checkBox_FilterNearbyHitObjects.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.Parent" xml:space="preserve">
-    <value>groupBox6</value>
-  </data>
-  <data name="label6.Location" type="System.Drawing.Point, System.Drawing">
-    <value>11, 52</value>
-  </data>
-  <data name="&gt;&gt;label7.Parent" xml:space="preserve">
-    <value>groupBox4</value>
-  </data>
-  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.Parent" xml:space="preserve">
-    <value>groupBox7</value>
-  </data>
-  <data name="groupBox1.Size" type="System.Drawing.Size, System.Drawing">
-    <value>176, 99</value>
-  </data>
-  <data name="&gt;&gt;groupBox2.ZOrder" xml:space="preserve">
-    <value>9</value>
-  </data>
-  <data name="&gt;&gt;label11.Name" xml:space="preserve">
-    <value>label11</value>
-  </data>
-  <data name="label3.TabIndex" type="System.Int32, mscorlib">
-    <value>0</value>
-  </data>
-  <data name="&gt;&gt;textBox_backupFolder.Parent" xml:space="preserve">
-    <value>groupBox4</value>
-  </data>
-  <data name="&gt;&gt;label5.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="label3.Size" type="System.Drawing.Size, System.Drawing">
-    <value>74, 17</value>
-  </data>
-  <data name="textBox_osuFolder.Location" type="System.Drawing.Point, System.Drawing">
-    <value>86, 26</value>
-  </data>
-  <data name="&gt;&gt;button_cancel.Name" xml:space="preserve">
-    <value>button_cancel</value>
-  </data>
-  <data name="button_height_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>138, 61</value>
-  </data>
-  <data name="&gt;&gt;button_backupInterval_reset.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="label12.Text" xml:space="preserve">
-    <value>Label Color</value>
-  </data>
-  <data name="label8.Size" type="System.Drawing.Size, System.Drawing">
-    <value>63, 17</value>
-  </data>
-  <data name="&gt;&gt;label2.Parent" xml:space="preserve">
+  <data name="&gt;&gt;button_height_reset.Parent" xml:space="preserve">
     <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;button_height_reset.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="&gt;&gt;button_width_reset.Name" xml:space="preserve">
+    <value>button_width_reset</value>
   </data>
   <data name="&gt;&gt;button_width_reset.Type" xml:space="preserve">
     <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="&gt;&gt;label12.Type" xml:space="preserve">
+  <data name="&gt;&gt;button_width_reset.Parent" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;button_width_reset.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_height.Name" xml:space="preserve">
+    <value>numericUpDown_height</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_height.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_height.Parent" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_height.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_width.Name" xml:space="preserve">
+    <value>numericUpDown_width</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_width.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_width.Parent" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_width.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;label2.Name" xml:space="preserve">
+    <value>label2</value>
+  </data>
+  <data name="&gt;&gt;label2.Type" xml:space="preserve">
     <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="label9.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 68</value>
+  <data name="&gt;&gt;label2.Parent" xml:space="preserve">
+    <value>groupBox1</value>
   </data>
-  <data name="&gt;&gt;CurveColorButton.ZOrder" xml:space="preserve">
+  <data name="&gt;&gt;label2.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="&gt;&gt;label1.Name" xml:space="preserve">
+    <value>label1</value>
+  </data>
+  <data name="&gt;&gt;label1.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label1.Parent" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;label1.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+  <data name="groupBox1.Location" type="System.Drawing.Point, System.Drawing">
+    <value>12, 12</value>
+  </data>
+  <data name="groupBox1.Size" type="System.Drawing.Size, System.Drawing">
+    <value>176, 99</value>
+  </data>
+  <assembly alias="mscorlib" name="mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+  <data name="groupBox1.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="groupBox1.Text" xml:space="preserve">
+    <value>Window Size</value>
+  </data>
+  <data name="&gt;&gt;groupBox1.Name" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;groupBox1.Type" xml:space="preserve">
+    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;groupBox1.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;groupBox1.ZOrder" xml:space="preserve">
+    <value>11</value>
+  </data>
+  <data name="button_height_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>138, 61</value>
+  </data>
+  <data name="button_height_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>26, 23</value>
+  </data>
+  <data name="button_height_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>5</value>
+  </data>
+  <data name="button_height_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_height_reset.Name" xml:space="preserve">
+    <value>button_height_reset</value>
+  </data>
+  <data name="&gt;&gt;button_height_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_height_reset.Parent" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;button_height_reset.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="button_width_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>138, 27</value>
+  </data>
+  <data name="button_width_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>26, 23</value>
+  </data>
+  <data name="button_width_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>4</value>
+  </data>
+  <data name="button_width_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_width_reset.Name" xml:space="preserve">
+    <value>button_width_reset</value>
+  </data>
+  <data name="&gt;&gt;button_width_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_width_reset.Parent" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;button_width_reset.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="numericUpDown_height.Location" type="System.Drawing.Point, System.Drawing">
+    <value>54, 61</value>
+  </data>
+  <data name="numericUpDown_height.Size" type="System.Drawing.Size, System.Drawing">
+    <value>78, 23</value>
+  </data>
+  <data name="numericUpDown_height.TabIndex" type="System.Int32, mscorlib">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_height.Name" xml:space="preserve">
+    <value>numericUpDown_height</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_height.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_height.Parent" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_height.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="numericUpDown_width.Location" type="System.Drawing.Point, System.Drawing">
+    <value>54, 27</value>
+  </data>
+  <data name="numericUpDown_width.Size" type="System.Drawing.Size, System.Drawing">
+    <value>78, 23</value>
+  </data>
+  <data name="numericUpDown_width.TabIndex" type="System.Int32, mscorlib">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_width.Name" xml:space="preserve">
+    <value>numericUpDown_width</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_width.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_width.Parent" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_width.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="label2.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label2.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 63</value>
+  </data>
+  <data name="label2.Size" type="System.Drawing.Size, System.Drawing">
+    <value>46, 17</value>
+  </data>
+  <data name="label2.TabIndex" type="System.Int32, mscorlib">
+    <value>1</value>
+  </data>
+  <data name="label2.Text" xml:space="preserve">
+    <value>Height</value>
+  </data>
+  <data name="&gt;&gt;label2.Name" xml:space="preserve">
+    <value>label2</value>
+  </data>
+  <data name="&gt;&gt;label2.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label2.Parent" xml:space="preserve">
+    <value>groupBox1</value>
+  </data>
+  <data name="&gt;&gt;label2.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="label1.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label1.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 29</value>
+  </data>
+  <data name="label1.Size" type="System.Drawing.Size, System.Drawing">
+    <value>42, 17</value>
+  </data>
+  <data name="label1.TabIndex" type="System.Int32, mscorlib">
     <value>0</value>
   </data>
   <data name="label1.Text" xml:space="preserve">
     <value>Width</value>
   </data>
-  <data name="numericUpDown_backupInterval.Location" type="System.Drawing.Point, System.Drawing">
-    <value>133, 80</value>
+  <data name="&gt;&gt;label1.Name" xml:space="preserve">
+    <value>label1</value>
   </data>
-  <data name="&gt;&gt;button_apply.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="groupBox1.Text" xml:space="preserve">
-    <value>Window Size</value>
-  </data>
-  <data name="checkBox_Log_Drawing.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 182</value>
-  </data>
-  <data name="comboBox_Log_Level.Items" xml:space="preserve">
-    <value>Debug</value>
-  </data>
-  <data name="checkBox_Log_Drawing.Text" xml:space="preserve">
-    <value>Drawing log</value>
-  </data>
-  <data name="label4.Text" xml:space="preserve">
-    <value>Drawing Interval</value>
-  </data>
-  <data name="&gt;&gt;groupBox8.Name" xml:space="preserve">
-    <value>groupBox8</value>
-  </data>
-  <data name="&gt;&gt;button_drawingInterval_reset.ZOrder" xml:space="preserve">
-    <value>0</value>
-  </data>
-  <data name="&gt;&gt;checkBox_withColor.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_Log_Timer.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="label2.Size" type="System.Drawing.Size, System.Drawing">
-    <value>46, 17</value>
+  <data name="&gt;&gt;label1.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="&gt;&gt;label1.Parent" xml:space="preserve">
     <value>groupBox1</value>
   </data>
-  <data name="groupBox8.TabIndex" type="System.Int32, mscorlib">
-    <value>9</value>
+  <data name="&gt;&gt;label1.ZOrder" xml:space="preserve">
+    <value>5</value>
   </data>
-  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.Parent" xml:space="preserve">
-    <value>groupBox6</value>
+  <data name="&gt;&gt;button_osuFolder_reset.Name" xml:space="preserve">
+    <value>button_osuFolder_reset</value>
   </data>
-  <data name="button_drawingInterval_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>202, 67</value>
+  <data name="&gt;&gt;button_osuFolder_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="CurveColorButton.Location" type="System.Drawing.Point, System.Drawing">
-    <value>54, 74</value>
+  <data name="&gt;&gt;button_osuFolder_reset.Parent" xml:space="preserve">
+    <value>groupBox2</value>
   </data>
-  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="textBox_osuFolder.Size" type="System.Drawing.Size, System.Drawing">
-    <value>347, 23</value>
-  </data>
-  <data name="groupBox9.Size" type="System.Drawing.Size, System.Drawing">
-    <value>209, 110</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Timer.Name" xml:space="preserve">
-    <value>checkBox_Log_Timer</value>
-  </data>
-  <data name="comboBox_Log_Level.TabIndex" type="System.Int32, mscorlib">
-    <value>15</value>
-  </data>
-  <data name="checkBox_Log_Drawing.Size" type="System.Drawing.Size, System.Drawing">
-    <value>98, 21</value>
-  </data>
-  <data name="button_backupFolder_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>425, 50</value>
-  </data>
-  <data name="label5.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 34</value>
-  </data>
-  <data name="button_backupInterval_reset.Text" xml:space="preserve">
-    <value>↺</value>
-  </data>
-  <data name="CurveColorButton.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
-    <value>NoControl</value>
-  </data>
-  <data name="&gt;&gt;label3.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Timer.Parent" xml:space="preserve">
-    <value>groupBox6</value>
+  <data name="&gt;&gt;button_osuFolder_reset.ZOrder" xml:space="preserve">
+    <value>0</value>
   </data>
   <data name="&gt;&gt;button_osuFolder_select.Name" xml:space="preserve">
     <value>button_osuFolder_select</value>
   </data>
-  <data name="CurveDashStyleComboBox.Size" type="System.Drawing.Size, System.Drawing">
-    <value>109, 25</value>
-  </data>
-  <data name="checkBox_showConsole.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 22</value>
-  </data>
-  <data name="&gt;&gt;label6.Parent" xml:space="preserve">
-    <value>groupBox4</value>
-  </data>
-  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.Parent" xml:space="preserve">
-    <value>groupBox7</value>
-  </data>
-  <data name="&gt;&gt;label3.Parent" xml:space="preserve">
-    <value>groupBox2</value>
-  </data>
-  <data name="&gt;&gt;label2.ZOrder" xml:space="preserve">
-    <value>4</value>
-  </data>
-  <data name="&gt;&gt;button_idleInterval_reset.Type" xml:space="preserve">
+  <data name="&gt;&gt;button_osuFolder_select.Type" xml:space="preserve">
     <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="checkBox_showConsole.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_height.Parent" xml:space="preserve">
-    <value>groupBox1</value>
-  </data>
-  <data name="&gt;&gt;button_backupFolder_reset.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="groupBox4.TabIndex" type="System.Int32, mscorlib">
-    <value>3</value>
-  </data>
-  <data name="label5.TabIndex" type="System.Int32, mscorlib">
-    <value>6</value>
-  </data>
-  <data name="&gt;&gt;label10.Name" xml:space="preserve">
-    <value>label10</value>
-  </data>
-  <data name="label7.Text" xml:space="preserve">
-    <value>Backup Interval (s)</value>
-  </data>
-  <data name="&gt;&gt;label9.ZOrder" xml:space="preserve">
-    <value>4</value>
-  </data>
-  <data name="$this.StartPosition" type="System.Windows.Forms.FormStartPosition, System.Windows.Forms">
-    <value>CenterParent</value>
-  </data>
-  <data name="button_osuFolder_reset.TabIndex" type="System.Int32, mscorlib">
-    <value>5</value>
-  </data>
-  <data name="&gt;&gt;label1.Name" xml:space="preserve">
-    <value>label1</value>
-  </data>
-  <data name="&gt;&gt;button_idleInterval_reset.ZOrder" xml:space="preserve">
-    <value>2</value>
+  <data name="&gt;&gt;button_osuFolder_select.Parent" xml:space="preserve">
+    <value>groupBox2</value>
   </data>
   <data name="&gt;&gt;button_osuFolder_select.ZOrder" xml:space="preserve">
     <value>1</value>
   </data>
-  <data name="&gt;&gt;button_backupInterval_reset.Parent" xml:space="preserve">
-    <value>groupBox4</value>
+  <data name="&gt;&gt;textBox_osuFolder.Name" xml:space="preserve">
+    <value>textBox_osuFolder</value>
   </data>
-  <data name="&gt;&gt;groupBox1.Type" xml:space="preserve">
+  <data name="&gt;&gt;textBox_osuFolder.Type" xml:space="preserve">
+    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;textBox_osuFolder.Parent" xml:space="preserve">
+    <value>groupBox2</value>
+  </data>
+  <data name="&gt;&gt;textBox_osuFolder.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;label3.Name" xml:space="preserve">
+    <value>label3</value>
+  </data>
+  <data name="&gt;&gt;label3.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label3.Parent" xml:space="preserve">
+    <value>groupBox2</value>
+  </data>
+  <data name="&gt;&gt;label3.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="groupBox2.Location" type="System.Drawing.Point, System.Drawing">
+    <value>197, 12</value>
+  </data>
+  <data name="groupBox2.Size" type="System.Drawing.Size, System.Drawing">
+    <value>528, 99</value>
+  </data>
+  <data name="groupBox2.TabIndex" type="System.Int32, mscorlib">
+    <value>1</value>
+  </data>
+  <data name="groupBox2.Text" xml:space="preserve">
+    <value>osu! Folder</value>
+  </data>
+  <data name="&gt;&gt;groupBox2.Name" xml:space="preserve">
+    <value>groupBox2</value>
+  </data>
+  <data name="&gt;&gt;groupBox2.Type" xml:space="preserve">
     <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.Name" xml:space="preserve">
-    <value>checkBox_Log_BeatmapBuilder</value>
+  <data name="&gt;&gt;groupBox2.Parent" xml:space="preserve">
+    <value>$this</value>
   </data>
-  <data name="checkBox_Log_BookmarkPlus.AutoSize" type="System.Boolean, mscorlib">
+  <data name="&gt;&gt;groupBox2.ZOrder" xml:space="preserve">
+    <value>10</value>
+  </data>
+  <data name="button_osuFolder_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>491, 27</value>
+  </data>
+  <data name="button_osuFolder_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>25, 23</value>
+  </data>
+  <data name="button_osuFolder_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>5</value>
+  </data>
+  <data name="button_osuFolder_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_osuFolder_reset.Name" xml:space="preserve">
+    <value>button_osuFolder_reset</value>
+  </data>
+  <data name="&gt;&gt;button_osuFolder_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_osuFolder_reset.Parent" xml:space="preserve">
+    <value>groupBox2</value>
+  </data>
+  <data name="&gt;&gt;button_osuFolder_reset.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="button_osuFolder_select.Location" type="System.Drawing.Point, System.Drawing">
+    <value>439, 26</value>
+  </data>
+  <data name="button_osuFolder_select.Size" type="System.Drawing.Size, System.Drawing">
+    <value>46, 24</value>
+  </data>
+  <data name="button_osuFolder_select.TabIndex" type="System.Int32, mscorlib">
+    <value>2</value>
+  </data>
+  <data name="button_osuFolder_select.Text" xml:space="preserve">
+    <value>...</value>
+  </data>
+  <data name="&gt;&gt;button_osuFolder_select.Name" xml:space="preserve">
+    <value>button_osuFolder_select</value>
+  </data>
+  <data name="&gt;&gt;button_osuFolder_select.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_osuFolder_select.Parent" xml:space="preserve">
+    <value>groupBox2</value>
+  </data>
+  <data name="&gt;&gt;button_osuFolder_select.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="textBox_osuFolder.Location" type="System.Drawing.Point, System.Drawing">
+    <value>86, 26</value>
+  </data>
+  <data name="textBox_osuFolder.Size" type="System.Drawing.Size, System.Drawing">
+    <value>347, 23</value>
+  </data>
+  <data name="textBox_osuFolder.TabIndex" type="System.Int32, mscorlib">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;textBox_osuFolder.Name" xml:space="preserve">
+    <value>textBox_osuFolder</value>
+  </data>
+  <data name="&gt;&gt;textBox_osuFolder.Type" xml:space="preserve">
+    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;textBox_osuFolder.Parent" xml:space="preserve">
+    <value>groupBox2</value>
+  </data>
+  <data name="&gt;&gt;textBox_osuFolder.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="label3.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label3.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 29</value>
+  </data>
+  <data name="label3.Size" type="System.Drawing.Size, System.Drawing">
+    <value>74, 17</value>
+  </data>
+  <data name="label3.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="label3.Text" xml:space="preserve">
+    <value>osu! Folder</value>
+  </data>
+  <data name="&gt;&gt;label3.Name" xml:space="preserve">
+    <value>label3</value>
+  </data>
+  <data name="&gt;&gt;label3.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label3.Parent" xml:space="preserve">
+    <value>groupBox2</value>
+  </data>
+  <data name="&gt;&gt;label3.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;button_FullReadInterval_reset.Name" xml:space="preserve">
+    <value>button_FullReadInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_FullReadInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_FullReadInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;button_FullReadInterval_reset.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="&gt;&gt;button_LowFreqReadInterval_reset.Name" xml:space="preserve">
+    <value>button_LowFreqReadInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_LowFreqReadInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_LowFreqReadInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;button_LowFreqReadInterval_reset.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;button_drawingInterval_reset.Name" xml:space="preserve">
+    <value>button_drawingInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_drawingInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_drawingInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;button_drawingInterval_reset.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_idleInterval.Name" xml:space="preserve">
+    <value>numericUpDown_idleInterval</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_idleInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_idleInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_idleInterval.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;button_idleInterval_reset.Name" xml:space="preserve">
+    <value>button_idleInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_idleInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_idleInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;button_idleInterval_reset.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="&gt;&gt;label5.Name" xml:space="preserve">
+    <value>label5</value>
+  </data>
+  <data name="&gt;&gt;label5.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label5.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;label5.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_drawingInterval.Name" xml:space="preserve">
+    <value>numericUpDown_drawingInterval</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_drawingInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_drawingInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_drawingInterval.ZOrder" xml:space="preserve">
+    <value>6</value>
+  </data>
+  <data name="&gt;&gt;label4.Name" xml:space="preserve">
+    <value>label4</value>
+  </data>
+  <data name="&gt;&gt;label4.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label4.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;label4.ZOrder" xml:space="preserve">
+    <value>7</value>
+  </data>
+  <data name="&gt;&gt;label_LowFreqReadInterval.Name" xml:space="preserve">
+    <value>label_LowFreqReadInterval</value>
+  </data>
+  <data name="&gt;&gt;label_LowFreqReadInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_LowFreqReadInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;label_LowFreqReadInterval.ZOrder" xml:space="preserve">
+    <value>8</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_LowFreqReadInterval.Name" xml:space="preserve">
+    <value>numericUpDown_LowFreqReadInterval</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_LowFreqReadInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_LowFreqReadInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_LowFreqReadInterval.ZOrder" xml:space="preserve">
+    <value>9</value>
+  </data>
+  <data name="&gt;&gt;label_FullReadInterval.Name" xml:space="preserve">
+    <value>label_FullReadInterval</value>
+  </data>
+  <data name="&gt;&gt;label_FullReadInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_FullReadInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;label_FullReadInterval.ZOrder" xml:space="preserve">
+    <value>10</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_FullReadInterval.Name" xml:space="preserve">
+    <value>numericUpDown_FullReadInterval</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_FullReadInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_FullReadInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_FullReadInterval.ZOrder" xml:space="preserve">
+    <value>11</value>
+  </data>
+  <data name="groupBox3.Location" type="System.Drawing.Point, System.Drawing">
+    <value>12, 117</value>
+  </data>
+  <data name="groupBox3.Size" type="System.Drawing.Size, System.Drawing">
+    <value>239, 176</value>
+  </data>
+  <data name="groupBox3.TabIndex" type="System.Int32, mscorlib">
+    <value>2</value>
+  </data>
+  <data name="groupBox3.Text" xml:space="preserve">
+    <value>Interval (ms)</value>
+  </data>
+  <data name="&gt;&gt;groupBox3.Name" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;groupBox3.Type" xml:space="preserve">
+    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;groupBox3.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;groupBox3.ZOrder" xml:space="preserve">
+    <value>9</value>
+  </data>
+  <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+  <data name="button_FullReadInterval_reset.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
+    <value>NoControl</value>
+  </data>
+  <data name="button_FullReadInterval_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>202, 137</value>
+  </data>
+  <data name="button_FullReadInterval_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>26, 23</value>
+  </data>
+  <data name="button_FullReadInterval_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>17</value>
+  </data>
+  <data name="button_FullReadInterval_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_FullReadInterval_reset.Name" xml:space="preserve">
+    <value>button_FullReadInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_FullReadInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_FullReadInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;button_FullReadInterval_reset.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="button_LowFreqReadInterval_reset.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
+    <value>NoControl</value>
+  </data>
+  <data name="button_LowFreqReadInterval_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>202, 102</value>
+  </data>
+  <data name="button_LowFreqReadInterval_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>26, 23</value>
+  </data>
+  <data name="button_LowFreqReadInterval_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>16</value>
+  </data>
+  <data name="button_LowFreqReadInterval_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_LowFreqReadInterval_reset.Name" xml:space="preserve">
+    <value>button_LowFreqReadInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_LowFreqReadInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_LowFreqReadInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;button_LowFreqReadInterval_reset.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="button_drawingInterval_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>202, 67</value>
+  </data>
+  <data name="button_drawingInterval_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>26, 23</value>
+  </data>
+  <data name="button_drawingInterval_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>11</value>
+  </data>
+  <data name="button_drawingInterval_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_drawingInterval_reset.Name" xml:space="preserve">
+    <value>button_drawingInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_drawingInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_drawingInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;button_drawingInterval_reset.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="numericUpDown_idleInterval.Location" type="System.Drawing.Point, System.Drawing">
+    <value>118, 32</value>
+  </data>
+  <data name="numericUpDown_idleInterval.Size" type="System.Drawing.Size, System.Drawing">
+    <value>78, 23</value>
+  </data>
+  <data name="numericUpDown_idleInterval.TabIndex" type="System.Int32, mscorlib">
+    <value>8</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_idleInterval.Name" xml:space="preserve">
+    <value>numericUpDown_idleInterval</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_idleInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_idleInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_idleInterval.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="button_idleInterval_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>202, 32</value>
+  </data>
+  <data name="button_idleInterval_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>26, 23</value>
+  </data>
+  <data name="button_idleInterval_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>10</value>
+  </data>
+  <data name="button_idleInterval_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_idleInterval_reset.Name" xml:space="preserve">
+    <value>button_idleInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_idleInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_idleInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;button_idleInterval_reset.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="label5.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label5.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 34</value>
+  </data>
+  <data name="label5.Size" type="System.Drawing.Size, System.Drawing">
+    <value>77, 17</value>
+  </data>
+  <data name="label5.TabIndex" type="System.Int32, mscorlib">
+    <value>6</value>
+  </data>
+  <data name="label5.Text" xml:space="preserve">
+    <value>Idle Interval</value>
+  </data>
+  <data name="&gt;&gt;label5.Name" xml:space="preserve">
+    <value>label5</value>
+  </data>
+  <data name="&gt;&gt;label5.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label5.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;label5.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="numericUpDown_drawingInterval.Location" type="System.Drawing.Point, System.Drawing">
+    <value>118, 67</value>
+  </data>
+  <data name="numericUpDown_drawingInterval.Size" type="System.Drawing.Size, System.Drawing">
+    <value>78, 23</value>
+  </data>
+  <data name="numericUpDown_drawingInterval.TabIndex" type="System.Int32, mscorlib">
+    <value>9</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_drawingInterval.Name" xml:space="preserve">
+    <value>numericUpDown_drawingInterval</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_drawingInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_drawingInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_drawingInterval.ZOrder" xml:space="preserve">
+    <value>6</value>
+  </data>
+  <data name="label4.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="label4.Location" type="System.Drawing.Point, System.Drawing">
     <value>6, 68</value>
   </data>
-  <data name="label13.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 23</value>
+  <data name="label4.Size" type="System.Drawing.Size, System.Drawing">
+    <value>103, 17</value>
   </data>
   <data name="label4.TabIndex" type="System.Int32, mscorlib">
     <value>7</value>
   </data>
-  <data name="button_drawingInterval_reset.Text" xml:space="preserve">
-    <value>↺</value>
+  <data name="label4.Text" xml:space="preserve">
+    <value>Drawing Interval</value>
   </data>
-  <data name="checkBox_Log_EditorReader.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 101</value>
+  <data name="&gt;&gt;label4.Name" xml:space="preserve">
+    <value>label4</value>
   </data>
-  <data name="label1.Size" type="System.Drawing.Size, System.Drawing">
-    <value>42, 17</value>
-  </data>
-  <data name="checkBox_FilterNearbyHitObjects.Size" type="System.Drawing.Size, System.Drawing">
-    <value>448, 38</value>
-  </data>
-  <data name="&gt;&gt;checkBox_BarLine_Show.Type" xml:space="preserve">
-    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;CurveDashStyleComboBox.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="&gt;&gt;$this.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Form, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="numericUpDown_backupInterval.Size" type="System.Drawing.Size, System.Drawing">
-    <value>78, 23</value>
-  </data>
-  <data name="button_osuFolder_select.Location" type="System.Drawing.Point, System.Drawing">
-    <value>439, 26</value>
-  </data>
-  <data name="button_osuFolder_reset.Size" type="System.Drawing.Size, System.Drawing">
-    <value>25, 23</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_backupInterval.Parent" xml:space="preserve">
-    <value>groupBox4</value>
-  </data>
-  <data name="&gt;&gt;label6.Name" xml:space="preserve">
-    <value>label6</value>
-  </data>
-  <data name="checkBox_Log_BeatmapBuilder.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 128</value>
-  </data>
-  <data name="&gt;&gt;groupBox1.ZOrder" xml:space="preserve">
-    <value>10</value>
-  </data>
-  <data name="button_drawingInterval_reset.Size" type="System.Drawing.Size, System.Drawing">
-    <value>26, 23</value>
-  </data>
-  <data name="label9.TabIndex" type="System.Int32, mscorlib">
-    <value>4</value>
-  </data>
-  <data name="label6.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;label3.Name" xml:space="preserve">
-    <value>label3</value>
-  </data>
-  <data name="button_Label_Color.Size" type="System.Drawing.Size, System.Drawing">
-    <value>30, 30</value>
-  </data>
-  <data name="checkBox_Log_BeatmapBuilder.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;comboBox_Log_Level.Type" xml:space="preserve">
-    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="CurveWidthComboBox.Size" type="System.Drawing.Size, System.Drawing">
-    <value>109, 25</value>
-  </data>
-  <data name="&gt;&gt;label15.Type" xml:space="preserve">
+  <data name="&gt;&gt;label4.Type" xml:space="preserve">
     <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="checkBox_withColor.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
+  <data name="&gt;&gt;label4.Parent" xml:space="preserve">
+    <value>groupBox3</value>
   </data>
-  <data name="&gt;&gt;checkBox_BarLine_Show.ZOrder" xml:space="preserve">
-    <value>0</value>
+  <data name="&gt;&gt;label4.ZOrder" xml:space="preserve">
+    <value>7</value>
   </data>
-  <data name="checkBox_BarLine_Show.Text" xml:space="preserve">
-    <value>Show Bar Lines</value>
+  <data name="label_LowFreqReadInterval.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 104</value>
   </data>
-  <data name="checkBox_withColor.Size" type="System.Drawing.Size, System.Drawing">
-    <value>89, 21</value>
+  <data name="label_LowFreqReadInterval.Size" type="System.Drawing.Size, System.Drawing">
+    <value>103, 17</value>
   </data>
-  <data name="$this.ClientSize" type="System.Drawing.Size, System.Drawing">
-    <value>737, 670</value>
+  <data name="label_LowFreqReadInterval.TabIndex" type="System.Int32, mscorlib">
+    <value>12</value>
+  </data>
+  <data name="label_LowFreqReadInterval.Text" xml:space="preserve">
+    <value>Low-freq read</value>
+  </data>
+  <data name="&gt;&gt;label_LowFreqReadInterval.Name" xml:space="preserve">
+    <value>label_LowFreqReadInterval</value>
+  </data>
+  <data name="&gt;&gt;label_LowFreqReadInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_LowFreqReadInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;label_LowFreqReadInterval.ZOrder" xml:space="preserve">
+    <value>8</value>
+  </data>
+  <data name="numericUpDown_LowFreqReadInterval.Location" type="System.Drawing.Point, System.Drawing">
+    <value>118, 102</value>
+  </data>
+  <data name="numericUpDown_LowFreqReadInterval.Size" type="System.Drawing.Size, System.Drawing">
+    <value>78, 23</value>
+  </data>
+  <data name="numericUpDown_LowFreqReadInterval.TabIndex" type="System.Int32, mscorlib">
+    <value>13</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_LowFreqReadInterval.Name" xml:space="preserve">
+    <value>numericUpDown_LowFreqReadInterval</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_LowFreqReadInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_LowFreqReadInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_LowFreqReadInterval.ZOrder" xml:space="preserve">
+    <value>9</value>
+  </data>
+  <data name="label_FullReadInterval.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 139</value>
+  </data>
+  <data name="label_FullReadInterval.Size" type="System.Drawing.Size, System.Drawing">
+    <value>103, 17</value>
+  </data>
+  <data name="label_FullReadInterval.TabIndex" type="System.Int32, mscorlib">
+    <value>14</value>
+  </data>
+  <data name="label_FullReadInterval.Text" xml:space="preserve">
+    <value>Full read</value>
+  </data>
+  <data name="&gt;&gt;label_FullReadInterval.Name" xml:space="preserve">
+    <value>label_FullReadInterval</value>
+  </data>
+  <data name="&gt;&gt;label_FullReadInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_FullReadInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;label_FullReadInterval.ZOrder" xml:space="preserve">
+    <value>10</value>
+  </data>
+  <data name="numericUpDown_FullReadInterval.Location" type="System.Drawing.Point, System.Drawing">
+    <value>118, 137</value>
+  </data>
+  <data name="numericUpDown_FullReadInterval.Size" type="System.Drawing.Size, System.Drawing">
+    <value>78, 23</value>
+  </data>
+  <data name="numericUpDown_FullReadInterval.TabIndex" type="System.Int32, mscorlib">
+    <value>15</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_FullReadInterval.Name" xml:space="preserve">
+    <value>numericUpDown_FullReadInterval</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_FullReadInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_FullReadInterval.Parent" xml:space="preserve">
+    <value>groupBox3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_FullReadInterval.ZOrder" xml:space="preserve">
+    <value>11</value>
+  </data>
+  <data name="&gt;&gt;checkBox_enableBackup.Name" xml:space="preserve">
+    <value>checkBox_enableBackup</value>
   </data>
   <data name="&gt;&gt;checkBox_enableBackup.Type" xml:space="preserve">
     <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="label8.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="checkBox_enableBackup.Size" type="System.Drawing.Size, System.Drawing">
-    <value>330, 21</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowRed.TabIndex" type="System.Int32, mscorlib">
-    <value>0</value>
-  </data>
   <data name="&gt;&gt;checkBox_enableBackup.Parent" xml:space="preserve">
     <value>groupBox4</value>
   </data>
-  <data name="&gt;&gt;checkBox_Log_Program.ZOrder" xml:space="preserve">
-    <value>9</value>
+  <data name="&gt;&gt;checkBox_enableBackup.ZOrder" xml:space="preserve">
+    <value>0</value>
   </data>
-  <data name="&gt;&gt;button_osuFolder_reset.Parent" xml:space="preserve">
-    <value>groupBox2</value>
+  <data name="&gt;&gt;numericUpDown_backupInterval.Name" xml:space="preserve">
+    <value>numericUpDown_backupInterval</value>
   </data>
-  <data name="button_height_reset.Size" type="System.Drawing.Size, System.Drawing">
-    <value>26, 23</value>
+  <data name="&gt;&gt;numericUpDown_backupInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="&gt;&gt;$this.Name" xml:space="preserve">
-    <value>SettingsForm</value>
+  <data name="&gt;&gt;numericUpDown_backupInterval.Parent" xml:space="preserve">
+    <value>groupBox4</value>
   </data>
-  <data name="checkBox_Log_Program.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
+  <data name="&gt;&gt;numericUpDown_backupInterval.ZOrder" xml:space="preserve">
+    <value>1</value>
   </data>
-  <data name="label13.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="label14.Size" type="System.Drawing.Size, System.Drawing">
-    <value>35, 17</value>
-  </data>
-  <data name="&gt;&gt;label15.Parent" xml:space="preserve">
-    <value>groupBox9</value>
-  </data>
-  <data name="&gt;&gt;button_osuFolder_select.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="numericUpDown_width.Location" type="System.Drawing.Point, System.Drawing">
-    <value>54, 27</value>
-  </data>
-  <data name="groupBox3.Size" type="System.Drawing.Size, System.Drawing">
-    <value>239, 110</value>
+  <data name="&gt;&gt;button_backupFolder_reset.Name" xml:space="preserve">
+    <value>button_backupFolder_reset</value>
   </data>
   <data name="&gt;&gt;button_backupFolder_reset.Type" xml:space="preserve">
     <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="label5.Size" type="System.Drawing.Size, System.Drawing">
-    <value>77, 17</value>
+  <data name="&gt;&gt;button_backupFolder_reset.Parent" xml:space="preserve">
+    <value>groupBox4</value>
   </data>
-  <data name="groupBox9.Text" xml:space="preserve">
-    <value>Cubic Fitting Curve</value>
+  <data name="&gt;&gt;button_backupFolder_reset.ZOrder" xml:space="preserve">
+    <value>2</value>
   </data>
-  <data name="checkBox_BarLine_Show.AutoSize" type="System.Boolean, mscorlib">
+  <data name="&gt;&gt;button_backupInterval_reset.Name" xml:space="preserve">
+    <value>button_backupInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_backupInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_backupInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;button_backupInterval_reset.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;textBox_backupFolder.Name" xml:space="preserve">
+    <value>textBox_backupFolder</value>
+  </data>
+  <data name="&gt;&gt;textBox_backupFolder.Type" xml:space="preserve">
+    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;textBox_backupFolder.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;textBox_backupFolder.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="&gt;&gt;label7.Name" xml:space="preserve">
+    <value>label7</value>
+  </data>
+  <data name="&gt;&gt;label7.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label7.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;label7.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="&gt;&gt;label6.Name" xml:space="preserve">
+    <value>label6</value>
+  </data>
+  <data name="&gt;&gt;label6.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label6.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;label6.ZOrder" xml:space="preserve">
+    <value>6</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_select.Name" xml:space="preserve">
+    <value>button_backupFolder_select</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_select.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_select.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_select.ZOrder" xml:space="preserve">
+    <value>7</value>
+  </data>
+  <data name="groupBox4.Location" type="System.Drawing.Point, System.Drawing">
+    <value>260, 117</value>
+  </data>
+  <data name="groupBox4.Size" type="System.Drawing.Size, System.Drawing">
+    <value>465, 110</value>
+  </data>
+  <data name="groupBox4.TabIndex" type="System.Int32, mscorlib">
+    <value>3</value>
+  </data>
+  <data name="groupBox4.Text" xml:space="preserve">
+    <value>Backup</value>
+  </data>
+  <data name="&gt;&gt;groupBox4.Name" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;groupBox4.Type" xml:space="preserve">
+    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;groupBox4.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;groupBox4.ZOrder" xml:space="preserve">
+    <value>8</value>
+  </data>
+  <data name="checkBox_enableBackup.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
-  <data name="checkBox_Log_Backup.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 209</value>
+  <data name="checkBox_enableBackup.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 22</value>
   </data>
-  <data name="label15.Text" xml:space="preserve">
-    <value>Color</value>
+  <data name="checkBox_enableBackup.Size" type="System.Drawing.Size, System.Drawing">
+    <value>330, 21</value>
   </data>
-  <data name="&gt;&gt;numericUpDown_idleInterval.Name" xml:space="preserve">
-    <value>numericUpDown_idleInterval</value>
+  <data name="checkBox_enableBackup.TabIndex" type="System.Int32, mscorlib">
+    <value>14</value>
   </data>
-  <data name="&gt;&gt;groupBox3.ZOrder" xml:space="preserve">
+  <data name="checkBox_enableBackup.Text" xml:space="preserve">
+    <value>Enable Auto Backup (Slightly affecting performance)</value>
+  </data>
+  <data name="&gt;&gt;checkBox_enableBackup.Name" xml:space="preserve">
+    <value>checkBox_enableBackup</value>
+  </data>
+  <data name="&gt;&gt;checkBox_enableBackup.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_enableBackup.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;checkBox_enableBackup.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="numericUpDown_backupInterval.Location" type="System.Drawing.Point, System.Drawing">
+    <value>133, 80</value>
+  </data>
+  <data name="numericUpDown_backupInterval.Size" type="System.Drawing.Size, System.Drawing">
+    <value>78, 23</value>
+  </data>
+  <data name="numericUpDown_backupInterval.TabIndex" type="System.Int32, mscorlib">
+    <value>12</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_backupInterval.Name" xml:space="preserve">
+    <value>numericUpDown_backupInterval</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_backupInterval.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_backupInterval.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_backupInterval.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="button_backupFolder_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>425, 50</value>
+  </data>
+  <data name="button_backupFolder_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>25, 23</value>
+  </data>
+  <data name="button_backupFolder_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>9</value>
+  </data>
+  <data name="button_backupFolder_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_reset.Name" xml:space="preserve">
+    <value>button_backupFolder_reset</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_reset.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_reset.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="button_backupInterval_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>217, 80</value>
+  </data>
+  <data name="button_backupInterval_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>26, 23</value>
+  </data>
+  <data name="button_backupInterval_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>13</value>
+  </data>
+  <data name="button_backupInterval_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_backupInterval_reset.Name" xml:space="preserve">
+    <value>button_backupInterval_reset</value>
+  </data>
+  <data name="&gt;&gt;button_backupInterval_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_backupInterval_reset.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;button_backupInterval_reset.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="textBox_backupFolder.Location" type="System.Drawing.Point, System.Drawing">
+    <value>109, 49</value>
+  </data>
+  <data name="textBox_backupFolder.Size" type="System.Drawing.Size, System.Drawing">
+    <value>258, 23</value>
+  </data>
+  <data name="textBox_backupFolder.TabIndex" type="System.Int32, mscorlib">
+    <value>7</value>
+  </data>
+  <data name="&gt;&gt;textBox_backupFolder.Name" xml:space="preserve">
+    <value>textBox_backupFolder</value>
+  </data>
+  <data name="&gt;&gt;textBox_backupFolder.Type" xml:space="preserve">
+    <value>System.Windows.Forms.TextBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;textBox_backupFolder.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;textBox_backupFolder.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="label7.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label7.Location" type="System.Drawing.Point, System.Drawing">
+    <value>11, 82</value>
+  </data>
+  <data name="label7.Size" type="System.Drawing.Size, System.Drawing">
+    <value>116, 17</value>
+  </data>
+  <data name="label7.TabIndex" type="System.Int32, mscorlib">
+    <value>11</value>
+  </data>
+  <data name="label7.Text" xml:space="preserve">
+    <value>Backup Interval (s)</value>
+  </data>
+  <data name="&gt;&gt;label7.Name" xml:space="preserve">
+    <value>label7</value>
+  </data>
+  <data name="&gt;&gt;label7.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label7.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;label7.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="label6.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label6.Location" type="System.Drawing.Point, System.Drawing">
+    <value>11, 52</value>
+  </data>
+  <data name="label6.Size" type="System.Drawing.Size, System.Drawing">
+    <value>92, 17</value>
+  </data>
+  <data name="label6.TabIndex" type="System.Int32, mscorlib">
+    <value>6</value>
+  </data>
+  <data name="label6.Text" xml:space="preserve">
+    <value>Backup Folder</value>
+  </data>
+  <data name="&gt;&gt;label6.Name" xml:space="preserve">
+    <value>label6</value>
+  </data>
+  <data name="&gt;&gt;label6.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label6.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;label6.ZOrder" xml:space="preserve">
+    <value>6</value>
+  </data>
+  <data name="button_backupFolder_select.Location" type="System.Drawing.Point, System.Drawing">
+    <value>373, 49</value>
+  </data>
+  <data name="button_backupFolder_select.Size" type="System.Drawing.Size, System.Drawing">
+    <value>46, 24</value>
+  </data>
+  <data name="button_backupFolder_select.TabIndex" type="System.Int32, mscorlib">
+    <value>8</value>
+  </data>
+  <data name="button_backupFolder_select.Text" xml:space="preserve">
+    <value>...</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_select.Name" xml:space="preserve">
+    <value>button_backupFolder_select</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_select.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_select.Parent" xml:space="preserve">
+    <value>groupBox4</value>
+  </data>
+  <data name="&gt;&gt;button_backupFolder_select.ZOrder" xml:space="preserve">
+    <value>7</value>
+  </data>
+  <data name="button_apply.Location" type="System.Drawing.Point, System.Drawing">
+    <value>495, 625</value>
+  </data>
+  <data name="button_apply.Size" type="System.Drawing.Size, System.Drawing">
+    <value>102, 33</value>
+  </data>
+  <data name="button_apply.TabIndex" type="System.Int32, mscorlib">
+    <value>4</value>
+  </data>
+  <data name="button_apply.Text" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="&gt;&gt;button_apply.Name" xml:space="preserve">
+    <value>button_apply</value>
+  </data>
+  <data name="&gt;&gt;button_apply.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_apply.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;button_apply.ZOrder" xml:space="preserve">
+    <value>6</value>
+  </data>
+  <data name="button_cancel.Location" type="System.Drawing.Point, System.Drawing">
+    <value>623, 625</value>
+  </data>
+  <data name="button_cancel.Size" type="System.Drawing.Size, System.Drawing">
+    <value>102, 33</value>
+  </data>
+  <data name="button_cancel.TabIndex" type="System.Int32, mscorlib">
+    <value>5</value>
+  </data>
+  <data name="button_cancel.Text" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="&gt;&gt;button_cancel.Name" xml:space="preserve">
+    <value>button_cancel</value>
+  </data>
+  <data name="&gt;&gt;button_cancel.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_cancel.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;button_cancel.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="&gt;&gt;label12.Name" xml:space="preserve">
+    <value>label12</value>
+  </data>
+  <data name="&gt;&gt;label12.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label12.Parent" xml:space="preserve">
+    <value>groupBox5</value>
+  </data>
+  <data name="&gt;&gt;label12.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="&gt;&gt;button_Label_Color.Name" xml:space="preserve">
+    <value>button_Label_Color</value>
+  </data>
+  <data name="&gt;&gt;button_Label_Color.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_Label_Color.Parent" xml:space="preserve">
+    <value>groupBox5</value>
+  </data>
+  <data name="&gt;&gt;button_Label_Color.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowSelected.Name" xml:space="preserve">
+    <value>checkBox_ShowSelected</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowSelected.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowSelected.Parent" xml:space="preserve">
+    <value>groupBox5</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowSelected.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;checkBox_withColor.Name" xml:space="preserve">
+    <value>checkBox_withColor</value>
+  </data>
+  <data name="&gt;&gt;checkBox_withColor.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_withColor.Parent" xml:space="preserve">
+    <value>groupBox5</value>
+  </data>
+  <data name="&gt;&gt;checkBox_withColor.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="groupBox5.Location" type="System.Drawing.Point, System.Drawing">
+    <value>260, 233</value>
+  </data>
+  <data name="groupBox5.Size" type="System.Drawing.Size, System.Drawing">
+    <value>465, 56</value>
+  </data>
+  <data name="groupBox5.TabIndex" type="System.Int32, mscorlib">
+    <value>6</value>
+  </data>
+  <data name="groupBox5.Text" xml:space="preserve">
+    <value>Hit Objects</value>
+  </data>
+  <data name="&gt;&gt;groupBox5.Name" xml:space="preserve">
+    <value>groupBox5</value>
+  </data>
+  <data name="&gt;&gt;groupBox5.Type" xml:space="preserve">
+    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;groupBox5.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;groupBox5.ZOrder" xml:space="preserve">
+    <value>7</value>
+  </data>
+  <data name="label12.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label12.Location" type="System.Drawing.Point, System.Drawing">
+    <value>256, 23</value>
+  </data>
+  <data name="label12.Size" type="System.Drawing.Size, System.Drawing">
+    <value>75, 17</value>
+  </data>
+  <data name="label12.TabIndex" type="System.Int32, mscorlib">
+    <value>3</value>
+  </data>
+  <data name="label12.Text" xml:space="preserve">
+    <value>Label Color</value>
+  </data>
+  <data name="&gt;&gt;label12.Name" xml:space="preserve">
+    <value>label12</value>
+  </data>
+  <data name="&gt;&gt;label12.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label12.Parent" xml:space="preserve">
+    <value>groupBox5</value>
+  </data>
+  <data name="&gt;&gt;label12.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="button_Label_Color.Location" type="System.Drawing.Point, System.Drawing">
+    <value>337, 16</value>
+  </data>
+  <data name="button_Label_Color.Size" type="System.Drawing.Size, System.Drawing">
+    <value>30, 30</value>
+  </data>
+  <data name="button_Label_Color.TabIndex" type="System.Int32, mscorlib">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;button_Label_Color.Name" xml:space="preserve">
+    <value>button_Label_Color</value>
+  </data>
+  <data name="&gt;&gt;button_Label_Color.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_Label_Color.Parent" xml:space="preserve">
+    <value>groupBox5</value>
+  </data>
+  <data name="&gt;&gt;button_Label_Color.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="checkBox_ShowSelected.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_ShowSelected.Location" type="System.Drawing.Point, System.Drawing">
+    <value>109, 22</value>
+  </data>
+  <data name="checkBox_ShowSelected.Size" type="System.Drawing.Size, System.Drawing">
+    <value>111, 21</value>
+  </data>
+  <data name="checkBox_ShowSelected.TabIndex" type="System.Int32, mscorlib">
+    <value>1</value>
+  </data>
+  <data name="checkBox_ShowSelected.Text" xml:space="preserve">
+    <value>Selected Mark</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowSelected.Name" xml:space="preserve">
+    <value>checkBox_ShowSelected</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowSelected.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowSelected.Parent" xml:space="preserve">
+    <value>groupBox5</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowSelected.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="checkBox_withColor.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_withColor.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 22</value>
+  </data>
+  <data name="checkBox_withColor.Size" type="System.Drawing.Size, System.Drawing">
+    <value>89, 21</value>
+  </data>
+  <data name="checkBox_withColor.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="checkBox_withColor.Text" xml:space="preserve">
+    <value>With Color</value>
+  </data>
+  <data name="&gt;&gt;checkBox_withColor.Name" xml:space="preserve">
+    <value>checkBox_withColor</value>
+  </data>
+  <data name="&gt;&gt;checkBox_withColor.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_withColor.Parent" xml:space="preserve">
+    <value>groupBox5</value>
+  </data>
+  <data name="&gt;&gt;checkBox_withColor.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.Name" xml:space="preserve">
+    <value>checkBox_Log_BookmarkPlus</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.Name" xml:space="preserve">
+    <value>checkBox_Log_BeatmapBuilder</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;comboBox_Log_Level.Name" xml:space="preserve">
+    <value>comboBox_Log_Level</value>
+  </data>
+  <data name="&gt;&gt;comboBox_Log_Level.Type" xml:space="preserve">
+    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;comboBox_Log_Level.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;comboBox_Log_Level.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;label8.Name" xml:space="preserve">
+    <value>label8</value>
+  </data>
+  <data name="&gt;&gt;label8.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label8.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;label8.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Timer.Name" xml:space="preserve">
+    <value>checkBox_Log_Timer</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Timer.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Timer.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Timer.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Backup.Name" xml:space="preserve">
+    <value>checkBox_Log_Backup</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Backup.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Backup.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Backup.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Drawing.Name" xml:space="preserve">
+    <value>checkBox_Log_Drawing</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Drawing.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Drawing.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Drawing.ZOrder" xml:space="preserve">
+    <value>6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.Name" xml:space="preserve">
+    <value>checkBox_Log_BeatmapConverter</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.ZOrder" xml:space="preserve">
+    <value>7</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_EditorReader.Name" xml:space="preserve">
+    <value>checkBox_Log_EditorReader</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_EditorReader.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_EditorReader.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_EditorReader.ZOrder" xml:space="preserve">
     <value>8</value>
   </data>
   <data name="&gt;&gt;checkBox_Log_Program.Name" xml:space="preserve">
     <value>checkBox_Log_Program</value>
   </data>
-  <data name="checkBox_withColor.Text" xml:space="preserve">
-    <value>With Color</value>
+  <data name="&gt;&gt;checkBox_Log_Program.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="&gt;&gt;label6.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  <data name="&gt;&gt;checkBox_Log_Program.Parent" xml:space="preserve">
+    <value>groupBox6</value>
   </data>
-  <data name="&gt;&gt;checkBox_Log_EditorReader.Name" xml:space="preserve">
-    <value>checkBox_Log_EditorReader</value>
-  </data>
-  <data name="&gt;&gt;groupBox3.Name" xml:space="preserve">
-    <value>groupBox3</value>
-  </data>
-  <data name="comboBox_Log_Level.Items3" xml:space="preserve">
-    <value>Error</value>
-  </data>
-  <data name="&gt;&gt;button_osuFolder_reset.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="comboBox_Log_Level.Location" type="System.Drawing.Point, System.Drawing">
-    <value>78, 43</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_backupInterval.Type" xml:space="preserve">
-    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;label1.ZOrder" xml:space="preserve">
-    <value>5</value>
-  </data>
-  <data name="button_backupInterval_reset.TabIndex" type="System.Int32, mscorlib">
-    <value>13</value>
-  </data>
-  <data name="&gt;&gt;label11.ZOrder" xml:space="preserve">
-    <value>1</value>
-  </data>
-  <data name="checkBox_Log_BeatmapConverter.TabIndex" type="System.Int32, mscorlib">
-    <value>10</value>
-  </data>
-  <data name="label11.TabIndex" type="System.Int32, mscorlib">
-    <value>7</value>
-  </data>
-  <data name="button_cancel.Size" type="System.Drawing.Size, System.Drawing">
-    <value>102, 33</value>
-  </data>
-  <data name="checkBox_Log_BeatmapConverter.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;groupBox9.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.ZOrder" xml:space="preserve">
-    <value>5</value>
-  </data>
-  <data name="checkBox_Log_Program.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 74</value>
-  </data>
-  <data name="label11.Size" type="System.Drawing.Size, System.Drawing">
-    <value>458, 17</value>
-  </data>
-  <data name="label7.Size" type="System.Drawing.Size, System.Drawing">
-    <value>116, 17</value>
-  </data>
-  <data name="groupBox2.TabIndex" type="System.Int32, mscorlib">
-    <value>1</value>
-  </data>
-  <data name="&gt;&gt;groupBox9.Type" xml:space="preserve">
-    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="checkBox_Log_EditorReader.TabIndex" type="System.Int32, mscorlib">
+  <data name="&gt;&gt;checkBox_Log_Program.ZOrder" xml:space="preserve">
     <value>9</value>
   </data>
-  <data name="numericUpDown_drawingInterval.Location" type="System.Drawing.Point, System.Drawing">
-    <value>118, 67</value>
+  <data name="&gt;&gt;checkBox_showConsole.Name" xml:space="preserve">
+    <value>checkBox_showConsole</value>
   </data>
-  <data name="checkBox_showConsole.Size" type="System.Drawing.Size, System.Drawing">
-    <value>177, 21</value>
+  <data name="&gt;&gt;checkBox_showConsole.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="&gt;&gt;groupBox8.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="label13.TabIndex" type="System.Int32, mscorlib">
-    <value>0</value>
-  </data>
-  <data name="checkBox_ShowSelected.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;groupBox7.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="&gt;&gt;numericUpDown_timeOut.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="button_backupFolder_select.Size" type="System.Drawing.Size, System.Drawing">
-    <value>46, 24</value>
-  </data>
-  <data name="textBox_osuFolder.TabIndex" type="System.Int32, mscorlib">
-    <value>1</value>
-  </data>
-  <data name="label11.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 92</value>
-  </data>
-  <data name="&gt;&gt;groupBox2.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.Name" xml:space="preserve">
-    <value>checkBox_TimingLine_ShowRed</value>
-  </data>
-  <data name="groupBox5.Size" type="System.Drawing.Size, System.Drawing">
-    <value>465, 56</value>
-  </data>
-  <data name="label2.TabIndex" type="System.Int32, mscorlib">
-    <value>1</value>
-  </data>
-  <data name="label6.Text" xml:space="preserve">
-    <value>Backup Folder</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowRed.Text" xml:space="preserve">
-    <value>Show Timing Points (Red Lines)</value>
-  </data>
-  <data name="label12.Size" type="System.Drawing.Size, System.Drawing">
-    <value>75, 17</value>
-  </data>
-  <data name="CurveWidthComboBox.Location" type="System.Drawing.Point, System.Drawing">
-    <value>54, 20</value>
-  </data>
-  <data name="&gt;&gt;textBox_backupFolder.Name" xml:space="preserve">
-    <value>textBox_backupFolder</value>
-  </data>
-  <data name="&gt;&gt;button_drawingInterval_reset.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="CurveDashStyleComboBox.Location" type="System.Drawing.Point, System.Drawing">
-    <value>54, 47</value>
-  </data>
-  <data name="&gt;&gt;button_backupInterval_reset.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="checkBox_TimingLine_ShowGreen.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="groupBox4.Text" xml:space="preserve">
-    <value>Backup</value>
-  </data>
-  <data name="button_idleInterval_reset.Location" type="System.Drawing.Point, System.Drawing">
-    <value>202, 32</value>
-  </data>
-  <data name="checkBox_ShowSelected.Text" xml:space="preserve">
-    <value>Selected Mark</value>
-  </data>
-  <data name="&gt;&gt;comboBox_Log_Level.ZOrder" xml:space="preserve">
-    <value>2</value>
-  </data>
-  <data name="&gt;&gt;button_apply.Name" xml:space="preserve">
-    <value>button_apply</value>
-  </data>
-  <data name="&gt;&gt;button_timeOut_reset.Parent" xml:space="preserve">
-    <value>groupBox8</value>
-  </data>
-  <data name="&gt;&gt;label15.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="&gt;&gt;checkBox_withColor.ZOrder" xml:space="preserve">
-    <value>3</value>
-  </data>
-  <data name="&gt;&gt;button_apply.Parent" xml:space="preserve">
-    <value>$this</value>
-  </data>
-  <data name="&gt;&gt;groupBox2.Name" xml:space="preserve">
-    <value>groupBox2</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.Name" xml:space="preserve">
-    <value>checkBox_Log_BookmarkPlus</value>
-  </data>
-  <data name="&gt;&gt;groupBox2.Type" xml:space="preserve">
-    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="label2.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;comboBox_Log_Level.Parent" xml:space="preserve">
+  <data name="&gt;&gt;checkBox_showConsole.Parent" xml:space="preserve">
     <value>groupBox6</value>
   </data>
-  <data name="checkBox_Log_EditorReader.Size" type="System.Drawing.Size, System.Drawing">
-    <value>127, 21</value>
+  <data name="&gt;&gt;checkBox_showConsole.ZOrder" xml:space="preserve">
+    <value>10</value>
   </data>
-  <data name="checkBox_Log_BeatmapConverter.Text" xml:space="preserve">
-    <value>BeatmapConverter log</value>
+  <data name="groupBox6.Location" type="System.Drawing.Point, System.Drawing">
+    <value>12, 299</value>
   </data>
-  <data name="checkBox_withColor.Location" type="System.Drawing.Point, System.Drawing">
-    <value>6, 22</value>
+  <data name="groupBox6.Size" type="System.Drawing.Size, System.Drawing">
+    <value>239, 334</value>
   </data>
-  <data name="button_idleInterval_reset.Text" xml:space="preserve">
-    <value>↺</value>
-  </data>
-  <data name="&gt;&gt;button_backupFolder_select.ZOrder" xml:space="preserve">
+  <data name="groupBox6.TabIndex" type="System.Int32, mscorlib">
     <value>7</value>
-  </data>
-  <data name="&gt;&gt;groupBox6.Name" xml:space="preserve">
-    <value>groupBox6</value>
-  </data>
-  <data name="&gt;&gt;checkBox_withColor.Parent" xml:space="preserve">
-    <value>groupBox5</value>
-  </data>
-  <data name="&gt;&gt;checkBox_Log_Drawing.Parent" xml:space="preserve">
-    <value>groupBox6</value>
-  </data>
-  <data name="button_width_reset.Size" type="System.Drawing.Size, System.Drawing">
-    <value>26, 23</value>
-  </data>
-  <data name="&gt;&gt;label9.Name" xml:space="preserve">
-    <value>label9</value>
   </data>
   <data name="groupBox6.Text" xml:space="preserve">
     <value>Debug</value>
   </data>
-  <data name="checkBox_Log_Backup.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
+  <data name="&gt;&gt;groupBox6.Name" xml:space="preserve">
+    <value>groupBox6</value>
   </data>
-  <data name="label3.AutoSize" type="System.Boolean, mscorlib">
+  <data name="&gt;&gt;groupBox6.Type" xml:space="preserve">
+    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;groupBox6.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;groupBox6.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="checkBox_Log_BookmarkPlus.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
   <data name="checkBox_Log_BookmarkPlus.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
   </data>
-  <data name="&gt;&gt;groupBox7.Name" xml:space="preserve">
-    <value>groupBox7</value>
+  <data name="checkBox_Log_BookmarkPlus.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 263</value>
   </data>
-  <data name="&gt;&gt;numericUpDown_width.ZOrder" xml:space="preserve">
+  <data name="checkBox_Log_BookmarkPlus.Size" type="System.Drawing.Size, System.Drawing">
+    <value>134, 21</value>
+  </data>
+  <data name="checkBox_Log_BookmarkPlus.TabIndex" type="System.Int32, mscorlib">
+    <value>17</value>
+  </data>
+  <data name="checkBox_Log_BookmarkPlus.Text" xml:space="preserve">
+    <value>BookmarkPlus log</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.Name" xml:space="preserve">
+    <value>checkBox_Log_BookmarkPlus</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BookmarkPlus.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="checkBox_Log_BeatmapBuilder.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_Log_BeatmapBuilder.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 128</value>
+  </data>
+  <data name="checkBox_Log_BeatmapBuilder.Size" type="System.Drawing.Size, System.Drawing">
+    <value>143, 21</value>
+  </data>
+  <data name="checkBox_Log_BeatmapBuilder.TabIndex" type="System.Int32, mscorlib">
+    <value>16</value>
+  </data>
+  <data name="checkBox_Log_BeatmapBuilder.Text" xml:space="preserve">
+    <value>BeatmapBuilder log</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.Name" xml:space="preserve">
+    <value>checkBox_Log_BeatmapBuilder</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapBuilder.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="comboBox_Log_Level.Items" xml:space="preserve">
+    <value>Debug</value>
+  </data>
+  <data name="comboBox_Log_Level.Items1" xml:space="preserve">
+    <value>Info</value>
+  </data>
+  <data name="comboBox_Log_Level.Items2" xml:space="preserve">
+    <value>Warning</value>
+  </data>
+  <data name="comboBox_Log_Level.Items3" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="comboBox_Log_Level.Location" type="System.Drawing.Point, System.Drawing">
+    <value>78, 43</value>
+  </data>
+  <data name="comboBox_Log_Level.Size" type="System.Drawing.Size, System.Drawing">
+    <value>98, 25</value>
+  </data>
+  <data name="comboBox_Log_Level.TabIndex" type="System.Int32, mscorlib">
+    <value>15</value>
+  </data>
+  <data name="&gt;&gt;comboBox_Log_Level.Name" xml:space="preserve">
+    <value>comboBox_Log_Level</value>
+  </data>
+  <data name="&gt;&gt;comboBox_Log_Level.Type" xml:space="preserve">
+    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;comboBox_Log_Level.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;comboBox_Log_Level.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="label8.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label8.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 46</value>
+  </data>
+  <data name="label8.Size" type="System.Drawing.Size, System.Drawing">
+    <value>63, 17</value>
+  </data>
+  <data name="label8.TabIndex" type="System.Int32, mscorlib">
+    <value>14</value>
+  </data>
+  <data name="label8.Text" xml:space="preserve">
+    <value>Log Level</value>
+  </data>
+  <data name="&gt;&gt;label8.Name" xml:space="preserve">
+    <value>label8</value>
+  </data>
+  <data name="&gt;&gt;label8.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label8.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;label8.ZOrder" xml:space="preserve">
     <value>3</value>
+  </data>
+  <data name="checkBox_Log_Timer.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_Log_Timer.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 236</value>
+  </data>
+  <data name="checkBox_Log_Timer.Size" type="System.Drawing.Size, System.Drawing">
+    <value>83, 21</value>
+  </data>
+  <data name="checkBox_Log_Timer.TabIndex" type="System.Int32, mscorlib">
+    <value>13</value>
+  </data>
+  <data name="checkBox_Log_Timer.Text" xml:space="preserve">
+    <value>Timer log</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Timer.Name" xml:space="preserve">
+    <value>checkBox_Log_Timer</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Timer.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Timer.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Timer.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="checkBox_Log_Backup.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_Log_Backup.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 209</value>
+  </data>
+  <data name="checkBox_Log_Backup.Size" type="System.Drawing.Size, System.Drawing">
+    <value>93, 21</value>
+  </data>
+  <data name="checkBox_Log_Backup.TabIndex" type="System.Int32, mscorlib">
+    <value>12</value>
+  </data>
+  <data name="checkBox_Log_Backup.Text" xml:space="preserve">
+    <value>Backup log</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Backup.Name" xml:space="preserve">
+    <value>checkBox_Log_Backup</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Backup.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Backup.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Backup.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="checkBox_Log_Drawing.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_Log_Drawing.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 182</value>
+  </data>
+  <data name="checkBox_Log_Drawing.Size" type="System.Drawing.Size, System.Drawing">
+    <value>98, 21</value>
+  </data>
+  <data name="checkBox_Log_Drawing.TabIndex" type="System.Int32, mscorlib">
+    <value>11</value>
+  </data>
+  <data name="checkBox_Log_Drawing.Text" xml:space="preserve">
+    <value>Drawing log</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Drawing.Name" xml:space="preserve">
+    <value>checkBox_Log_Drawing</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Drawing.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Drawing.Parent" xml:space="preserve">
+    <value>groupBox6</value>
   </data>
   <data name="&gt;&gt;checkBox_Log_Drawing.ZOrder" xml:space="preserve">
     <value>6</value>
   </data>
-  <data name="&gt;&gt;label14.ZOrder" xml:space="preserve">
+  <data name="checkBox_Log_BeatmapConverter.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_Log_BeatmapConverter.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 155</value>
+  </data>
+  <data name="checkBox_Log_BeatmapConverter.Size" type="System.Drawing.Size, System.Drawing">
+    <value>159, 21</value>
+  </data>
+  <data name="checkBox_Log_BeatmapConverter.TabIndex" type="System.Int32, mscorlib">
+    <value>10</value>
+  </data>
+  <data name="checkBox_Log_BeatmapConverter.Text" xml:space="preserve">
+    <value>BeatmapConverter log</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.Name" xml:space="preserve">
+    <value>checkBox_Log_BeatmapConverter</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_BeatmapConverter.ZOrder" xml:space="preserve">
+    <value>7</value>
+  </data>
+  <data name="checkBox_Log_EditorReader.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_Log_EditorReader.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 101</value>
+  </data>
+  <data name="checkBox_Log_EditorReader.Size" type="System.Drawing.Size, System.Drawing">
+    <value>127, 21</value>
+  </data>
+  <data name="checkBox_Log_EditorReader.TabIndex" type="System.Int32, mscorlib">
+    <value>9</value>
+  </data>
+  <data name="checkBox_Log_EditorReader.Text" xml:space="preserve">
+    <value>EditorReader log</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_EditorReader.Name" xml:space="preserve">
+    <value>checkBox_Log_EditorReader</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_EditorReader.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_EditorReader.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_EditorReader.ZOrder" xml:space="preserve">
+    <value>8</value>
+  </data>
+  <data name="checkBox_Log_Program.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_Log_Program.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 74</value>
+  </data>
+  <data name="checkBox_Log_Program.Size" type="System.Drawing.Size, System.Drawing">
+    <value>101, 21</value>
+  </data>
+  <data name="checkBox_Log_Program.TabIndex" type="System.Int32, mscorlib">
+    <value>8</value>
+  </data>
+  <data name="checkBox_Log_Program.Text" xml:space="preserve">
+    <value>Program log</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Program.Name" xml:space="preserve">
+    <value>checkBox_Log_Program</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Program.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Program.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_Log_Program.ZOrder" xml:space="preserve">
+    <value>9</value>
+  </data>
+  <data name="checkBox_showConsole.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_showConsole.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 22</value>
+  </data>
+  <data name="checkBox_showConsole.Size" type="System.Drawing.Size, System.Drawing">
+    <value>177, 21</value>
+  </data>
+  <data name="checkBox_showConsole.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="checkBox_showConsole.Text" xml:space="preserve">
+    <value>Show Console When Start</value>
+  </data>
+  <data name="&gt;&gt;checkBox_showConsole.Name" xml:space="preserve">
+    <value>checkBox_showConsole</value>
+  </data>
+  <data name="&gt;&gt;checkBox_showConsole.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_showConsole.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_showConsole.ZOrder" xml:space="preserve">
+    <value>10</value>
+  </data>
+  <data name="&gt;&gt;checkBox_BarLine_Show.Name" xml:space="preserve">
+    <value>checkBox_BarLine_Show</value>
+  </data>
+  <data name="&gt;&gt;checkBox_BarLine_Show.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_BarLine_Show.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;checkBox_BarLine_Show.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.Name" xml:space="preserve">
+    <value>checkBox_TimingLine_ShowGreen</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.Name" xml:space="preserve">
+    <value>checkBox_TimingLine_ShowRed</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;comboBox_BarLineSubdivide.Name" xml:space="preserve">
+    <value>comboBox_BarLineSubdivide</value>
+  </data>
+  <data name="&gt;&gt;comboBox_BarLineSubdivide.Type" xml:space="preserve">
+    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;comboBox_BarLineSubdivide.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;comboBox_BarLineSubdivide.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowDistanceHelper.Name" xml:space="preserve">
+    <value>checkBox_ShowDistanceHelper</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowDistanceHelper.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowDistanceHelper.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowDistanceHelper.ZOrder" xml:space="preserve">
     <value>4</value>
+  </data>
+  <data name="&gt;&gt;label_WhiteSpeed.Name" xml:space="preserve">
+    <value>label_WhiteSpeed</value>
+  </data>
+  <data name="&gt;&gt;label_WhiteSpeed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_WhiteSpeed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;label_WhiteSpeed.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_WhiteSpeed.Name" xml:space="preserve">
+    <value>numericUpDown_WhiteSpeed</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_WhiteSpeed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_WhiteSpeed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_WhiteSpeed.ZOrder" xml:space="preserve">
+    <value>6</value>
+  </data>
+  <data name="&gt;&gt;label_RedSpeed.Name" xml:space="preserve">
+    <value>label_RedSpeed</value>
+  </data>
+  <data name="&gt;&gt;label_RedSpeed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_RedSpeed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;label_RedSpeed.ZOrder" xml:space="preserve">
+    <value>7</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_RedSpeed.Name" xml:space="preserve">
+    <value>numericUpDown_RedSpeed</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_RedSpeed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_RedSpeed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_RedSpeed.ZOrder" xml:space="preserve">
+    <value>8</value>
+  </data>
+  <data name="groupBox7.Location" type="System.Drawing.Point, System.Drawing">
+    <value>260, 295</value>
+  </data>
+  <data name="groupBox7.Size" type="System.Drawing.Size, System.Drawing">
+    <value>243, 185</value>
+  </data>
+  <data name="groupBox7.TabIndex" type="System.Int32, mscorlib">
+    <value>8</value>
+  </data>
+  <data name="groupBox7.Text" xml:space="preserve">
+    <value>Timing Lines</value>
+  </data>
+  <data name="&gt;&gt;groupBox7.Name" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;groupBox7.Type" xml:space="preserve">
+    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;groupBox7.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;groupBox7.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="checkBox_BarLine_Show.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_BarLine_Show.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 76</value>
+  </data>
+  <data name="checkBox_BarLine_Show.Size" type="System.Drawing.Size, System.Drawing">
+    <value>115, 21</value>
+  </data>
+  <data name="checkBox_BarLine_Show.TabIndex" type="System.Int32, mscorlib">
+    <value>2</value>
+  </data>
+  <data name="checkBox_BarLine_Show.Text" xml:space="preserve">
+    <value>Show Bar Lines</value>
+  </data>
+  <data name="&gt;&gt;checkBox_BarLine_Show.Name" xml:space="preserve">
+    <value>checkBox_BarLine_Show</value>
+  </data>
+  <data name="&gt;&gt;checkBox_BarLine_Show.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_BarLine_Show.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;checkBox_BarLine_Show.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowGreen.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowGreen.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 49</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowGreen.Size" type="System.Drawing.Size, System.Drawing">
+    <value>233, 21</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowGreen.TabIndex" type="System.Int32, mscorlib">
+    <value>1</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowGreen.Text" xml:space="preserve">
+    <value>Show Inherited Points (Green Lines)</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.Name" xml:space="preserve">
+    <value>checkBox_TimingLine_ShowGreen</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowGreen.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowRed.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowRed.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 22</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowRed.Size" type="System.Drawing.Size, System.Drawing">
+    <value>208, 21</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowRed.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="checkBox_TimingLine_ShowRed.Text" xml:space="preserve">
+    <value>Show Timing Points (Red Lines)</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.Name" xml:space="preserve">
+    <value>checkBox_TimingLine_ShowRed</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;checkBox_TimingLine_ShowRed.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items" xml:space="preserve">
+    <value>Show to measure</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items1" xml:space="preserve">
+    <value>Show to 2 beats</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items2" xml:space="preserve">
+    <value>Show to beats</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Location" type="System.Drawing.Point, System.Drawing">
+    <value>127, 76</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Size" type="System.Drawing.Size, System.Drawing">
+    <value>110, 25</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.TabIndex" type="System.Int32, mscorlib">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;comboBox_BarLineSubdivide.Name" xml:space="preserve">
+    <value>comboBox_BarLineSubdivide</value>
+  </data>
+  <data name="&gt;&gt;comboBox_BarLineSubdivide.Type" xml:space="preserve">
+    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;comboBox_BarLineSubdivide.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;comboBox_BarLineSubdivide.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="checkBox_ShowDistanceHelper.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 103</value>
+  </data>
+  <data name="checkBox_ShowDistanceHelper.Size" type="System.Drawing.Size, System.Drawing">
+    <value>220, 21</value>
+  </data>
+  <data name="checkBox_ShowDistanceHelper.TabIndex" type="System.Int32, mscorlib">
+    <value>4</value>
+  </data>
+  <data name="checkBox_ShowDistanceHelper.Text" xml:space="preserve">
+    <value>Show distance guide</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowDistanceHelper.Name" xml:space="preserve">
+    <value>checkBox_ShowDistanceHelper</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowDistanceHelper.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowDistanceHelper.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;checkBox_ShowDistanceHelper.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="label_WhiteSpeed.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 130</value>
+  </data>
+  <data name="label_WhiteSpeed.Size" type="System.Drawing.Size, System.Drawing">
+    <value>150, 21</value>
+  </data>
+  <data name="label_WhiteSpeed.TabIndex" type="System.Int32, mscorlib">
+    <value>5</value>
+  </data>
+  <data name="label_WhiteSpeed.Text" xml:space="preserve">
+    <value>White speed (x)</value>
+  </data>
+  <data name="&gt;&gt;label_WhiteSpeed.Name" xml:space="preserve">
+    <value>label_WhiteSpeed</value>
+  </data>
+  <data name="&gt;&gt;label_WhiteSpeed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_WhiteSpeed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;label_WhiteSpeed.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="numericUpDown_WhiteSpeed.Location" type="System.Drawing.Point, System.Drawing">
+    <value>160, 128</value>
+  </data>
+  <data name="numericUpDown_WhiteSpeed.Size" type="System.Drawing.Size, System.Drawing">
+    <value>60, 23</value>
+  </data>
+  <data name="numericUpDown_WhiteSpeed.TabIndex" type="System.Int32, mscorlib">
+    <value>6</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_WhiteSpeed.Name" xml:space="preserve">
+    <value>numericUpDown_WhiteSpeed</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_WhiteSpeed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_WhiteSpeed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_WhiteSpeed.ZOrder" xml:space="preserve">
+    <value>6</value>
+  </data>
+  <data name="label_RedSpeed.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 157</value>
+  </data>
+  <data name="label_RedSpeed.Size" type="System.Drawing.Size, System.Drawing">
+    <value>150, 21</value>
+  </data>
+  <data name="label_RedSpeed.TabIndex" type="System.Int32, mscorlib">
+    <value>7</value>
+  </data>
+  <data name="label_RedSpeed.Text" xml:space="preserve">
+    <value>Red speed (x)</value>
+  </data>
+  <data name="&gt;&gt;label_RedSpeed.Name" xml:space="preserve">
+    <value>label_RedSpeed</value>
+  </data>
+  <data name="&gt;&gt;label_RedSpeed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_RedSpeed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;label_RedSpeed.ZOrder" xml:space="preserve">
+    <value>7</value>
+  </data>
+  <data name="numericUpDown_RedSpeed.Location" type="System.Drawing.Point, System.Drawing">
+    <value>160, 155</value>
+  </data>
+  <data name="numericUpDown_RedSpeed.Size" type="System.Drawing.Size, System.Drawing">
+    <value>60, 23</value>
+  </data>
+  <data name="numericUpDown_RedSpeed.TabIndex" type="System.Int32, mscorlib">
+    <value>8</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_RedSpeed.Name" xml:space="preserve">
+    <value>numericUpDown_RedSpeed</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_RedSpeed.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_RedSpeed.Parent" xml:space="preserve">
+    <value>groupBox7</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_RedSpeed.ZOrder" xml:space="preserve">
+    <value>8</value>
+  </data>
+  <data name="&gt;&gt;button_timeOut_reset.Name" xml:space="preserve">
+    <value>button_timeOut_reset</value>
+  </data>
+  <data name="&gt;&gt;button_timeOut_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_timeOut_reset.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;button_timeOut_reset.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="&gt;&gt;label11.Name" xml:space="preserve">
+    <value>label11</value>
+  </data>
+  <data name="&gt;&gt;label11.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label11.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;label11.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;label10.Name" xml:space="preserve">
+    <value>label10</value>
+  </data>
+  <data name="&gt;&gt;label10.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label10.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;label10.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_timeOut.Name" xml:space="preserve">
+    <value>numericUpDown_timeOut</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_timeOut.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_timeOut.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_timeOut.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;label9.Name" xml:space="preserve">
+    <value>label9</value>
+  </data>
+  <data name="&gt;&gt;label9.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label9.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;label9.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.Name" xml:space="preserve">
+    <value>checkBox_FilterNearbyHitObjects</value>
+  </data>
+  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="groupBox8.Location" type="System.Drawing.Point, System.Drawing">
+    <value>260, 500</value>
+  </data>
+  <data name="groupBox8.Size" type="System.Drawing.Size, System.Drawing">
+    <value>465, 118</value>
+  </data>
+  <data name="groupBox8.TabIndex" type="System.Int32, mscorlib">
+    <value>9</value>
+  </data>
+  <data name="groupBox8.Text" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="&gt;&gt;groupBox8.Name" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;groupBox8.Type" xml:space="preserve">
+    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;groupBox8.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;groupBox8.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="button_timeOut_reset.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
+    <value>NoControl</value>
+  </data>
+  <data name="button_timeOut_reset.Location" type="System.Drawing.Point, System.Drawing">
+    <value>354, 66</value>
+  </data>
+  <data name="button_timeOut_reset.Size" type="System.Drawing.Size, System.Drawing">
+    <value>25, 23</value>
+  </data>
+  <data name="button_timeOut_reset.TabIndex" type="System.Int32, mscorlib">
+    <value>6</value>
+  </data>
+  <data name="button_timeOut_reset.Text" xml:space="preserve">
+    <value>↺</value>
+  </data>
+  <data name="&gt;&gt;button_timeOut_reset.Name" xml:space="preserve">
+    <value>button_timeOut_reset</value>
+  </data>
+  <data name="&gt;&gt;button_timeOut_reset.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_timeOut_reset.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;button_timeOut_reset.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="label11.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label11.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 92</value>
+  </data>
+  <data name="label11.Size" type="System.Drawing.Size, System.Drawing">
+    <value>458, 17</value>
+  </data>
+  <data name="label11.TabIndex" type="System.Int32, mscorlib">
+    <value>7</value>
+  </data>
+  <data name="label11.Text" xml:space="preserve">
+    <value>Attempting to increase this value when when DTB or Marathon beatmaps etc.
+</value>
+  </data>
+  <data name="&gt;&gt;label11.Name" xml:space="preserve">
+    <value>label11</value>
+  </data>
+  <data name="&gt;&gt;label11.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label11.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;label11.ZOrder" xml:space="preserve">
+    <value>1</value>
   </data>
   <data name="label10.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
   </data>
-  <data name="BarLineSubdivide_Item_None" xml:space="preserve">
-    <value>Show to measure</value>
+  <data name="label10.Location" type="System.Drawing.Point, System.Drawing">
+    <value>320, 68</value>
   </data>
-  <data name="BarLineSubdivide_Item_Half" xml:space="preserve">
-    <value>Show to 2 beats</value>
+  <data name="label10.Size" type="System.Drawing.Size, System.Drawing">
+    <value>28, 17</value>
   </data>
-  <data name="BarLineSubdivide_Item_Quarter" xml:space="preserve">
-    <value>Show to beats</value>
+  <data name="label10.TabIndex" type="System.Int32, mscorlib">
+    <value>6</value>
   </data>
-  <data name="ShowDistanceHelper_Checkbox" xml:space="preserve">
-    <value>Show distance guide</value>
+  <data name="label10.Text" xml:space="preserve">
+    <value>ms.</value>
   </data>
-  <data name="DistanceHelper_WhiteSpeed_Label" xml:space="preserve">
-    <value>White speed (x)</value>
+  <data name="&gt;&gt;label10.Name" xml:space="preserve">
+    <value>label10</value>
   </data>
-  <data name="DistanceHelper_RedSpeed_Label" xml:space="preserve">
-    <value>Red speed (x)</value>
+  <data name="&gt;&gt;label10.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="Template_GroupBox" xml:space="preserve">
+  <data name="&gt;&gt;label10.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;label10.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="numericUpDown_timeOut.Location" type="System.Drawing.Point, System.Drawing">
+    <value>235, 66</value>
+  </data>
+  <data name="numericUpDown_timeOut.Size" type="System.Drawing.Size, System.Drawing">
+    <value>75, 23</value>
+  </data>
+  <data name="numericUpDown_timeOut.TabIndex" type="System.Int32, mscorlib">
+    <value>5</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_timeOut.Name" xml:space="preserve">
+    <value>numericUpDown_timeOut</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_timeOut.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_timeOut.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_timeOut.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="label9.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label9.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 68</value>
+  </data>
+  <data name="label9.Size" type="System.Drawing.Size, System.Drawing">
+    <value>223, 17</value>
+  </data>
+  <data name="label9.TabIndex" type="System.Int32, mscorlib">
+    <value>4</value>
+  </data>
+  <data name="label9.Text" xml:space="preserve">
+    <value>Cancel current drawing process after</value>
+  </data>
+  <data name="&gt;&gt;label9.Name" xml:space="preserve">
+    <value>label9</value>
+  </data>
+  <data name="&gt;&gt;label9.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label9.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;label9.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="checkBox_FilterNearbyHitObjects.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_FilterNearbyHitObjects.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
+    <value>NoControl</value>
+  </data>
+  <data name="checkBox_FilterNearbyHitObjects.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 22</value>
+  </data>
+  <data name="checkBox_FilterNearbyHitObjects.Size" type="System.Drawing.Size, System.Drawing">
+    <value>448, 38</value>
+  </data>
+  <data name="checkBox_FilterNearbyHitObjects.TabIndex" type="System.Int32, mscorlib">
+    <value>3</value>
+  </data>
+  <data name="checkBox_FilterNearbyHitObjects.Text" xml:space="preserve">
+    <value>Filter HitObjects. Speed up but cause banana and droplets error.
+Enable it only when DTB or Marathon beatmaps etc. Backup is disabled.</value>
+  </data>
+  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.Name" xml:space="preserve">
+    <value>checkBox_FilterNearbyHitObjects</value>
+  </data>
+  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.Parent" xml:space="preserve">
+    <value>groupBox8</value>
+  </data>
+  <data name="&gt;&gt;checkBox_FilterNearbyHitObjects.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="&gt;&gt;CurveColorButton.Name" xml:space="preserve">
+    <value>CurveColorButton</value>
+  </data>
+  <data name="&gt;&gt;CurveColorButton.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;CurveColorButton.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;CurveColorButton.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="&gt;&gt;CurveWidthComboBox.Name" xml:space="preserve">
+    <value>CurveWidthComboBox</value>
+  </data>
+  <data name="&gt;&gt;CurveWidthComboBox.Type" xml:space="preserve">
+    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;CurveWidthComboBox.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;CurveWidthComboBox.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;CurveDashStyleComboBox.Name" xml:space="preserve">
+    <value>CurveDashStyleComboBox</value>
+  </data>
+  <data name="&gt;&gt;CurveDashStyleComboBox.Type" xml:space="preserve">
+    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;CurveDashStyleComboBox.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;CurveDashStyleComboBox.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;label15.Name" xml:space="preserve">
+    <value>label15</value>
+  </data>
+  <data name="&gt;&gt;label15.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label15.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;label15.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;label14.Name" xml:space="preserve">
+    <value>label14</value>
+  </data>
+  <data name="&gt;&gt;label14.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label14.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;label14.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="&gt;&gt;label13.Name" xml:space="preserve">
+    <value>label13</value>
+  </data>
+  <data name="&gt;&gt;label13.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label13.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;label13.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="groupBox9.Location" type="System.Drawing.Point, System.Drawing">
+    <value>516, 295</value>
+  </data>
+  <data name="groupBox9.Size" type="System.Drawing.Size, System.Drawing">
+    <value>209, 110</value>
+  </data>
+  <data name="groupBox9.TabIndex" type="System.Int32, mscorlib">
+    <value>10</value>
+  </data>
+  <data name="groupBox9.Text" xml:space="preserve">
+    <value>Cubic Fitting Curve</value>
+  </data>
+  <data name="&gt;&gt;groupBox9.Name" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;groupBox9.Type" xml:space="preserve">
+    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;groupBox9.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;groupBox9.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="CurveColorButton.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
+    <value>NoControl</value>
+  </data>
+  <data name="CurveColorButton.Location" type="System.Drawing.Point, System.Drawing">
+    <value>54, 74</value>
+  </data>
+  <data name="CurveColorButton.Size" type="System.Drawing.Size, System.Drawing">
+    <value>30, 30</value>
+  </data>
+  <data name="CurveColorButton.TabIndex" type="System.Int32, mscorlib">
+    <value>4</value>
+  </data>
+  <data name="&gt;&gt;CurveColorButton.Name" xml:space="preserve">
+    <value>CurveColorButton</value>
+  </data>
+  <data name="&gt;&gt;CurveColorButton.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;CurveColorButton.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;CurveColorButton.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="CurveWidthComboBox.Items" xml:space="preserve">
+    <value>1px</value>
+  </data>
+  <data name="CurveWidthComboBox.Items1" xml:space="preserve">
+    <value>2px</value>
+  </data>
+  <data name="CurveWidthComboBox.Items2" xml:space="preserve">
+    <value>3px</value>
+  </data>
+  <data name="CurveWidthComboBox.Items3" xml:space="preserve">
+    <value>4px</value>
+  </data>
+  <data name="CurveWidthComboBox.Items4" xml:space="preserve">
+    <value>5px</value>
+  </data>
+  <data name="CurveWidthComboBox.Location" type="System.Drawing.Point, System.Drawing">
+    <value>54, 20</value>
+  </data>
+  <data name="CurveWidthComboBox.Size" type="System.Drawing.Size, System.Drawing">
+    <value>109, 25</value>
+  </data>
+  <data name="CurveWidthComboBox.TabIndex" type="System.Int32, mscorlib">
+    <value>5</value>
+  </data>
+  <data name="&gt;&gt;CurveWidthComboBox.Name" xml:space="preserve">
+    <value>CurveWidthComboBox</value>
+  </data>
+  <data name="&gt;&gt;CurveWidthComboBox.Type" xml:space="preserve">
+    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;CurveWidthComboBox.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;CurveWidthComboBox.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="CurveDashStyleComboBox.Items" xml:space="preserve">
+    <value>Solid</value>
+  </data>
+  <data name="CurveDashStyleComboBox.Items1" xml:space="preserve">
+    <value>Dash</value>
+  </data>
+  <data name="CurveDashStyleComboBox.Location" type="System.Drawing.Point, System.Drawing">
+    <value>54, 47</value>
+  </data>
+  <data name="CurveDashStyleComboBox.Size" type="System.Drawing.Size, System.Drawing">
+    <value>109, 25</value>
+  </data>
+  <data name="CurveDashStyleComboBox.TabIndex" type="System.Int32, mscorlib">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;CurveDashStyleComboBox.Name" xml:space="preserve">
+    <value>CurveDashStyleComboBox</value>
+  </data>
+  <data name="&gt;&gt;CurveDashStyleComboBox.Type" xml:space="preserve">
+    <value>System.Windows.Forms.ComboBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;CurveDashStyleComboBox.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;CurveDashStyleComboBox.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="label15.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label15.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 77</value>
+  </data>
+  <data name="label15.Size" type="System.Drawing.Size, System.Drawing">
+    <value>40, 17</value>
+  </data>
+  <data name="label15.TabIndex" type="System.Int32, mscorlib">
+    <value>2</value>
+  </data>
+  <data name="label15.Text" xml:space="preserve">
+    <value>Color</value>
+  </data>
+  <data name="&gt;&gt;label15.Name" xml:space="preserve">
+    <value>label15</value>
+  </data>
+  <data name="&gt;&gt;label15.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label15.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;label15.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="label14.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label14.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 50</value>
+  </data>
+  <data name="label14.Size" type="System.Drawing.Size, System.Drawing">
+    <value>35, 17</value>
+  </data>
+  <data name="label14.TabIndex" type="System.Int32, mscorlib">
+    <value>1</value>
+  </data>
+  <data name="label14.Text" xml:space="preserve">
+    <value>Style</value>
+  </data>
+  <data name="&gt;&gt;label14.Name" xml:space="preserve">
+    <value>label14</value>
+  </data>
+  <data name="&gt;&gt;label14.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label14.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;label14.ZOrder" xml:space="preserve">
+    <value>4</value>
+  </data>
+  <data name="label13.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="label13.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 23</value>
+  </data>
+  <data name="label13.Size" type="System.Drawing.Size, System.Drawing">
+    <value>42, 17</value>
+  </data>
+  <data name="label13.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="label13.Text" xml:space="preserve">
+    <value>Width</value>
+  </data>
+  <data name="&gt;&gt;label13.Name" xml:space="preserve">
+    <value>label13</value>
+  </data>
+  <data name="&gt;&gt;label13.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label13.Parent" xml:space="preserve">
+    <value>groupBox9</value>
+  </data>
+  <data name="&gt;&gt;label13.ZOrder" xml:space="preserve">
+    <value>5</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateColor.Name" xml:space="preserve">
+    <value>label_TemplateColor</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateColor.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateColor.Parent" xml:space="preserve">
+    <value>groupBox_Template</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateColor.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="&gt;&gt;button_TemplateColor.Name" xml:space="preserve">
+    <value>button_TemplateColor</value>
+  </data>
+  <data name="&gt;&gt;button_TemplateColor.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_TemplateColor.Parent" xml:space="preserve">
+    <value>groupBox_Template</value>
+  </data>
+  <data name="&gt;&gt;button_TemplateColor.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateAlpha.Name" xml:space="preserve">
+    <value>label_TemplateAlpha</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateAlpha.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateAlpha.Parent" xml:space="preserve">
+    <value>groupBox_Template</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateAlpha.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_TemplateAlpha.Name" xml:space="preserve">
+    <value>numericUpDown_TemplateAlpha</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_TemplateAlpha.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_TemplateAlpha.Parent" xml:space="preserve">
+    <value>groupBox_Template</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_TemplateAlpha.ZOrder" xml:space="preserve">
+    <value>3</value>
+  </data>
+  <data name="groupBox_Template.Location" type="System.Drawing.Point, System.Drawing">
+    <value>516, 408</value>
+  </data>
+  <data name="groupBox_Template.Size" type="System.Drawing.Size, System.Drawing">
+    <value>209, 92</value>
+  </data>
+  <data name="groupBox_Template.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="groupBox_Template.Text" xml:space="preserve">
     <value>Template</value>
   </data>
-  <data name="Template_Color_Label" xml:space="preserve">
+  <data name="&gt;&gt;groupBox_Template.Name" xml:space="preserve">
+    <value>groupBox_Template</value>
+  </data>
+  <data name="&gt;&gt;groupBox_Template.Type" xml:space="preserve">
+    <value>System.Windows.Forms.GroupBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;groupBox_Template.Parent" xml:space="preserve">
+    <value>$this</value>
+  </data>
+  <data name="&gt;&gt;groupBox_Template.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="label_TemplateColor.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 24</value>
+  </data>
+  <data name="label_TemplateColor.Size" type="System.Drawing.Size, System.Drawing">
+    <value>100, 20</value>
+  </data>
+  <data name="label_TemplateColor.TabIndex" type="System.Int32, mscorlib">
+    <value>0</value>
+  </data>
+  <data name="label_TemplateColor.Text" xml:space="preserve">
     <value>Outline color</value>
   </data>
-  <data name="Template_Alpha_Label" xml:space="preserve">
+  <data name="&gt;&gt;label_TemplateColor.Name" xml:space="preserve">
+    <value>label_TemplateColor</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateColor.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateColor.Parent" xml:space="preserve">
+    <value>groupBox_Template</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateColor.ZOrder" xml:space="preserve">
+    <value>0</value>
+  </data>
+  <data name="button_TemplateColor.Location" type="System.Drawing.Point, System.Drawing">
+    <value>110, 20</value>
+  </data>
+  <data name="button_TemplateColor.Size" type="System.Drawing.Size, System.Drawing">
+    <value>80, 25</value>
+  </data>
+  <data name="button_TemplateColor.TabIndex" type="System.Int32, mscorlib">
+    <value>1</value>
+  </data>
+  <data name="&gt;&gt;button_TemplateColor.Name" xml:space="preserve">
+    <value>button_TemplateColor</value>
+  </data>
+  <data name="&gt;&gt;button_TemplateColor.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Button, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;button_TemplateColor.Parent" xml:space="preserve">
+    <value>groupBox_Template</value>
+  </data>
+  <data name="&gt;&gt;button_TemplateColor.ZOrder" xml:space="preserve">
+    <value>1</value>
+  </data>
+  <data name="label_TemplateAlpha.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 56</value>
+  </data>
+  <data name="label_TemplateAlpha.Size" type="System.Drawing.Size, System.Drawing">
+    <value>100, 20</value>
+  </data>
+  <data name="label_TemplateAlpha.TabIndex" type="System.Int32, mscorlib">
+    <value>2</value>
+  </data>
+  <data name="label_TemplateAlpha.Text" xml:space="preserve">
     <value>Opacity (%)</value>
   </data>
-  <data name="ReadInterval_Full_Label" xml:space="preserve">
-    <value>Full read</value>
+  <data name="&gt;&gt;label_TemplateAlpha.Name" xml:space="preserve">
+    <value>label_TemplateAlpha</value>
   </data>
-  <data name="ReadInterval_LowFreq_Label" xml:space="preserve">
-    <value>Low-freq read</value>
+  <data name="&gt;&gt;label_TemplateAlpha.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateAlpha.Parent" xml:space="preserve">
+    <value>groupBox_Template</value>
+  </data>
+  <data name="&gt;&gt;label_TemplateAlpha.ZOrder" xml:space="preserve">
+    <value>2</value>
+  </data>
+  <data name="numericUpDown_TemplateAlpha.Location" type="System.Drawing.Point, System.Drawing">
+    <value>110, 54</value>
+  </data>
+  <data name="numericUpDown_TemplateAlpha.Size" type="System.Drawing.Size, System.Drawing">
+    <value>60, 23</value>
+  </data>
+  <data name="numericUpDown_TemplateAlpha.TabIndex" type="System.Int32, mscorlib">
+    <value>3</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_TemplateAlpha.Name" xml:space="preserve">
+    <value>numericUpDown_TemplateAlpha</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_TemplateAlpha.Type" xml:space="preserve">
+    <value>System.Windows.Forms.NumericUpDown, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_TemplateAlpha.Parent" xml:space="preserve">
+    <value>groupBox_Template</value>
+  </data>
+  <data name="&gt;&gt;numericUpDown_TemplateAlpha.ZOrder" xml:space="preserve">
+    <value>3</value>
   </data>
   <metadata name="$this.Localizable" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>True</value>
   </metadata>
+  <data name="$this.AutoScaleDimensions" type="System.Drawing.SizeF, System.Drawing">
+    <value>7, 17</value>
+  </data>
+  <data name="$this.ClientSize" type="System.Drawing.Size, System.Drawing">
+    <value>737, 670</value>
+  </data>
+  <data name="$this.StartPosition" type="System.Windows.Forms.FormStartPosition, System.Windows.Forms">
+    <value>CenterParent</value>
+  </data>
+  <data name="$this.Text" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="&gt;&gt;$this.Name" xml:space="preserve">
+    <value>SettingsForm</value>
+  </data>
+  <data name="&gt;&gt;$this.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Form, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
 </root>

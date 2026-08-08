@@ -4,7 +4,6 @@ using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets.Catch.Objects;
-using osu.Game.Rulesets.Catch.UI;
 using osu.Game.Rulesets.Objects;
 
 namespace osucatch_editor_realtimeviewer
@@ -713,7 +712,7 @@ namespace osucatch_editor_realtimeviewer
             this.NearbyHitObjects.ForEach((obj) =>
             {
                 if (obj is not Banana && obj is not TinyDroplet)
-                points.Add(new PointF(obj.EffectiveX, (float)obj.StartTime));
+                    points.Add(new PointF(obj.EffectiveX, (float)obj.StartTime));
             });
             if (points.Count <= 2) return;
             CubicSpline spline = new CubicSpline(points);

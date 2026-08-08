@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using osuTK;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using osuTK;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -78,7 +73,7 @@ namespace osucatch_editor_realtimeviewer
             private static extern void BezierApproximate0(
                 float ax, float ay, float bx, float by, float cx, float cy,
                 out float x, out float y);
-            
+
             private static Vector2 BezierApproximate(Vector2 a, Vector2 b, Vector2 c)
             {
                 BezierApproximate0(a.X, a.Y, b.X, b.Y, c.X, c.Y, out float x, out float y);

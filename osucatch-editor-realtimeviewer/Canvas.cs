@@ -1,7 +1,6 @@
 ﻿using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
-using System.Drawing;
 using System.Runtime.InteropServices;
 using Color = OpenTK.Graphics.Color4;
 

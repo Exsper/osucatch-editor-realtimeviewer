@@ -1,18 +1,8 @@
-using System;
-using System.Globalization;
-using System.Collections.Generic;
-using System.Drawing.Drawing2D;
-using System.Linq;
-using System.Net.Quic;
-using System.Text;
-using Editor_Reader;
-using OpenTK.Graphics.OpenGL;
-using osu.Game.Beatmaps;
-using osu.Game.Beatmaps.ControlPoints;
+﻿using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Catch.Beatmaps;
 using osu.Game.Rulesets.Catch.Objects;
-using osu.Game.Rulesets.Catch.UI;
-using osu.Game.Rulesets.Mods;
+using System.Globalization;
+using System.Text;
 
 namespace osucatch_editor_realtimeviewer
 {

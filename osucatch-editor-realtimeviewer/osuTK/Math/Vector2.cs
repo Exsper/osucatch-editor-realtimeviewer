@@ -1,4 +1,4 @@
-/*
+﻿/*
 Copyright (c) 2006 - 2008 The Open Toolkit library.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -70,7 +70,7 @@ namespace osuTK
         {
             get
             {
-                 return (float)System.Math.Sqrt(X * X + Y * Y);
+                return (float)System.Math.Sqrt(X * X + Y * Y);
             }
         }
 
