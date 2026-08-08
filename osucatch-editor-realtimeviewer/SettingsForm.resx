@@ -1657,7 +1657,7 @@
     <value>12, 299</value>
   </data>
   <data name="groupBox6.Size" type="System.Drawing.Size, System.Drawing">
-    <value>239, 334</value>
+    <value>239, 370</value>
   </data>
   <data name="groupBox6.TabIndex" type="System.Int32, mscorlib">
     <value>7</value>
@@ -1982,6 +1982,60 @@
   </data>
   <data name="&gt;&gt;checkBox_showConsole.ZOrder" xml:space="preserve">
     <value>10</value>
+  </data>
+  <data name="checkBox_UseBatchRendering.AutoSize" type="System.Boolean, mscorlib">
+    <value>True</value>
+  </data>
+  <data name="checkBox_UseBatchRendering.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 286</value>
+  </data>
+  <data name="checkBox_UseBatchRendering.Size" type="System.Drawing.Size, System.Drawing">
+    <value>200, 21</value>
+  </data>
+  <data name="checkBox_UseBatchRendering.TabIndex" type="System.Int32, mscorlib">
+    <value>18</value>
+  </data>
+  <data name="checkBox_UseBatchRendering.Text" xml:space="preserve">
+    <value>Batch rendering (faster, may crash on some GPUs)</value>
+  </data>
+  <data name="&gt;&gt;checkBox_UseBatchRendering.Name" xml:space="preserve">
+    <value>checkBox_UseBatchRendering</value>
+  </data>
+  <data name="&gt;&gt;checkBox_UseBatchRendering.Type" xml:space="preserve">
+    <value>System.Windows.Forms.CheckBox, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;checkBox_UseBatchRendering.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;checkBox_UseBatchRendering.ZOrder" xml:space="preserve">
+    <value>11</value>
+  </data>
+  <data name="label_UseBatchRenderingWarning.AutoSize" type="System.Boolean, mscorlib">
+    <value>False</value>
+  </data>
+  <data name="label_UseBatchRenderingWarning.Location" type="System.Drawing.Point, System.Drawing">
+    <value>6, 311</value>
+  </data>
+  <data name="label_UseBatchRenderingWarning.Size" type="System.Drawing.Size, System.Drawing">
+    <value>225, 54</value>
+  </data>
+  <data name="label_UseBatchRenderingWarning.TabIndex" type="System.Int32, mscorlib">
+    <value>19</value>
+  </data>
+  <data name="label_UseBatchRenderingWarning.Text" xml:space="preserve">
+    <value>Warning: batch rendering is not supported on some GPUs/drivers and may crash the app during startup or drawing. If a crash occurs, this option is turned off automatically on next launch.</value>
+  </data>
+  <data name="&gt;&gt;label_UseBatchRenderingWarning.Name" xml:space="preserve">
+    <value>label_UseBatchRenderingWarning</value>
+  </data>
+  <data name="&gt;&gt;label_UseBatchRenderingWarning.Type" xml:space="preserve">
+    <value>System.Windows.Forms.Label, System.Windows.Forms, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;label_UseBatchRenderingWarning.Parent" xml:space="preserve">
+    <value>groupBox6</value>
+  </data>
+  <data name="&gt;&gt;label_UseBatchRenderingWarning.ZOrder" xml:space="preserve">
+    <value>12</value>
   </data>
   <data name="&gt;&gt;checkBox_BarLine_Show.Name" xml:space="preserve">
     <value>checkBox_BarLine_Show</value>

@@ -994,5 +994,18 @@ namespace osucatch_editor_realtimeviewer {
                 this["LowFreqRead_Interval"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool Use_Batch_Rendering {
+            get {
+                return ((bool)(this["Use_Batch_Rendering"]));
+            }
+            set {
+                this["Use_Batch_Rendering"] = value;
+            }
+        }
+        
     }
 }

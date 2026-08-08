@@ -82,6 +82,8 @@
             checkBox_Log_EditorReader = new CheckBox();
             checkBox_Log_Program = new CheckBox();
             checkBox_showConsole = new CheckBox();
+            checkBox_UseBatchRendering = new CheckBox();
+            label_UseBatchRenderingWarning = new Label();
             groupBox7 = new GroupBox();
             checkBox_BarLine_Show = new CheckBox();
             checkBox_TimingLine_ShowGreen = new CheckBox();
@@ -446,6 +448,8 @@
             groupBox6.Controls.Add(checkBox_Log_EditorReader);
             groupBox6.Controls.Add(checkBox_Log_Program);
             groupBox6.Controls.Add(checkBox_showConsole);
+            groupBox6.Controls.Add(checkBox_UseBatchRendering);
+            groupBox6.Controls.Add(label_UseBatchRenderingWarning);
             resources.ApplyResources(groupBox6, "groupBox6");
             groupBox6.Name = "groupBox6";
             groupBox6.TabStop = false;
@@ -515,6 +519,17 @@
             resources.ApplyResources(checkBox_showConsole, "checkBox_showConsole");
             checkBox_showConsole.Name = "checkBox_showConsole";
             checkBox_showConsole.UseVisualStyleBackColor = true;
+            // 
+            // checkBox_UseBatchRendering
+            // 
+            resources.ApplyResources(checkBox_UseBatchRendering, "checkBox_UseBatchRendering");
+            checkBox_UseBatchRendering.Name = "checkBox_UseBatchRendering";
+            checkBox_UseBatchRendering.UseVisualStyleBackColor = true;
+            // 
+            // label_UseBatchRenderingWarning
+            // 
+            resources.ApplyResources(label_UseBatchRenderingWarning, "label_UseBatchRenderingWarning");
+            label_UseBatchRenderingWarning.Name = "label_UseBatchRenderingWarning";
             // 
             // groupBox7
             // 
@@ -839,6 +854,8 @@
         private Label label12;
         private Button button_Label_Color;
         private CheckBox checkBox_Log_BookmarkPlus;
+        private CheckBox checkBox_UseBatchRendering;
+        private Label label_UseBatchRenderingWarning;
         private GroupBox groupBox9;
         private Label label15;
         private Label label14;

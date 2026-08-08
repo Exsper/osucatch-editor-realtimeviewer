@@ -286,6 +286,18 @@
   <data name="checkBox_showConsole.Text" xml:space="preserve">
     <value>启动时显示控制台</value>
   </data>
+  <data name="checkBox_UseBatchRendering.Size" type="System.Drawing.Size, System.Drawing">
+    <value>215, 21</value>
+  </data>
+  <data name="checkBox_UseBatchRendering.Text" xml:space="preserve">
+    <value>批量渲染（更快，部分机型可能闪退）</value>
+  </data>
+  <data name="label_UseBatchRenderingWarning.Size" type="System.Drawing.Size, System.Drawing">
+    <value>225, 54</value>
+  </data>
+  <data name="label_UseBatchRenderingWarning.Text" xml:space="preserve">
+    <value>警告：部分显卡/驱动不支持批量渲染，启动或绘制时可能闪退。若发生闪退，下次启动会自动关闭此项。</value>
+  </data>
   <data name="groupBox7.Text" xml:space="preserve">
     <value>时间点</value>
   </data>

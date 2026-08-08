@@ -230,6 +230,7 @@ namespace osucatch_editor_realtimeviewer
             // contain screens count
             drawingHelper.ScreensContain = app.Default.ScreensContain;
             Canvas.screensContain = app.Default.ScreensContain;
+            Canvas.UseBatchRendering = app.Default.Use_Batch_Rendering;
             ToolStripMenuItem[] screensMenuItems = {
                 Screens1ToolStripMenuItem,
                 Screens2ToolStripMenuItem,

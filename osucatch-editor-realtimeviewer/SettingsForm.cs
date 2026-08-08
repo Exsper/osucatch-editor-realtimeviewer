@@ -25,6 +25,7 @@
             checkBox_ShowSelected.Checked = app.Default.Selected_Show;
 
             checkBox_showConsole.Checked = app.Default.Show_Console;
+            checkBox_UseBatchRendering.Checked = app.Default.Use_Batch_Rendering;
             checkBox_Log_Program.Checked = app.Default.Log_Program;
             checkBox_Log_EditorReader.Checked = app.Default.Log_EditorReader;
             checkBox_Log_BeatmapBuilder.Checked = app.Default.Log_BeatmapBuilder;
@@ -130,6 +131,8 @@
             app.Default.Selected_Show = checkBox_ShowSelected.Checked;
 
             app.Default.Show_Console = checkBox_showConsole.Checked;
+            app.Default.Use_Batch_Rendering = checkBox_UseBatchRendering.Checked;
+            Canvas.UseBatchRendering = checkBox_UseBatchRendering.Checked;
             app.Default.Log_Program = checkBox_Log_Program.Checked;
             app.Default.Log_EditorReader = checkBox_Log_EditorReader.Checked;
             app.Default.Log_BeatmapBuilder = checkBox_Log_BeatmapBuilder.Checked;

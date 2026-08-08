@@ -72,14 +72,34 @@ namespace osucatch_editor_realtimeviewer
         {
             try
             {
-                if (!File.Exists(CleanExitMarkerPath))
-                {
-                    Log.Breadcrumb("Previous run did not exit cleanly (no clean-exit marker).");
-                }
-                else
+                if (File.Exists(CleanExitMarkerPath))
                 {
                     File.Delete(CleanExitMarkerPath);
+                    return;
                 }
+
+                Log.Breadcrumb("Previous run did not exit cleanly (no clean-exit marker).");
+                DisableBatchRenderingIfEnabled();
+            }
+            catch
+            {
+            }
+        }
+
+        /// <summary>
+        /// 上次异常退出（闪退/卡死被终止）时，自动关闭批量渲染：
+        /// 部分显卡/驱动不支持批量渲染，可能正是闪退原因。
+        /// </summary>
+        private static void DisableBatchRenderingIfEnabled()
+        {
+            try
+            {
+                if (!app.Default.Use_Batch_Rendering) return;
+
+                app.Default.Use_Batch_Rendering = false;
+                app.Default.Save();
+                Canvas.UseBatchRendering = false;
+                Log.Breadcrumb("Batch rendering disabled after abnormal exit.");
             }
             catch
             {
@@ -136,6 +156,7 @@ namespace osucatch_editor_realtimeviewer
             Log.Breadcrumb("CRASH: " + reason + (exception == null ? "" : " (" + exception.GetType().Name + ")"));
             string? logPath = CrashLogger.WriteCrashReport(reason, exception);
             Log.Breadcrumb("Crash report written: " + (logPath ?? "(failed)"));
+            DisableBatchRenderingIfEnabled();
             CrashLogger.TryShowDialog(logPath, exception);
 
             if (exit)
