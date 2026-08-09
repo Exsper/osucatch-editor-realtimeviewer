@@ -27,15 +27,27 @@ jobs:
           mingw-w64-x86_64-gcc
           mingw-w64-i686-gcc
 
-    - name: Build StableCompatLib (x64 & x86)
+    - name: Build x64 StableCompatLib
       shell: msys2 {0}
+      env:
+        MSYSTEM: MINGW64
       run: |
+        test "$(g++ -dumpmachine)" = "x86_64-w64-mingw32"
         cd StableCompatLib
-        mkdir -p x64 x86
-        /mingw64/bin/x86_64-w64-mingw32-g++ -c StableCompatLib.cpp -o x64/StableCompatLib-x64.o
-        /mingw64/bin/x86_64-w64-mingw32-g++ -shared -lm -o x64/StableCompatLib.dll x64/StableCompatLib-x64.o
-        /mingw32/bin/i686-w64-mingw32-g++ -c StableCompatLib.cpp -o x86/StableCompatLib-x86.o
-        /mingw32/bin/i686-w64-mingw32-g++ -shared -lm -o x86/StableCompatLib.dll x86/StableCompatLib-x86.o
+        mkdir -p x64
+        g++ -c StableCompatLib.cpp -o x64/StableCompatLib-x64.o
+        g++ -shared -lm -o x64/StableCompatLib.dll x64/StableCompatLib-x64.o
+
+    - name: Build x86 StableCompatLib
+      shell: msys2 {0}
+      env:
+        MSYSTEM: MINGW32
+      run: |
+        test "$(g++ -dumpmachine)" = "i686-w64-mingw32"
+        cd StableCompatLib
+        mkdir -p x86
+        g++ -c StableCompatLib.cpp -o x86/StableCompatLib-x86.o
+        g++ -shared -lm -o x86/StableCompatLib.dll x86/StableCompatLib-x86.o
 
     - name: Restore dependencies (x64)
       run: dotnet restore osucatch-editor-realtimeviewer -r win-x64
