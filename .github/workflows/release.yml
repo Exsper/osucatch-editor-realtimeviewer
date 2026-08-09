@@ -5,6 +5,10 @@ on:
     branches:
       - "master"
       - "dev"
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - 'LICENSE.txt'
       
 jobs:
   build:
