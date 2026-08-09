@@ -58,7 +58,9 @@ osucatch-viewer/
 
 ## 第二步：安装 .NET 8 Desktop Runtime（x86）
 
-官方发布包是"框架依赖"版本，不含 .NET 运行时，因此 prefix 里必须装有 **.NET 8 Windows Desktop Runtime（x86）**（查看器需要 `Microsoft.NETCore.App` 与 `Microsoft.WindowsDesktop.App` 8.0）。
+> 省事选项：如果不想在 prefix 里装 .NET 运行时，直接下载官方发布的 **`release-x86-self-contained.zip`**（自包含版，已内置 .NET 8 运行时）替换第一步的 `release-x86.zip`，然后跳到第三步即可。
+
+官方普通发布包是"框架依赖"版本，不含 .NET 运行时，因此 prefix 里必须装有 **.NET 8 Windows Desktop Runtime（x86）**（查看器需要 `Microsoft.NETCore.App` 与 `Microsoft.WindowsDesktop.App` 8.0）。
 
 ### 方法 A（推荐）：用 osu-winello 自带的 winetricks
 
@@ -188,6 +190,8 @@ chmod +x ~/.local/bin/osu-with-viewer
 - **`osu-wine --fixprefix` 之后查看器起不来**：prefix 被重装，按第二步重新安装 .NET 运行时即可（查看器本体不受影响）。
 
 ## 附录（进阶）：自己发布自包含 x86 版，免装运行时
+
+> 官方发布页已经提供 `release-x86-self-contained.zip`（自包含版），一般直接下载即可，不需要自己发布。以下步骤仅在你需要基于最新代码自行构建时使用。
 
 如果不想往 prefix 里装运行时，可以在 Linux 上用 .NET 8 SDK 交叉发布自包含版本：
 

@@ -58,6 +58,8 @@ Why this location:
 
 ## Step 2: Install the .NET 8 Desktop Runtime (x86)
 
+> Skip-ahead option: if you do not want to install the .NET runtime into the prefix, download the official **`release-x86-self-contained.zip`** (a self-contained build with the .NET 8 runtime bundled) instead of `release-x86.zip` in Step 1, then jump straight to Step 3.
+
 The official release is a framework-dependent build and does not bundle the .NET runtime, so the prefix must have the **.NET 8 Windows Desktop Runtime (x86)** installed (the viewer needs `Microsoft.NETCore.App` and `Microsoft.WindowsDesktop.App` 8.0).
 
 ### Method A (recommended): use osu-winello's bundled winetricks
@@ -188,6 +190,8 @@ The viewer's settings and logs are written under Wine's `%LocalAppData%`, which 
 - **The viewer fails to start after `osu-wine --fixprefix`**: the prefix was reinstalled; reinstall the .NET runtime following Step 2 (the viewer itself is unaffected).
 
 ## Appendix (advanced): publish a self-contained x86 build, no runtime installation needed
+
+> The official releases page also provides `release-x86-self-contained.zip` (self-contained build), so you usually do not need to build it yourself. The steps below are only for building from the latest source code.
 
 If you would rather not install a runtime into the prefix, you can cross-publish a self-contained build on Linux with the .NET 8 SDK:
 
