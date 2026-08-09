@@ -66,14 +66,15 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <!-- win-x64/win-x86 构建使用 CI 生成的对应位数原生库（StableCompatLib/x64、StableCompatLib/x86），目录或文件缺失时构建直接报错，不再回退 -->
+    <!-- win-x64/win-x86 构建使用对应位数原生库；未指定 RID 的调试构建默认按 64 位（AnyCPU 在 x64 系统上以 64 位进程运行） -->
     <StableCompatLibSourceDir Condition="'$(RuntimeIdentifier)' == 'win-x64'">$(MSBuildProjectDirectory)\..\StableCompatLib\x64</StableCompatLibSourceDir>
     <StableCompatLibSourceDir Condition="'$(RuntimeIdentifier)' == 'win-x86'">$(MSBuildProjectDirectory)\..\StableCompatLib\x86</StableCompatLibSourceDir>
+    <StableCompatLibSourceDir Condition="'$(StableCompatLibSourceDir)' == ''">$(MSBuildProjectDirectory)\..\StableCompatLib\x64</StableCompatLibSourceDir>
   </PropertyGroup>
 
   <Target Name="CopyStableCompatLib" AfterTargets="Build">
-    <Error Condition="'$(StableCompatLibSourceDir)' == ''"
-           Text="StableCompatLib 需要按目标架构构建：请使用 -r win-x64 或 -r win-x86。" />
+    <Warning Condition="'$(RuntimeIdentifier)' == ''"
+             Text="未指定 RuntimeIdentifier，默认复制 64 位 StableCompatLib；如需 32 位请用 -r win-x86 构建。" />
     <Error Condition="!Exists('$(StableCompatLibSourceDir)\StableCompatLib.dll')"
            Text="找不到 $(StableCompatLibSourceDir)\StableCompatLib.dll，请先构建对应架构的 StableCompatLib（CI 中由 MSYS2 步骤生成）。" />
     <Copy SourceFiles="$(StableCompatLibSourceDir)\StableCompatLib.dll"

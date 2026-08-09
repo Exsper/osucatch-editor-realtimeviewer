@@ -45,13 +45,13 @@ extern "C" {
         return (float) sqrt((double) ((LD) x * x + (LD) y * y));
     }
 
-    __declspec(dllexport) int isStraightLine(float ax, float ay, float bx, float by, float cx, float cy) {
+    __declspec(dllexport) int __stdcall isStraightLine(float ax, float ay, float bx, float by, float cx, float cy) {
         LD p1 = ((LD) bx - (LD) ax) * ((LD) cy - (LD) ay);
         LD p2 = ((LD) cx - (LD) ax) * ((LD) by - (LD) ay);
         return p1 - p2 == 0;
     }
 
-    __declspec(dllexport) float distance(float ax, float ay, float bx, float by) {
+    __declspec(dllexport) float __stdcall distance(float ax, float ay, float bx, float by) {
         LD p1 = (LD) ax - (LD) bx;
         LD p2 = (LD) ay - (LD) by;
         double lengthSquared = (double) (p1 * p1 + p2 * p2);
@@ -159,13 +159,13 @@ extern "C" {
         return (double) fabsl(((LD) a - (LD) b) * (LD) c);
     }
 
-    __declspec(dllexport) void lerp(float ax, float ay, float bx, float by, float t, float *x, float *y)
+    __declspec(dllexport) void __stdcall lerp(float ax, float ay, float bx, float by, float t, float *x, float *y)
     {
         *x = (float) ((LD) ax + ((LD) bx - (LD) ax) * (LD) t);
         *y = (float) ((LD) ay + ((LD) by - (LD) ay) * (LD) t);
     }
 
-    __declspec(dllexport) void catmullRom(
+    __declspec(dllexport) void __stdcall catmullRom(
         float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4,
         float t, float *x, float *y)
     {
