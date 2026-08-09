@@ -36,7 +36,8 @@ jobs:
         cd StableCompatLib
         mkdir -p x64
         g++ -c StableCompatLib.cpp -o x64/StableCompatLib-x64.o
-        g++ -shared -lm -o x64/StableCompatLib.dll x64/StableCompatLib-x64.o
+        g++ -shared -static -static-libgcc -static-libstdc++ -lm -o x64/StableCompatLib.dll x64/StableCompatLib-x64.o
+        ! objdump -p x64/StableCompatLib.dll | grep -E "DLL Name: (libgcc|libstdc\+\+|libwinpthread)"
 
     - name: Build x86 StableCompatLib
       shell: msys2 {0}
@@ -47,7 +48,8 @@ jobs:
         cd StableCompatLib
         mkdir -p x86
         g++ -c StableCompatLib.cpp -o x86/StableCompatLib-x86.o
-        g++ -shared -lm -o x86/StableCompatLib.dll x86/StableCompatLib-x86.o
+        g++ -shared -static -static-libgcc -static-libstdc++ -lm -o x86/StableCompatLib.dll x86/StableCompatLib-x86.o
+        ! objdump -p x86/StableCompatLib.dll | grep -E "DLL Name: (libgcc|libstdc\+\+|libwinpthread)"
 
     - name: Restore dependencies (x64)
       run: dotnet restore osucatch-editor-realtimeviewer -r win-x64
