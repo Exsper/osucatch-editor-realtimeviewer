@@ -77,6 +77,20 @@ jobs:
         filename: 'release-x86.zip'
         directory: 'osucatch-editor-realtimeviewer/bin/x86/Release/net8.0-windows7.0/win-x86/'
 
+    - name: Upload x64 artifact (dev only)
+      if: github.ref == 'refs/heads/dev'
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-x64
+        path: osucatch-editor-realtimeviewer/bin/x64/Release/net8.0-windows7.0/win-x64/release-x64.zip
+
+    - name: Upload x86 artifact (dev only)
+      if: github.ref == 'refs/heads/dev'
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-x86
+        path: osucatch-editor-realtimeviewer/bin/x86/Release/net8.0-windows7.0/win-x86/release-x86.zip
+
     - name: Generate release tag
       if: github.ref == 'refs/heads/master'
       id: generate_release_tag
