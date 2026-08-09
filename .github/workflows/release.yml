@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "master"
+      - "dev"
       
 jobs:
   build:
@@ -17,20 +18,53 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    - name: Restore dependencies
-      run: dotnet restore osucatch-editor-realtimeviewer
+    - name: Setup MSYS2 (native library toolchains)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: false
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-i686-gcc
+
+    - name: Build StableCompatLib (x64 & x86)
+      shell: msys2 {0}
+      run: |
+        cd StableCompatLib
+        mkdir -p x64 x86
+        /mingw64/bin/x86_64-w64-mingw32-g++ -c StableCompatLib.cpp -o x64/StableCompatLib-x64.o
+        /mingw64/bin/x86_64-w64-mingw32-g++ -shared -lm -o x64/StableCompatLib.dll x64/StableCompatLib-x64.o
+        /mingw32/bin/i686-w64-mingw32-g++ -c StableCompatLib.cpp -o x86/StableCompatLib-x86.o
+        /mingw32/bin/i686-w64-mingw32-g++ -shared -lm -o x86/StableCompatLib.dll x86/StableCompatLib-x86.o
+
+    - name: Restore dependencies (x64)
+      run: dotnet restore osucatch-editor-realtimeviewer -r win-x64
       
     - name: Build x64
-      run: dotnet build osucatch-editor-realtimeviewer -c Release /p:Platform=x64 --no-restore
+      run: dotnet build osucatch-editor-realtimeviewer -c Release /p:Platform=x64 -r win-x64 --no-restore
 
-    - name: Create x64 release.zip
+    - name: Create x64 release zip
       uses: thedoctor0/zip-release@master
       with:
         type: 'zip'
-        filename: 'release.zip'
+        filename: 'release-x64.zip'
         directory: 'osucatch-editor-realtimeviewer/bin/x64/Release/net8.0-windows7.0/win-x64/'
 
+    - name: Restore dependencies (x86)
+      run: dotnet restore osucatch-editor-realtimeviewer -r win-x86
+
+    - name: Build x86
+      run: dotnet build osucatch-editor-realtimeviewer -c Release /p:Platform=x86 -r win-x86 --no-restore
+
+    - name: Create x86 release zip
+      uses: thedoctor0/zip-release@master
+      with:
+        type: 'zip'
+        filename: 'release-x86.zip'
+        directory: 'osucatch-editor-realtimeviewer/bin/x86/Release/net8.0-windows7.0/win-x86/'
+
     - name: Generate release tag
+      if: github.ref == 'refs/heads/master'
       id: generate_release_tag
       uses: alexvingg/next-release-tag@v1.0.4
       with:
@@ -38,6 +72,7 @@ jobs:
         tag_prefix: ''
 
     - name: Create Release
+      if: github.ref == 'refs/heads/master'
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
@@ -45,4 +80,5 @@ jobs:
         automatic_release_tag: ${{ steps.generate_release_tag.outputs.release_tag }}
         title: Release ${{ steps.generate_release_tag.outputs.release_tag }}
         files: |
-          osucatch-editor-realtimeviewer/bin/x64/Release/net8.0-windows7.0/win-x64/release.zip
+          osucatch-editor-realtimeviewer/bin/x64/Release/net8.0-windows7.0/win-x64/release-x64.zip
+          osucatch-editor-realtimeviewer/bin/x86/Release/net8.0-windows7.0/win-x86/release-x86.zip

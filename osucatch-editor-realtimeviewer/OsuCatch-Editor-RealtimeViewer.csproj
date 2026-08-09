@@ -8,7 +8,6 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
@@ -66,8 +65,15 @@
     <Folder Include="Osu.Game\" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- win-x64/win-x86 构建优先使用 CI 生成的对应位数原生库（StableCompatLib/x64、StableCompatLib/x86），目录不存在时回退到仓库根目录下的 64 位库 -->
+    <StableCompatLibSourceDir Condition="'$(RuntimeIdentifier)' == 'win-x64' and Exists('$(MSBuildProjectDirectory)\..\StableCompatLib\x64')">$(MSBuildProjectDirectory)\..\StableCompatLib\x64</StableCompatLibSourceDir>
+    <StableCompatLibSourceDir Condition="'$(RuntimeIdentifier)' == 'win-x86' and Exists('$(MSBuildProjectDirectory)\..\StableCompatLib\x86')">$(MSBuildProjectDirectory)\..\StableCompatLib\x86</StableCompatLibSourceDir>
+    <StableCompatLibSourceDir Condition="'$(StableCompatLibSourceDir)' == ''">$(MSBuildProjectDirectory)\..\StableCompatLib</StableCompatLibSourceDir>
+  </PropertyGroup>
+
   <Target Name="CopyStableCompatLib" AfterTargets="Build">
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\..\StableCompatLib\StableCompatLib.dll"
+    <Copy SourceFiles="$(StableCompatLibSourceDir)\StableCompatLib.dll"
           DestinationFolder="$(OutDir)"
           SkipUnchangedFiles="true" />
   </Target>
