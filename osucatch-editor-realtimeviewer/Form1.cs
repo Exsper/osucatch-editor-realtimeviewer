@@ -90,9 +90,20 @@ namespace osucatch_editor_realtimeviewer
         private SettingsForm? SettingsFormInstance = null;
         private BookmarkSettingsForm? BookmarkSettingsFormInstance = null;
 
-        public static string Path_Img_Hitcircle = @"img/fruit-apple.png";
-        public static string Path_Img_Drop = @"img/fruit-drop.png";
-        public static string Path_Img_Banana = @"img/fruit-bananas.png";
+        public static string Path_Img_Hitcircle = ResolveImagePath(@"img/fruit-apple.png");
+        public static string Path_Img_Drop = ResolveImagePath(@"img/fruit-drop.png");
+        public static string Path_Img_Banana = ResolveImagePath(@"img/fruit-bananas.png");
+
+        /// <summary>
+        /// 贴图路径按程序所在目录解析（exe 目录下的 img\），
+        /// 避免在 Wine/osu-winello 下因工作目录被批处理切到 D:\（osu 目录）而按相对路径找不到贴图；
+        /// 若程序目录下不存在该文件，则回退到原相对路径（即当前工作目录）。
+        /// </summary>
+        private static string ResolveImagePath(string relativePath)
+        {
+            string exeDirPath = Path.Combine(AppContext.BaseDirectory, relativePath);
+            return File.Exists(exeDirPath) ? exeDirPath : relativePath;
+        }
 
         public static bool NeedReapplySettings = false;
         public static bool NeedReapplyBookmarkStyles = false;
