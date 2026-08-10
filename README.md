@@ -10,7 +10,7 @@ Download the latest release (x64 / x86 builds):
 
 - <https://github.com/Exsper/osucatch-editor-realtimeviewer/releases/latest>
 
-> For osu-winello / Wine on Linux, use the **self-contained** x86 build (`release-x86-self-contained.zip`) — it bundles the .NET runtime and the `GdiPlus.dll` fix required to bypass the legacy GDI+ in osu-winello prefixes. The framework-dependent `release-x86.zip` is intended for Windows.
+> For osu-winello / Wine on Linux, use the **self-contained** x86 build (`release-x86-self-contained.zip`) — it bundles the .NET runtime and the `GdiPlus.dll` fix required to bypass the legacy GDI+ in osu-winello prefixes.
 
 ## Guides
 

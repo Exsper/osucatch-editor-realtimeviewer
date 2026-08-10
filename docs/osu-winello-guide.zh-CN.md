@@ -2,14 +2,6 @@
 
 本文面向通过 [osu-winello](https://github.com/NelloKudo/osu-winello) 在 Linux 上安装 osu! stable 的用户，介绍如何把本查看器（32 位版）放进 osu! 所在的 Wine prefix，并让它在 osu! 启动时一起启动，从而实时监控 osu! 的编辑器（editor）。
 
-## 为什么必须用 32 位版、必须用同一个 prefix
-
-- osu! stable 本身是 32 位程序。查看器通过 `ReadProcessMemory` 直接读取 osu!.exe 进程的内存（与 Mapping Tools、gosumemory 读取 osu! 的方式同源），并按 32 位指针模型解析数据。
-- Wine 的 prefix 就是一个独立的"虚拟 Windows 环境"。只有**同一个 prefix** 里的进程才能通过同一套 wineserver 互相访问，因此查看器必须和 osu! 在同一个 prefix 下启动。
-- 查看器自带的原生加速库 `StableCompatLib.dll` 也是按进程位数提供的：32 位发布包（`release-x86.zip`）里已经包含 x86 版本，无需额外处理。
-
-> osu-winello 的 prefix 是 64 位（win64），但完全兼容运行 32 位程序；用 32 位查看器是为了和 32 位 osu! 进程的指针模型保持一致，这也是官方同时发布 x86/x64 两个包的原因。
-
 ## 默认路径速查
 
 先用下面的命令确认你自己的路径（后续步骤会用到）：
@@ -58,57 +50,7 @@ osucatch-viewer/
 - 它不在 prefix 的 C: 盘里，`osu-wine --fixprefix` 重装 prefix 时不会被清掉。
 - 与 exe 同目录的 `GdiPlus.dll` 会被优先加载（程序目录优先于系统目录），所以查看器会用它而不是 prefix 里 osu-winello 装的旧版 GDI+；这也是 osu-winello 下必须用自包含版的原因。
 
-## 第二步：.NET 运行时（仅框架依赖版需要）
-
-> **osu-winello / Linux Wine 用户使用自包含版（`release-x86-self-contained.zip`）时不需要本步骤**，直接跳到第三步即可——自包含版已内置 .NET 8 运行时，并随包携带修复用的 `GdiPlus.dll`。
->
-> 以下内容仅在使用框架依赖版（`release-x86.zip`，通常用于 Windows 本机）时需要：prefix 里必须装有 **.NET 8 Windows Desktop Runtime（x86）**（查看器需要 `Microsoft.NETCore.App` 与 `Microsoft.WindowsDesktop.App` 8.0）。
-
-### 方法 A（推荐）：用 osu-winello 自带的 winetricks
-
-```bash
-osu-wine n --winetricks dotnetdesktop8
-```
-
-- 该动词会下载并静默安装 .NET 8 Desktop Runtime 8.0.x 的 x86 版本；由于 prefix 是 64 位，还会顺带装 x64 版本（不影响使用）。
-- 如果提示找不到 `dotnetdesktop8` 动词，说明 winetricks 太旧，先更新再重试：
-
-```bash
-osu-wine n --winetricks --self-update
-osu-wine n --winetricks dotnetdesktop8
-```
-
-- 验证安装结果：
-
-```bash
-osu-wine n --wine 'C:\Program Files\dotnet\dotnet.exe' --list-runtimes
-```
-
-输出里应能看到 `Microsoft.NETCore.App 8.0.x` 和 `Microsoft.WindowsDesktop.App 8.0.x`。
-
-### 方法 B（兜底）：手动解压运行时
-
-如果 winetricks 安装失败，可以手动把运行时解压进 prefix：
-
-1. 打开 <https://dotnet.microsoft.com/en-us/download/dotnet/8.0>；
-2. 选择 **Windows → x86 → 下载 ".zip"**（Windows Desktop Runtime 8.0.x win-x86 的 zip 包）；
-3. 解压到 prefix 的 C: 盘：
-
-```bash
-unzip windowsdesktop-runtime-8.0.x-win-x86.zip \
-    -d ~/.local/share/wineprefixes/osu-wineprefix/drive_c/dotnet8
-```
-
-4. 让 Wine 里的程序能找到它。新建 `~/.local/share/osuconfig/configs/dotnet8.cfg`：
-
-```bash
-echo -e 'DOTNET_ROOT="C:\\dotnet8"\nDOTNET_ROOT_X86="C:\\dotnet8"' \
-    > ~/.local/share/osuconfig/configs/dotnet8.cfg
-```
-
-> 注意：手动解压在 `drive_c` 里的运行时会在 `osu-wine --fixprefix` 重装 prefix 后被删除，需要重做本步；方法 A 也一样，重装 prefix 后要重新执行一次。查看器本体放在 `osuconfig` 下则不受影响。
-
-## 第三步：创建"osu! + 查看器"联合启动批处理
+## 第二步：创建"osu! + 查看器"联合启动批处理
 
 在 osu! 目录（即 `osu-wine --info` 显示的 osu! folder）里新建 `launch_with_viewer.bat`，内容如下：
 
@@ -117,15 +59,6 @@ echo -e 'DOTNET_ROOT="C:\\dotnet8"\nDOTNET_ROOT_X86="C:\\dotnet8"' \
 cd /d "%~dp0"
 start "" osu!.exe %*
 start "" "Z:\home\你的用户名\.local\share\osuconfig\osucatch-viewer\OsuCatch-Editor-RealtimeViewer.exe"
-
-:loop
-tasklist | find "osu!.exe" >nul
-if ERRORLEVEL 1 (
-    taskkill /F /IM OsuCatch-Editor-RealtimeViewer.exe
-    exit
-)
-ping -n 5 127.0.0.1 >nul
-goto loop
 ```
 
 把里面的 `你的用户名` 换成实际的 Linux 用户名（`echo $USER` 查看）。
@@ -134,7 +67,7 @@ goto loop
 
 - 文件**不要**叫 `launch_with_memory.bat`——那是 osu-winello 给 gosumemory/tosu 用的文件名，会被它的相关功能覆盖或删除；
 - 批处理放在 osu! 目录里，是为了用 `%~dp0` 直接定位 `osu!.exe`，不依赖 C:/D: 盘符映射；
-- 查看器目录里自带的 `GdiPlus.dll`（Win7 版 GDI+ 1.1，自包含版已包含）会在启动时被优先加载，从而绕开 prefix 里 osu-winello 为 osu! 安装的旧版 GDI+（`gdiplus_winxp`）。**不要再设置 `WINEDLLOVERRIDES=gdiplus=b`**——它会强制改用 Wine 内置 GDI+，反而绕过随包携带的修复 DLL；
+- 查看器目录里自带的 `GdiPlus.dll`（Win7 版 GDI+ 1.1，自包含版已包含）会在启动时被优先加载，从而绕开 prefix 里 osu-winello 为 osu! 安装的旧版 GDI+（`gdiplus_winxp`）。
 - 如果你的 HOME 不是 `/home/<用户名>`（比如自定义过），先用这条命令查出查看器在 Wine 里的真实路径，再填进批处理：
 
 ```bash
@@ -193,43 +126,7 @@ chmod +x ~/.local/bin/osu-with-viewer
 - **上次异常退出后性能相关设置被自动调整**：程序检测到上次非正常退出时会自动关闭批量渲染，可在设置里重新打开。
 - **`osu-wine --fixprefix` 之后查看器起不来**：prefix 被重装不影响查看器本体（它位于 `osuconfig` 下，自带的运行时与 `GdiPlus.dll` 也不会被清掉）；若仍启动失败，确认使用的是自包含版。
 
-## 附录（进阶）：自己发布自包含 x86 版，免装运行时
-
-> 官方发布页已经提供 `release-x86-self-contained.zip`（自包含版），一般直接下载即可，不需要自己发布。以下步骤仅在你需要基于最新代码自行构建时使用。
-
-如果不想往 prefix 里装运行时，可以在 Linux 上用 .NET 8 SDK 交叉发布自包含版本：
-
-```bash
-git clone https://github.com/Exsper/osucatch-editor-realtimeviewer.git
-cd osucatch-editor-realtimeviewer
-
-# StableCompatLib.dll（x86）没有提交到仓库，先从官方 release-x86-self-contained.zip 里取一份
-mkdir -p StableCompatLib/x86
-unzip -j release-x86-self-contained.zip StableCompatLib.dll -d StableCompatLib/x86
-
-dotnet publish osucatch-editor-realtimeviewer \
-    -c Release -r win-x86 --self-contained true -p:Platform=x86 \
-    -o ~/osucatch-viewer-x86
-```
-
-注意：`dotnet publish` 的发布结果**不会自动带上** `StableCompatLib.dll` 和 `GdiPlus.dll`，需要手动补两份（`GdiPlus.dll` 在仓库的 `osuwine-fix/` 目录里）：
-
-```bash
-cp StableCompatLib/x86/StableCompatLib.dll ~/osucatch-viewer-x86/
-cp osuwine-fix/GdiPlus.dll ~/osucatch-viewer-x86/
-```
-
-最后把发布目录覆盖到查看器目录（保留批处理里的路径不变）：
-
-```bash
-cp -r ~/osucatch-viewer-x86/. ~/.local/share/osuconfig/osucatch-viewer/
-```
-
-自包含版不需要第二步的任何操作，直接按第三步启动即可（不要设置 `WINEDLLOVERRIDES=gdiplus=b`）。
-
 ## 相关链接
 
 - 查看器仓库：<https://github.com/Exsper/osucatch-editor-realtimeviewer>
-- 查看器发布页（`release-x86.zip`）：<https://github.com/Exsper/osucatch-editor-realtimeviewer/releases/latest>
 - osu-winello：<https://github.com/NelloKudo/osu-winello>
-- .NET 8 下载页：<https://dotnet.microsoft.com/en-us/download/dotnet/8.0>

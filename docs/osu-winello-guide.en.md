@@ -2,14 +2,6 @@
 
 This guide is for users who installed osu! stable on Linux with [osu-winello](https://github.com/NelloKudo/osu-winello). It explains how to add this viewer (32-bit build) to the same Wine prefix that osu! uses, launch it together with osu!, and monitor the osu! editor in real time.
 
-## Why you need the 32-bit build and the same prefix
-
-- osu! stable itself is a 32-bit program. The viewer reads the memory of the osu!.exe process directly via `ReadProcessMemory` (the same approach used by Mapping Tools and gosumemory) and parses the data using a 32-bit pointer model.
-- A Wine prefix is a self-contained "virtual Windows environment". Only processes inside the **same prefix** can talk to each other through the same wineserver, so the viewer must be launched from the same prefix as osu!.
-- The viewer's native acceleration library, `StableCompatLib.dll`, is also provided per process bitness: the 32-bit release package (`release-x86.zip`) already contains the x86 version, so no extra work is needed.
-
-> osu-winello's prefix is 64-bit (win64) but fully supports running 32-bit programs. Using the 32-bit viewer keeps the pointer model aligned with the 32-bit osu! process, which is also why the project publishes both x86 and x64 packages.
-
 ## Quick reference: default paths
 
 First, confirm your own paths with this command (you will need them in the steps below):
@@ -58,57 +50,7 @@ Why this location:
 - It is not inside the prefix's C: drive, so it survives `osu-wine --fixprefix` reinstalls.
 - The `GdiPlus.dll` next to the executable is loaded first (the application directory takes precedence over system directories), so the viewer uses it instead of the legacy GDI+ installed by osu-winello; this is why the self-contained build is required under osu-winello.
 
-## Step 2: .NET runtime (framework-dependent builds only)
-
-> If you are using the self-contained build (`release-x86-self-contained.zip`), which is required for osu-winello / Wine on Linux, **skip this step** and go straight to Step 3 — the self-contained build bundles the .NET 8 runtime and the `GdiPlus.dll` fix.
->
-> The rest of this step only applies to the framework-dependent build (`release-x86.zip`, usually used on Windows): the prefix must have the **.NET 8 Windows Desktop Runtime (x86)** installed (the viewer needs `Microsoft.NETCore.App` and `Microsoft.WindowsDesktop.App` 8.0).
-
-### Method A (recommended): use osu-winello's bundled winetricks
-
-```bash
-osu-wine n --winetricks dotnetdesktop8
-```
-
-- This verb downloads and silently installs the .NET 8 Desktop Runtime 8.0.x x86 version; since the prefix is 64-bit, it also installs the x64 version alongside it (no impact on usage).
-- If it says the `dotnetdesktop8` verb is unknown, your winetricks is too old — update it first and try again:
-
-```bash
-osu-wine n --winetricks --self-update
-osu-wine n --winetricks dotnetdesktop8
-```
-
-- Verify the installation:
-
-```bash
-osu-wine n --wine 'C:\Program Files\dotnet\dotnet.exe' --list-runtimes
-```
-
-The output should show `Microsoft.NETCore.App 8.0.x` and `Microsoft.WindowsDesktop.App 8.0.x`.
-
-### Method B (fallback): extract the runtime manually
-
-If winetricks fails to install it, you can extract the runtime into the prefix manually:
-
-1. Open <https://dotnet.microsoft.com/en-us/download/dotnet/8.0>;
-2. Choose **Windows → x86 → download the ".zip"** (the Windows Desktop Runtime 8.0.x win-x86 zip package);
-3. Extract it to the prefix's C: drive:
-
-```bash
-unzip windowsdesktop-runtime-8.0.x-win-x86.zip \
-    -d ~/.local/share/wineprefixes/osu-wineprefix/drive_c/dotnet8
-```
-
-4. Make it discoverable by Windows programs running under Wine. Create `~/.local/share/osuconfig/configs/dotnet8.cfg`:
-
-```bash
-echo -e 'DOTNET_ROOT="C:\\dotnet8"\nDOTNET_ROOT_X86="C:\\dotnet8"' \
-    > ~/.local/share/osuconfig/configs/dotnet8.cfg
-```
-
-> Note: a runtime manually extracted into `drive_c` will be deleted when `osu-wine --fixprefix` reinstalls the prefix, so you will have to redo this step; the same applies to Method A. The viewer itself, being in `osuconfig`, is unaffected.
-
-## Step 3: Create a combined "osu! + viewer" launcher batch file
+## Step 2: Create a combined "osu! + viewer" launcher batch file
 
 In the osu! folder (the "osu! folder" shown by `osu-wine --info`), create `launch_with_viewer.bat` with the following content:
 
@@ -117,15 +59,6 @@ In the osu! folder (the "osu! folder" shown by `osu-wine --info`), create `launc
 cd /d "%~dp0"
 start "" osu!.exe %*
 start "" "Z:\home\YOUR_USERNAME\.local\share\osuconfig\osucatch-viewer\OsuCatch-Editor-RealtimeViewer.exe"
-
-:loop
-tasklist | find "osu!.exe" >nul
-if ERRORLEVEL 1 (
-    taskkill /F /IM OsuCatch-Editor-RealtimeViewer.exe
-    exit
-)
-ping -n 5 127.0.0.1 >nul
-goto loop
 ```
 
 Replace `YOUR_USERNAME` with your actual Linux username (check with `echo $USER`).
@@ -134,7 +67,7 @@ A few notes:
 
 - Do **not** name the file `launch_with_memory.bat` — that name is used by osu-winello for gosumemory/tosu and can be overwritten or removed by its features;
 - The batch file lives in the osu! folder so that `%~dp0` can locate `osu!.exe` directly, without relying on C:/D: drive mappings;
-- The bundled `GdiPlus.dll` (Windows 7 GDI+ 1.1, included in the self-contained build) is loaded first at startup, bypassing the legacy GDI+ (`gdiplus_winxp`) that osu-winello installs into the prefix for osu!. Do **not** set `WINEDLLOVERRIDES=gdiplus=b` — that would force Wine's built-in GDI+ and bypass the bundled fix DLL;
+- The bundled `GdiPlus.dll` (Windows 7 GDI+ 1.1, included in the self-contained build) is loaded first at startup, bypassing the legacy GDI+ (`gdiplus_winxp`) that osu-winello installs into the prefix for osu!.
 - If your HOME is not `/home/<username>` (for example if you customized it), get the viewer's real path inside Wine first, then use it in the batch:
 
 ```bash
@@ -193,43 +126,7 @@ The viewer's settings and logs are written under Wine's `%LocalAppData%`, which 
 - **Performance-related settings were changed automatically after an abnormal exit**: the program detects a previous unclean shutdown and automatically disables batch rendering; you can re-enable it in the settings.
 - **The viewer fails to start after `osu-wine --fixprefix`**: the prefix reinstall does not affect the viewer itself (it lives under `osuconfig`, so its bundled runtime and `GdiPlus.dll` are not removed); if it still fails to start, make sure you are using the self-contained build.
 
-## Appendix (advanced): publish a self-contained x86 build, no runtime installation needed
-
-> The official releases page also provides `release-x86-self-contained.zip` (self-contained build), so you usually do not need to build it yourself. The steps below are only for building from the latest source code.
-
-If you would rather not install a runtime into the prefix, you can cross-publish a self-contained build on Linux with the .NET 8 SDK:
-
-```bash
-git clone https://github.com/Exsper/osucatch-editor-realtimeviewer.git
-cd osucatch-editor-realtimeviewer
-
-# StableCompatLib.dll (x86) is not committed to the repository; grab one from the official release-x86-self-contained.zip
-mkdir -p StableCompatLib/x86
-unzip -j release-x86-self-contained.zip StableCompatLib.dll -d StableCompatLib/x86
-
-dotnet publish osucatch-editor-realtimeviewer \
-    -c Release -r win-x86 --self-contained true -p:Platform=x86 \
-    -o ~/osucatch-viewer-x86
-```
-
-Note: the output of `dotnet publish` will **not** include `StableCompatLib.dll` or `GdiPlus.dll` automatically, so copy both in manually (`GdiPlus.dll` lives in the repository's `osuwine-fix/` folder):
-
-```bash
-cp StableCompatLib/x86/StableCompatLib.dll ~/osucatch-viewer-x86/
-cp osuwine-fix/GdiPlus.dll ~/osucatch-viewer-x86/
-```
-
-Finally, overwrite the viewer folder with the published output (the path in the batch file stays the same):
-
-```bash
-cp -r ~/osucatch-viewer-x86/. ~/.local/share/osuconfig/osucatch-viewer/
-```
-
-The self-contained build needs none of the steps in Step 2; just launch it as described in Step 3 (and do not set `WINEDLLOVERRIDES=gdiplus=b`).
-
 ## Related links
 
 - Viewer repository: <https://github.com/Exsper/osucatch-editor-realtimeviewer>
-- Viewer releases page (`release-x86.zip`): <https://github.com/Exsper/osucatch-editor-realtimeviewer/releases/latest>
 - osu-winello: <https://github.com/NelloKudo/osu-winello>
-- .NET 8 download page: <https://dotnet.microsoft.com/en-us/download/dotnet/8.0>
