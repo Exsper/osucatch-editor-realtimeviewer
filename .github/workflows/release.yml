@@ -89,6 +89,12 @@ jobs:
       # so copy the x86 library into the publish output manually before zipping.
       run: Copy-Item StableCompatLib\x86\StableCompatLib.dll osucatch-editor-realtimeviewer\publish\win-x86-selfcontained\
 
+    - name: Copy GdiPlus.dll to self-contained output
+      # osu-winello/Wine prefixes install a legacy GDI+ (gdiplus_winxp) that is incompatible with
+      # .NET 8 System.Drawing; bundle the Windows 7 GDI+ 1.1 DLL next to the executable so the
+      # viewer loads it first (app directory takes precedence over system directories).
+      run: Copy-Item osuwine-fix\GdiPlus.dll osucatch-editor-realtimeviewer\publish\win-x86-selfcontained\
+
     - name: Create x86 self-contained release zip
       uses: thedoctor0/zip-release@master
       with:

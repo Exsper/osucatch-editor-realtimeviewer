@@ -32,12 +32,12 @@ osu-winello's defaults are as follows (verify with `osu-wine --info`):
 ## Step 1: Download and extract the 32-bit build
 
 1. Open the releases page: <https://github.com/Exsper/osucatch-editor-realtimeviewer/releases/latest>
-2. Download **`release-x86.zip`**.
+2. Download **`release-x86-self-contained.zip`** (self-contained build). osu-winello / Wine on Linux must use this build; `release-x86.zip` (framework-dependent) is only for Windows.
 3. Extract it to `~/.local/share/osuconfig/osucatch-viewer/`:
 
 ```bash
 mkdir -p ~/.local/share/osuconfig/osucatch-viewer
-unzip release-x86.zip -d ~/.local/share/osuconfig/osucatch-viewer
+unzip release-x86-self-contained.zip -d ~/.local/share/osuconfig/osucatch-viewer
 ```
 
 After extraction you should see these key files:
@@ -47,6 +47,7 @@ osucatch-viewer/
 ├── OsuCatch-Editor-RealtimeViewer.exe   ← main program
 ├── OsuCatch-Editor-RealtimeViewer.dll
 ├── StableCompatLib.dll                  ← x86 native library
+├── GdiPlus.dll                          ← Windows 7 GDI+ (GDI+ 1.1), bypasses the legacy GDI+ in the prefix
 ├── OpenTK.dll / OpenTK.GLControl.dll
 └── img/ zh-Hans/
 ```
@@ -55,12 +56,13 @@ Why this location:
 
 - `~/.local/share/osuconfig` lives under `XDG_DATA_HOME`, which osu-winello's Steam Runtime container mounts read-write, so Wine is guaranteed to be able to access the viewer;
 - It is not inside the prefix's C: drive, so it survives `osu-wine --fixprefix` reinstalls.
+- The `GdiPlus.dll` next to the executable is loaded first (the application directory takes precedence over system directories), so the viewer uses it instead of the legacy GDI+ installed by osu-winello; this is why the self-contained build is required under osu-winello.
 
-## Step 2: Install the .NET 8 Desktop Runtime (x86)
+## Step 2: .NET runtime (framework-dependent builds only)
 
-> Skip-ahead option: if you do not want to install the .NET runtime into the prefix, download the official **`release-x86-self-contained.zip`** (a self-contained build with the .NET 8 runtime bundled) instead of `release-x86.zip` in Step 1, then jump straight to Step 3.
-
-The official release is a framework-dependent build and does not bundle the .NET runtime, so the prefix must have the **.NET 8 Windows Desktop Runtime (x86)** installed (the viewer needs `Microsoft.NETCore.App` and `Microsoft.WindowsDesktop.App` 8.0).
+> If you are using the self-contained build (`release-x86-self-contained.zip`), which is required for osu-winello / Wine on Linux, **skip this step** and go straight to Step 3 — the self-contained build bundles the .NET 8 runtime and the `GdiPlus.dll` fix.
+>
+> The rest of this step only applies to the framework-dependent build (`release-x86.zip`, usually used on Windows): the prefix must have the **.NET 8 Windows Desktop Runtime (x86)** installed (the viewer needs `Microsoft.NETCore.App` and `Microsoft.WindowsDesktop.App` 8.0).
 
 ### Method A (recommended): use osu-winello's bundled winetricks
 
@@ -132,6 +134,7 @@ A few notes:
 
 - Do **not** name the file `launch_with_memory.bat` — that name is used by osu-winello for gosumemory/tosu and can be overwritten or removed by its features;
 - The batch file lives in the osu! folder so that `%~dp0` can locate `osu!.exe` directly, without relying on C:/D: drive mappings;
+- The bundled `GdiPlus.dll` (Windows 7 GDI+ 1.1, included in the self-contained build) is loaded first at startup, bypassing the legacy GDI+ (`gdiplus_winxp`) that osu-winello installs into the prefix for osu!. Do **not** set `WINEDLLOVERRIDES=gdiplus=b` — that would force Wine's built-in GDI+ and bypass the bundled fix DLL;
 - If your HOME is not `/home/<username>` (for example if you customized it), get the viewer's real path inside Wine first, then use it in the batch:
 
 ```bash
@@ -182,12 +185,13 @@ The viewer's settings and logs are written under Wine's `%LocalAppData%`, which 
 
 ## FAQ
 
-- **The viewer crashes on startup, or reports missing .NET / missing runtime**: Step 2 was not completed properly. Reinstall with Method A or switch to Method B; you can also check the crash report under `logs/`.
+- **The viewer crashes on startup, or reports missing .NET / missing runtime**: switch to the self-contained build `release-x86-self-contained.zip` (the .NET runtime is bundled); if you are still using the framework-dependent build, complete Step 2. You can also check the crash report under `logs/`.
 - **The log keeps showing `No Osu!.exe found`**: make sure the viewer is launched from the same prefix (use the batch file from Step 3) and that osu! is already running.
+- **The viewer crashes on startup with `Current version of GDI+ does not support this feature` (or a `Gdip` type-initializer exception)**: the legacy GDI+ (`gdiplus_winxp`, GDI+ 1.0) installed by osu-winello in the prefix is incompatible with .NET 8's System.Drawing (which requires GDI+ 1.1). Use the self-contained build `release-x86-self-contained.zip` (bundles the Windows 7 `GdiPlus.dll`) and make sure `GdiPlus.dll` is present next to the executable; do not set `WINEDLLOVERRIDES=gdiplus=b`.
 - **`No active editor found.` is shown**: first confirm you are actually in the editor (window title ending in `.osu`). After an osu! update the in-memory layout may change, so update the viewer to the latest release.
 - **The viewer window appears but the picture does not refresh**: while the editor is not in the foreground or the mouse is idle, refresh runs on a low-frequency interval — this is by design; enter the editor and move the mouse to see real-time updates.
 - **Performance-related settings were changed automatically after an abnormal exit**: the program detects a previous unclean shutdown and automatically disables batch rendering; you can re-enable it in the settings.
-- **The viewer fails to start after `osu-wine --fixprefix`**: the prefix was reinstalled; reinstall the .NET runtime following Step 2 (the viewer itself is unaffected).
+- **The viewer fails to start after `osu-wine --fixprefix`**: the prefix reinstall does not affect the viewer itself (it lives under `osuconfig`, so its bundled runtime and `GdiPlus.dll` are not removed); if it still fails to start, make sure you are using the self-contained build.
 
 ## Appendix (advanced): publish a self-contained x86 build, no runtime installation needed
 
@@ -199,19 +203,20 @@ If you would rather not install a runtime into the prefix, you can cross-publish
 git clone https://github.com/Exsper/osucatch-editor-realtimeviewer.git
 cd osucatch-editor-realtimeviewer
 
-# StableCompatLib.dll (x86) is not committed to the repository; grab one from the official release-x86.zip
+# StableCompatLib.dll (x86) is not committed to the repository; grab one from the official release-x86-self-contained.zip
 mkdir -p StableCompatLib/x86
-unzip -j release-x86.zip StableCompatLib.dll -d StableCompatLib/x86
+unzip -j release-x86-self-contained.zip StableCompatLib.dll -d StableCompatLib/x86
 
 dotnet publish osucatch-editor-realtimeviewer \
     -c Release -r win-x86 --self-contained true -p:Platform=x86 \
     -o ~/osucatch-viewer-x86
 ```
 
-Note: the output of `dotnet publish` will **not** include `StableCompatLib.dll` automatically, so copy one in manually:
+Note: the output of `dotnet publish` will **not** include `StableCompatLib.dll` or `GdiPlus.dll` automatically, so copy both in manually (`GdiPlus.dll` lives in the repository's `osuwine-fix/` folder):
 
 ```bash
-unzip -j release-x86.zip StableCompatLib.dll -d ~/osucatch-viewer-x86
+cp StableCompatLib/x86/StableCompatLib.dll ~/osucatch-viewer-x86/
+cp osuwine-fix/GdiPlus.dll ~/osucatch-viewer-x86/
 ```
 
 Finally, overwrite the viewer folder with the published output (the path in the batch file stays the same):
@@ -220,7 +225,7 @@ Finally, overwrite the viewer folder with the published output (the path in the 
 cp -r ~/osucatch-viewer-x86/. ~/.local/share/osuconfig/osucatch-viewer/
 ```
 
-The self-contained build needs none of the steps in Step 2; just launch it as described in Step 3.
+The self-contained build needs none of the steps in Step 2; just launch it as described in Step 3 (and do not set `WINEDLLOVERRIDES=gdiplus=b`).
 
 ## Related links
 
