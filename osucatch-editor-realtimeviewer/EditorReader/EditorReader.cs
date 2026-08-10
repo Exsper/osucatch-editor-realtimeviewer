@@ -119,6 +119,19 @@ public class EditorReader
 
     public List<HitObject> selectedObjects;
 
+    /// <summary>
+    /// 单个内存区域允许扫描的最大字节数：超过则跳过并记录警告。
+    /// Wine/osu-winello 下 VirtualQueryEx 可能报告超大已提交区域，全量扫描会让程序长时间
+    /// 停在 "Try fetch editor"；编辑器签名通常位于较小的堆区域中。
+    /// </summary>
+    private const long MaxScanRegionSize = 256L * 1024 * 1024;
+
+    /// <summary>
+    /// 每次 ReadProcessMemory 的最大块大小（可能再加少量重叠字节），
+    /// 避免在 32 位进程中一次性分配超大缓冲区。
+    /// </summary>
+    private const int ReadChunkSize = 8 * 1024 * 1024;
+
     private IntPtr pHoveredObject;
 
     public HitObject hoveredObject;
@@ -225,29 +238,52 @@ public class EditorReader
         Internals internals = new Internals();
         internals.MemInfo(process.Handle);
         byte[] array = ToByteArray("230000001400000019000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0C000000eeeeeeeeeeeeeeeeeeeeeeeeee00");
+        int overlap = array.Length - 1;
+
+        Log.ConsoleLog("FindEditorAddress: " + internals.MemReg.Count + " region(s) to scan.", Log.LogType.EditorReader, Log.LogLevel.Debug);
         for (int i = 0; i < internals.MemReg.Count; i++)
         {
             Internals.MEMORY_BASIC_INFORMATION mEMORY_BASIC_INFORMATION = internals.MemReg[i];
-            buffer = new byte[(int)mEMORY_BASIC_INFORMATION.RegionSize];
-            if (!ReadProcessMemory(process.Handle, mEMORY_BASIC_INFORMATION.BaseAddress, buffer, (int)mEMORY_BASIC_INFORMATION.RegionSize, ref bytesRead))
+            long regionSize = mEMORY_BASIC_INFORMATION.RegionSize.ToInt64();
+            if (regionSize > MaxScanRegionSize)
             {
+                Log.ConsoleLog("FindEditorAddress: skip region at " + mEMORY_BASIC_INFORMATION.BaseAddress + " (size " + regionSize + " bytes, > " + MaxScanRegionSize + ")", Log.LogType.EditorReader, Log.LogLevel.Warning);
                 continue;
             }
 
-            if (mEMORY_BASIC_INFORMATION.RegionSize != bytesRead)
+            // 分块读取并扫描，避免一次性分配超大缓冲区；
+            // 相邻块重叠 overlap 字节，防止签名跨块时漏检。
+            long offset = 0;
+            while (offset < regionSize)
             {
-                Array.Resize(ref buffer, (int)bytesRead);
-            }
+                int chunkSize = (int)Math.Min(ReadChunkSize, regionSize - offset);
+                int readSize = chunkSize;
+                if (offset + chunkSize < regionSize) readSize += overlap;
 
-            for (int j = 0; j <= buffer.Length - array.Length; j += 4)
-            {
-                if (PatternCheck(buffer, array, j) && !EditorMissingObjects(mEMORY_BASIC_INFORMATION.BaseAddress + j - 160))
+                EnsureBuffer(ref buffer, readSize);
+                if (!ReadProcessMemory(process.Handle, IntPtr.Add(mEMORY_BASIC_INFORMATION.BaseAddress, (int)offset), buffer, readSize, ref bytesRead))
                 {
-                    return mEMORY_BASIC_INFORMATION.BaseAddress + j - 160;
+                    offset += chunkSize;
+                    continue;
                 }
+
+                int bytesToScan = (int)bytesRead;
+                for (int j = 0; j <= bytesToScan - array.Length; j += 4)
+                {
+                    if (PatternCheck(buffer, array, j) && !EditorMissingObjects(new IntPtr(mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64() + offset + j - 160)))
+                    {
+                        IntPtr editorAddress = new IntPtr(mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64() + offset + j - 160);
+                        Log.ConsoleLog("FindEditorAddress: found at " + editorAddress, Log.LogType.EditorReader, Log.LogLevel.Debug);
+                        return editorAddress;
+                    }
+                }
+
+                offset += chunkSize;
+                if ((long)bytesRead < readSize) break; // 区域剩余部分不可读，停止该区域
             }
         }
 
+        Log.ConsoleLog("FindEditorAddress: no active editor found.", Log.LogType.EditorReader, Log.LogLevel.Warning);
         throw new InvalidOperationException("No active editor found.");
     }
 
