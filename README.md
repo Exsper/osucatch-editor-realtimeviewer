@@ -10,14 +10,14 @@ Download the latest release (x64 / x86 builds):
 
 - <https://github.com/Exsper/osucatch-editor-realtimeviewer/releases/latest>
 
-> The official releases are framework-dependent. The x86 build is intended for 32-bit osu! stable, e.g. when running under Wine on Linux.
+> For osu-winello / Wine on Linux, use the **self-contained** x86 build (`release-x86-self-contained.zip`) — it bundles the .NET runtime and the `GdiPlus.dll` fix required to bypass the legacy GDI+ in osu-winello prefixes.
 
 ## Guides
 
 - [Running under osu-winello on Linux / Wine (English)](docs/osu-winello-guide.en.md)
 - [在 Linux / Wine（osu-winello）中运行（中文）](docs/osu-winello-guide.zh-CN.md)
 
-These guides explain how to add the 32-bit build to the osu-winello Wine prefix and launch it together with osu! to monitor the editor in real time.
+These guides explain how to add the self-contained 32-bit build to the osu-winello Wine prefix and launch it together with osu! to monitor the editor in real time.
 
 ## Features
 
@@ -33,6 +33,12 @@ These guides explain how to add the 32-bit build to the osu-winello Wine prefix 
 - [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) (x86/x64) for framework-dependent official releases
 - OpenGL-capable graphics driver
 - osu! stable
+
+## Troubleshooting
+
+### Viewer crashes on startup under Wine with "Current version of GDI+ does not support this feature"
+
+osu-winello installs the legacy `gdiplus_winxp` (GDI+ 1.0) into its Wine prefix for osu!, which is incompatible with .NET 8's System.Drawing (which requires GDI+ 1.1). The self-contained x86 build (`release-x86-self-contained.zip`) ships a Windows 7 `GdiPlus.dll` (GDI+ 1.1) next to the executable, which is loaded first and bypasses the prefix's legacy GDI+ — so osu-winello users must use the self-contained build. See the [osu-winello guide (English)](docs/osu-winello-guide.en.md) / [指南（中文）](docs/osu-winello-guide.zh-CN.md) for the full setup.
 
 ## Workflow
 
