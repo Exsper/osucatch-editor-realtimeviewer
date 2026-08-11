@@ -132,6 +132,23 @@ public class EditorReader
     /// </summary>
     private const int ReadChunkSize = 8 * 1024 * 1024;
 
+    /// <summary>
+    /// 单次内存扫描的最长时间。Wine 下 ReadProcessMemory 可能对某些区域永久阻塞，
+    /// 无法从超时点中断原生调用，因此把扫描放到独立线程，超时后放弃该线程并跳过对应区域。
+    /// </summary>
+    private const int ScanTimeoutMs = 30000;
+
+    /// <summary>
+    /// Wine 下 ReadProcessMemory 永久阻塞过的区域起始地址，重试时跳过。
+    /// </summary>
+    private static readonly HashSet<long> blockedRegionAddresses = new();
+
+    /// <summary>当前扫描线程正在读取的区域起始地址（供超时看门狗定位卡点）。</summary>
+    private long scanningRegionAddress;
+
+    /// <summary>当前扫描线程正在读取的区域序号（供超时看门狗定位卡点）。</summary>
+    private volatile int scanningRegionIndex;
+
     private IntPtr pHoveredObject;
 
     public HitObject hoveredObject;
@@ -235,21 +252,68 @@ public class EditorReader
 
     private IntPtr FindEditorAddress()
     {
+        Log.ConsoleLog("FindEditorAddress: start enumerating memory regions.", Log.LogType.EditorReader, Log.LogLevel.Info);
+
         Internals internals = new Internals();
         internals.MemInfo(process.Handle);
+        Log.ConsoleLog("FindEditorAddress: " + internals.MemReg.Count + " region(s) to scan.", Log.LogType.EditorReader, Log.LogLevel.Info);
+
+        // 把扫描放到独立线程：若某个 ReadProcessMemory 在 Wine 下永久阻塞，
+        // Join 超时后放弃该线程、记录阻塞区域并在下次重试时跳过，而不是让整个程序卡死。
+        IntPtr result = IntPtr.Zero;
+        Exception? scanError = null;
+        Thread scanThread = new Thread(() =>
+        {
+            try { result = ScanForEditorAddress(internals); }
+            catch (Exception ex) { scanError = ex; }
+        });
+        scanThread.Start();
+
+        if (!scanThread.Join(ScanTimeoutMs))
+        {
+            long blocked = Interlocked.Read(ref scanningRegionAddress);
+            int blockedIndex = scanningRegionIndex;
+            if (blocked != 0)
+            {
+                lock (blockedRegionAddresses) blockedRegionAddresses.Add(blocked);
+            }
+            Log.ConsoleLog("FindEditorAddress: scan aborted after " + ScanTimeoutMs + " ms, blocked at region " + blockedIndex + "/" + internals.MemReg.Count + " (address " + blocked + "). Will skip it on the next attempt.", Log.LogType.EditorReader, Log.LogLevel.Warning);
+            throw new InvalidOperationException("Memory scan aborted: ReadProcessMemory did not return in time.");
+        }
+
+        if (scanError != null) throw scanError;
+        return result;
+    }
+
+    private IntPtr ScanForEditorAddress(Internals internals)
+    {
         byte[] array = ToByteArray("230000001400000019000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0C000000eeeeeeeeeeeeeeeeeeeeeeeeee00");
         int overlap = array.Length - 1;
 
-        Log.ConsoleLog("FindEditorAddress: " + internals.MemReg.Count + " region(s) to scan.", Log.LogType.EditorReader, Log.LogLevel.Debug);
         for (int i = 0; i < internals.MemReg.Count; i++)
         {
             Internals.MEMORY_BASIC_INFORMATION mEMORY_BASIC_INFORMATION = internals.MemReg[i];
+            long regionBase = mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64();
             long regionSize = mEMORY_BASIC_INFORMATION.RegionSize.ToInt64();
+
+            lock (blockedRegionAddresses)
+            {
+                if (blockedRegionAddresses.Contains(regionBase))
+                {
+                    Log.ConsoleLog("FindEditorAddress: skip blocked region " + i + "/" + internals.MemReg.Count + " (address " + regionBase + ").", Log.LogType.EditorReader, Log.LogLevel.Info);
+                    continue;
+                }
+            }
+
             if (regionSize > MaxScanRegionSize)
             {
                 Log.ConsoleLog("FindEditorAddress: skip region at " + mEMORY_BASIC_INFORMATION.BaseAddress + " (size " + regionSize + " bytes, > " + MaxScanRegionSize + ")", Log.LogType.EditorReader, Log.LogLevel.Warning);
                 continue;
             }
+
+            Log.ConsoleLog("FindEditorAddress: scanning region " + i + "/" + internals.MemReg.Count + " (size " + regionSize + " bytes) at " + mEMORY_BASIC_INFORMATION.BaseAddress, Log.LogType.EditorReader, Log.LogLevel.Debug);
+            Interlocked.Exchange(ref scanningRegionAddress, regionBase);
+            scanningRegionIndex = i;
 
             // 分块读取并扫描，避免一次性分配超大缓冲区；
             // 相邻块重叠 overlap 字节，防止签名跨块时漏检。

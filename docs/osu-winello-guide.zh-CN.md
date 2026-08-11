@@ -58,7 +58,7 @@ osucatch-viewer/
 @echo off
 cd /d "%~dp0"
 start "" osu!.exe %*
-start "" /D "Z:\home\你的用户名\.local\share\osuconfig\osucatch-viewer" "Z:\home\你的用户名\.local\share\osuconfig\osucatch-viewer\OsuCatch-Editor-RealtimeViewer.exe"
+start "" "Z:\home\你的用户名\.local\share\osuconfig\osucatch-viewer\OsuCatch-Editor-RealtimeViewer.exe"
 ```
 
 把里面的 `你的用户名` 换成实际的 Linux 用户名（`echo $USER` 查看）。
@@ -68,7 +68,7 @@ start "" /D "Z:\home\你的用户名\.local\share\osuconfig\osucatch-viewer" "Z:
 - 文件**不要**叫 `launch_with_memory.bat`——那是 osu-winello 给 gosumemory/tosu 用的文件名，会被它的相关功能覆盖或删除；
 - 批处理放在 osu! 目录里，是为了用 `%~dp0` 直接定位 `osu!.exe`，不依赖 C:/D: 盘符映射；
 - 查看器目录里自带的 `GdiPlus.dll`（Win7 版 GDI+ 1.1，自包含版已包含）会在启动时被优先加载，从而绕开 prefix 里 osu-winello 为 osu! 安装的旧版 GDI+（`gdiplus_winxp`）。
-- `start` 的 `/D` 参数把查看器的工作目录设为其自身目录，避免它继承 osu! 目录（D:\）后按相对路径 `img\` 找不到自带贴图。新版程序已改为按程序目录加载贴图，这一项是双保险；
+- 查看器启动行**不要加** `/D` 参数——Wine 的 cmd 对 `start /d "路径"` 有解析问题，可能导致查看器无法启动；新版程序已按程序目录加载贴图，不需要设置工作目录。
 - 如果你的 HOME 不是 `/home/<用户名>`（比如自定义过），先用这条命令查出查看器在 Wine 里的真实路径，再填进批处理：
 
 ```bash
@@ -123,6 +123,8 @@ chmod +x ~/.local/bin/osu-with-viewer
 - **日志里反复出现 `No Osu!.exe found`**：确认查看器是在同一 prefix 下启动的（用第二步的批处理启动即可），并确认 osu! 已经打开。
 - **启动查看器报 `Current version of GDI+ does not support this feature`（或 `Gdip` 类型初始化异常）后闪退**：osu-winello prefix 里的 `gdiplus_winxp`（旧版 GDI+ 1.0）与 .NET 8 的 System.Drawing（需要 GDI+ 1.1）不兼容。请使用自包含版 `release-x86-self-contained.zip`（已内置 Win7 版 `GdiPlus.dll`），并确认查看器目录里有 `GdiPlus.dll`；不要设置 `WINEDLLOVERRIDES=gdiplus=b`。
 - **提示 `No active editor found.`**：先确认已进入编辑器（窗口标题以 `.osu` 结尾）。osu! 更新后内存布局可能变化，请更新查看器到最新发布版。
+- **启动后一直停在 `Try fetch editor`，没有后续日志**：这是旧版本在 Wine 下内存扫描的兼容性问题，最新版已修复（分块读取 + 超时自动跳过阻塞区域）。请更新到最新 release；新版日志里如出现 `scan aborted ... blocked at region ...`，程序会在下一次重试时自动跳过该区域继续扫描，属于正常现象。
+- **开启 cachy（wine-osu-cachy）后查看器直接退出、没有任何日志**：osu-winello 的 cachy wine（wow64 实验构建）与 .NET 8 不兼容，基于 .NET 8 的查看器无法启动。请保持默认 wine-osu，**不要**设置 `WINE_USE_CACHY="true"`（该选项只建议给 Mapping Tools 等 .NET 6 程序使用）。
 - **查看器窗口出现但画面不刷新**：编辑器不在前台或鼠标静止时刷新会按低频间隔走，这是正常设计；进入编辑器并移动鼠标即可看到实时刷新。
 - **上次异常退出后性能相关设置被自动调整**：程序检测到上次非正常退出时会自动关闭批量渲染，可在设置里重新打开。
 - **`osu-wine --fixprefix` 之后查看器起不来**：prefix 被重装不影响查看器本体（它位于 `osuconfig` 下，自带的运行时与 `GdiPlus.dll` 也不会被清掉）；若仍启动失败，确认使用的是自包含版。
