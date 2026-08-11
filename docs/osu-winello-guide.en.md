@@ -2,6 +2,8 @@
 
 This guide is for users who installed osu! stable on Linux with [osu-winello](https://github.com/NelloKudo/osu-winello). It explains how to add this viewer (32-bit build) to the same Wine prefix that osu! uses, launch it together with osu!, and monitor the osu! editor in real time.
 
+> Why the 32-bit self-contained build and the same prefix: osu! stable is a 32-bit program and the viewer reads its memory directly via `ReadProcessMemory`, so the bitness must match and the viewer must run inside the same Wine prefix as osu!. The self-contained build also bundles the .NET 8 runtime and the GDI+ fix, so no runtime installation into the prefix is needed.
+
 ## Quick reference: default paths
 
 First, confirm your own paths with this command (you will need them in the steps below):
@@ -67,7 +69,7 @@ A few notes:
 
 - Do **not** name the file `launch_with_memory.bat` — that name is used by osu-winello for gosumemory/tosu and can be overwritten or removed by its features;
 - The batch file lives in the osu! folder so that `%~dp0` can locate `osu!.exe` directly, without relying on C:/D: drive mappings;
-- The bundled `GdiPlus.dll` (Windows 7 GDI+ 1.1, included in the self-contained build) is loaded first at startup, bypassing the legacy GDI+ (`gdiplus_winxp`) that osu-winello installs into the prefix for osu!.
+- The bundled `GdiPlus.dll` (Windows 7 GDI+ 1.1, included in the self-contained build) is loaded first at startup, bypassing the legacy GDI+ (`gdiplus_winxp`) that osu-winello installs into the prefix for osu!. Do **not** set `WINEDLLOVERRIDES=gdiplus=b` — that would force Wine's built-in GDI+ and bypass the bundled fix DLL;
 - Do **not** add a `/D` switch to the viewer's `start` line — Wine's cmd has parsing issues with `start /d "path"` that can prevent the viewer from launching. Newer builds resolve textures relative to the executable directory, so the working directory does not matter.
 - If your HOME is not `/home/<username>` (for example if you customized it), get the viewer's real path inside Wine first, then use it in the batch:
 
@@ -128,6 +130,7 @@ The viewer's settings and logs are written under Wine's `%LocalAppData%`, which 
 ## FAQ
 
 - **The viewer crashes on startup, or reports missing .NET / missing runtime**: switch to the self-contained build `release-x86-self-contained.zip` (the .NET runtime is bundled); if you are still using the framework-dependent build, install the .NET 8 Desktop Runtime (x86) in the prefix yourself (`osu-wine n --winetricks dotnetdesktop8`). You can also check the crash report under `logs/`.
+- **The viewer freezes / becomes unresponsive**: first try Settings → **Restart Program**. If it is still stuck after a restart, it is likely a Wine compatibility issue — open an issue and attach the log files (see the next entry).
 - **The log keeps showing `No Osu!.exe found`**: make sure the viewer is launched from the same prefix (use the batch file from Step 2) and that osu! is already running.
 - **The viewer crashes on startup with `Current version of GDI+ does not support this feature` (or a `Gdip` type-initializer exception)**: the legacy GDI+ (`gdiplus_winxp`, GDI+ 1.0) installed by osu-winello in the prefix is incompatible with .NET 8's System.Drawing (which requires GDI+ 1.1). Use the self-contained build `release-x86-self-contained.zip` (bundles the Windows 7 `GdiPlus.dll`) and make sure `GdiPlus.dll` is present next to the executable; do not set `WINEDLLOVERRIDES=gdiplus=b`.
 - **`No active editor found.` is shown**: first confirm you are actually in the editor (window title ending in `.osu`). After an osu! update the in-memory layout may change, so update the viewer to the latest release.
@@ -136,6 +139,7 @@ The viewer's settings and logs are written under Wine's `%LocalAppData%`, which 
 - **The viewer window appears but the picture does not refresh**: while the editor is not in the foreground or the mouse is idle, refresh runs on a low-frequency interval — this is by design; enter the editor and move the mouse to see real-time updates.
 - **Performance-related settings were changed automatically after an abnormal exit**: the program detects a previous unclean shutdown and automatically disables batch rendering; you can re-enable it in the settings.
 - **The viewer fails to start after `osu-wine --fixprefix`**: the prefix reinstall does not affect the viewer itself (it lives under `osuconfig`, so its bundled runtime and `GdiPlus.dll` are not removed); if it still fails to start, make sure you are using the self-contained build.
+- **How to report a problem**: attach the files under `logs/` — `log_YYYYMMDD.log` (the run log for that day) and `crash_*.log` (crash reports). The folder is Wine's `%LocalAppData%\OsuCatch-Editor-RealtimeViewer\logs\`, which maps to `~/.local/share/wineprefixes/osu-wineprefix/drive_c/users/<YOUR_USERNAME>/AppData/Local/OsuCatch-Editor-RealtimeViewer/logs/`.
 
 ## Related links
 

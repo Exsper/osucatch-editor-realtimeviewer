@@ -2,6 +2,8 @@
 
 本文面向通过 [osu-winello](https://github.com/NelloKudo/osu-winello) 在 Linux 上安装 osu! stable 的用户，介绍如何把本查看器（32 位版）放进 osu! 所在的 Wine prefix，并让它在 osu! 启动时一起启动，从而实时监控 osu! 的编辑器（editor）。
 
+> 为什么必须是 32 位自包含版、并且和 osu! 在同一个 prefix 下运行：osu! stable 是 32 位程序，查看器通过 `ReadProcessMemory` 直接读取它的内存，所以位数必须一致、且要与 osu! 处于同一个 Wine prefix。自包含版还内置了 .NET 8 运行时和 GDI+ 修复，省去在 prefix 里安装运行时的步骤。
+
 ## 默认路径速查
 
 先用下面的命令确认你自己的路径（后续步骤会用到）：
@@ -67,7 +69,7 @@ start "" "Z:\home\你的用户名\.local\share\osuconfig\osucatch-viewer\OsuCatc
 
 - 文件**不要**叫 `launch_with_memory.bat`——那是 osu-winello 给 gosumemory/tosu 用的文件名，会被它的相关功能覆盖或删除；
 - 批处理放在 osu! 目录里，是为了用 `%~dp0` 直接定位 `osu!.exe`，不依赖 C:/D: 盘符映射；
-- 查看器目录里自带的 `GdiPlus.dll`（Win7 版 GDI+ 1.1，自包含版已包含）会在启动时被优先加载，从而绕开 prefix 里 osu-winello 为 osu! 安装的旧版 GDI+（`gdiplus_winxp`）。
+- 查看器目录里自带的 `GdiPlus.dll`（Win7 版 GDI+ 1.1，自包含版已包含）会在启动时被优先加载，从而绕开 prefix 里 osu-winello 为 osu! 安装的旧版 GDI+（`gdiplus_winxp`）。**不要再设置 `WINEDLLOVERRIDES=gdiplus=b`**——那会强制改用 Wine 内置 GDI+，反而绕过自带的修复 DLL；
 - 查看器启动行**不要加** `/D` 参数——Wine 的 cmd 对 `start /d "路径"` 有解析问题，可能导致查看器无法启动；新版程序已按程序目录加载贴图，不需要设置工作目录。
 - 如果你的 HOME 不是 `/home/<用户名>`（比如自定义过），先用这条命令查出查看器在 Wine 里的真实路径，再填进批处理：
 
@@ -128,6 +130,7 @@ chmod +x ~/.local/bin/osu-with-viewer
 ## 常见问题
 
 - **启动即闪退，或提示找不到 .NET / 缺少运行时**：请改用自包含版 `release-x86-self-contained.zip`（已内置 .NET 运行时）；若仍在使用框架依赖版，需自行在 prefix 里安装 .NET 8 Desktop Runtime x86（`osu-wine n --winetricks dotnetdesktop8`）。也可以直接看 `logs/` 里的崩溃报告。
+- **查看器卡住 / 无响应**：先试 设置（Settings）→ **重启程序（Restart Program）**；如果重启后仍然卡住，多半是 Wine 下的兼容性问题，请把 `logs/` 里的日志附在 issue 里反馈（见下一条）。
 - **日志里反复出现 `No Osu!.exe found`**：确认查看器是在同一 prefix 下启动的（用第二步的批处理启动即可），并确认 osu! 已经打开。
 - **启动查看器报 `Current version of GDI+ does not support this feature`（或 `Gdip` 类型初始化异常）后闪退**：osu-winello prefix 里的 `gdiplus_winxp`（旧版 GDI+ 1.0）与 .NET 8 的 System.Drawing（需要 GDI+ 1.1）不兼容。请使用自包含版 `release-x86-self-contained.zip`（已内置 Win7 版 `GdiPlus.dll`），并确认查看器目录里有 `GdiPlus.dll`；不要设置 `WINEDLLOVERRIDES=gdiplus=b`。
 - **提示 `No active editor found.`**：先确认已进入编辑器（窗口标题以 `.osu` 结尾）。osu! 更新后内存布局可能变化，请更新查看器到最新发布版。
@@ -136,6 +139,7 @@ chmod +x ~/.local/bin/osu-with-viewer
 - **查看器窗口出现但画面不刷新**：编辑器不在前台或鼠标静止时刷新会按低频间隔走，这是正常设计；进入编辑器并移动鼠标即可看到实时刷新。
 - **上次异常退出后性能相关设置被自动调整**：程序检测到上次非正常退出时会自动关闭批量渲染，可在设置里重新打开。
 - **`osu-wine --fixprefix` 之后查看器起不来**：prefix 被重装不影响查看器本体（它位于 `osuconfig` 下，自带的运行时与 `GdiPlus.dll` 也不会被清掉）；若仍启动失败，确认使用的是自包含版。
+- **如何反馈问题**：请附带 `logs/` 目录下的 `log_YYYYMMDD.log`（当天运行日志）和 `crash_*.log`（崩溃报告）。该目录位于 prefix 的 `%LocalAppData%\OsuCatch-Editor-RealtimeViewer\logs\`，对应 Linux 路径 `~/.local/share/wineprefixes/osu-wineprefix/drive_c/users/<你的用户名>/AppData/Local/OsuCatch-Editor-RealtimeViewer/logs/`。
 
 ## 相关链接
 
