@@ -103,6 +103,14 @@ From now on, just run `osu-with-viewer`.
 
 ## Usage
 
+### First launch: select the osu! folder
+
+On first launch, if the program cannot find the osu! path automatically (via the registry), it shows a **Select osu! Folder** dialog (the selected folder must contain `osu!.exe`). Under osu-wine, the osu! install folder is mapped by osu-winello to the virtual **D: drive**, so simply select **D:\**. You can also browse through **Z:** and pick the real Linux path (e.g. `~/.local/share/osu`). The path is saved in the settings and the dialog will not appear again; if you move osu! later with `osu-wine --changedir`, reselect it in Settings → osu! folder.
+
+> Backup, bookmarks (BookmarkPlus) and templates depend on this osu path.
+
+### Normal usage
+
 1. Launch with the command above (or run `osu-wine` and start the viewer from another terminal — anything works as long as it is under the same prefix);
 2. Enter the editor for any beatmap in osu!;
 3. The viewer window will start rendering the live preview automatically. It only reads data while the window title ends with `.osu` (i.e. the editor screen); it does not work on the normal gameplay screen.
