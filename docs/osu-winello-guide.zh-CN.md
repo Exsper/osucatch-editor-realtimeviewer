@@ -103,6 +103,14 @@ chmod +x ~/.local/bin/osu-with-viewer
 
 ## 使用说明
 
+### 首次启动：选择 osu! 文件夹
+
+第一次启动时，如果程序无法从注册表自动找到 osu! 路径，会弹出 **Select osu! Folder** 文件夹选择框（选中的目录必须包含 `osu!.exe`）。在 osu-wine 下，osu! 安装目录被 osu-winello 映射为虚拟 **D 盘**，直接选 **D:\** 即可；也可以展开 **Z:** 按 Linux 真实路径选择（如 `~/.local/share/osu`）。该路径会保存到设置，之后不再弹出；如果以后用 `osu-wine --changedir` 移动过 osu!，需要在 设置（Settings）→ osu! 文件夹 里重新选择。
+
+> 备份、书签（BookmarkPlus）、模板等功能都依赖这个 osu 路径。
+
+### 正常使用
+
 1. 用上面的命令启动（或直接运行 `osu-wine` 后手动另开终端启动查看器，只要在同一 prefix 下都可以）；
 2. 在 osu! 中进入任意一张图的编辑器（editor）；
 3. 查看器窗口会自动开始实时渲染预览；只有窗口标题以 `.osu` 结尾（即编辑器界面）时它才会读取数据，正常游玩界面不工作。
