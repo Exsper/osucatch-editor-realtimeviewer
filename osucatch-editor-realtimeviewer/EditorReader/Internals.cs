@@ -35,6 +35,9 @@ internal class Internals
     public void MemInfo(IntPtr pHandle)
     {
         IntPtr lpAddress = IntPtr.Zero;
+        // 安全上限：防止 Wine 下枚举异常时陷入死循环
+        const int MaxQueryRegions = 100000;
+        int queried = 0;
         while (true)
         {
             MEMORY_BASIC_INFORMATION lpBuffer = default(MEMORY_BASIC_INFORMATION);
@@ -48,7 +51,12 @@ internal class Internals
                 MemReg.Add(lpBuffer);
             }
 
-            lpAddress = IntPtr.Add(lpBuffer.BaseAddress, lpBuffer.RegionSize.ToInt32());
+            IntPtr nextAddress = IntPtr.Add(lpBuffer.BaseAddress, lpBuffer.RegionSize.ToInt32());
+            // 防止 Wine 下出现 RegionSize==0 / 地址不前进导致枚举死循环
+            if (nextAddress.ToInt64() <= lpAddress.ToInt64()) break;
+            lpAddress = nextAddress;
+
+            if (++queried >= MaxQueryRegions) break;
         }
 
         MemReg.Sort((MEMORY_BASIC_INFORMATION a, MEMORY_BASIC_INFORMATION b) => ((int)a.RegionSize).CompareTo((int)b.RegionSize));

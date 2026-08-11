@@ -27,8 +27,14 @@ namespace osucatch_editor_realtimeviewer
         private string cachedTitle = "";
         private readonly Stopwatch stopwatch = Stopwatch.StartNew();
         private long lastEditorCheckTimestamp;
+        private long lastEditorFailedTimestamp;
         private long lastFullFetchTimestamp;
         private bool editorCheckSucceeded;
+        /// <summary>
+        /// FetchEditor 失败后的最小重试间隔：避免以 Drawing_Interval（默认 20ms）级别的
+        /// 高频循环反复触发全量内存扫描（Wine 下扫描可能很慢）。
+        /// </summary>
+        private const long FetchEditor_RetryIntervalMs = 1000;
         // 低频读取间隔（静止时）与全量读取间隔（编辑器前台且鼠标正在移动时），可在设置面板中自定义
         private static long FullCheckIntervalMs => Math.Clamp(app.Default.LowFreqRead_Interval, 5, 10000);
         private static long FullCheckIntervalMsEditing => Math.Clamp(app.Default.FullRead_Interval, 5, 10000);
@@ -122,6 +128,15 @@ namespace osucatch_editor_realtimeviewer
                 return true;
             }
 
+            // 失败节流：上次检测/扫描失败后至少等 1 秒再重试
+            if (!editorCheckSucceeded && stopwatch.ElapsedMilliseconds - lastEditorFailedTimestamp < FetchEditor_RetryIntervalMs)
+            {
+                Is_Editor_Running = false;
+                beatmap_path = "";
+                return false;
+            }
+
+            lastEditorFailedTimestamp = stopwatch.ElapsedMilliseconds;
             beatmap_title = "";
             string title = FetchTitle();
             if (title == "")
