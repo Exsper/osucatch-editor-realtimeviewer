@@ -131,6 +131,7 @@ chmod +x ~/.local/bin/osu-with-viewer
 
 - **启动即闪退，或提示找不到 .NET / 缺少运行时**：请改用自包含版 `release-x86-self-contained.zip`（已内置 .NET 运行时）；若仍在使用框架依赖版，需自行在 prefix 里安装 .NET 8 Desktop Runtime x86（`osu-wine n --winetricks dotnetdesktop8`）。也可以直接看 `logs/` 里的崩溃报告。
 - **查看器卡住 / 无响应**：先试 设置（Settings）→ **重启程序（Restart Program）**；如果重启后仍然卡住，多半是 Wine 下的兼容性问题，请把 `logs/` 里的日志附在 issue 里反馈（见下一条）。
+- **启动后窗口铺满整个桌面、右上角却不是最大化状态，而且无法缩小**：旧版本会把"最大化时的窗口尺寸"误存成普通窗口尺寸，导致下次启动以超大尺寸打开。最新版已修复（启动时自动把尺寸限制在所有屏幕的并集内，且不再保存最大化尺寸）。已经受影响的用户：关闭查看器后编辑 `user.config`，把 `Window_Width`/`Window_Height` 改回较小值（如 250 / 750）、`Window_Maximized` 设为 `False`；或直接删除 `user.config` 恢复默认设置。
 - **日志里反复出现 `No Osu!.exe found`**：确认查看器是在同一 prefix 下启动的（用第二步的批处理启动即可），并确认 osu! 已经打开。
 - **启动查看器报 `Current version of GDI+ does not support this feature`（或 `Gdip` 类型初始化异常）后闪退**：osu-winello prefix 里的 `gdiplus_winxp`（旧版 GDI+ 1.0）与 .NET 8 的 System.Drawing（需要 GDI+ 1.1）不兼容。请使用自包含版 `release-x86-self-contained.zip`（已内置 Win7 版 `GdiPlus.dll`），并确认查看器目录里有 `GdiPlus.dll`；不要设置 `WINEDLLOVERRIDES=gdiplus=b`。
 - **提示 `No active editor found.`**：先确认已进入编辑器（窗口标题以 `.osu` 结尾）。osu! 更新后内存布局可能变化，请更新查看器到最新发布版。
