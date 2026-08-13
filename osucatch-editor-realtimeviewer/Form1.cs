@@ -142,7 +142,8 @@ namespace osucatch_editor_realtimeviewer
                 Form1.ApplyResources(this);
             }
 
-            if (app.Default.Window_X >= 0 && app.Default.Window_Y >= 0)
+            if (app.Default.Window_X >= 0 && app.Default.Window_Y >= 0 &&
+                IsPositionOnScreen(app.Default.Window_X, app.Default.Window_Y))
             {
                 this.StartPosition = FormStartPosition.Manual;
                 this.Location = new System.Drawing.Point(app.Default.Window_X, app.Default.Window_Y);
@@ -200,8 +201,11 @@ namespace osucatch_editor_realtimeviewer
             if (app.Default.Show_Console) Program.ShowConsole();
 
             // window size
-            this.Width = app.Default.Window_Width;
-            this.Height = app.Default.Window_Height;
+            // 尺寸上限为所有屏幕的并集：防止上次最大化/异常值被存成普通尺寸后，
+            // 下次启动窗口铺满桌面且无法缩放（Wine 下尤为明显）
+            System.Drawing.Rectangle virtualScreen = SystemInformation.VirtualScreen;
+            this.Width = Math.Clamp(app.Default.Window_Width, 200, virtualScreen.Width);
+            this.Height = Math.Clamp(app.Default.Window_Height, 200, virtualScreen.Height);
             SizeChanged += Form1_SizeChanged;
 
             if (app.Default.Window_Maximized) this.WindowState = FormWindowState.Maximized;
@@ -339,8 +343,9 @@ namespace osucatch_editor_realtimeviewer
         {
             Invoke(new MethodInvoker(delegate ()
             {
-                this.Width = app.Default.Window_Width;
-                this.Height = app.Default.Window_Height;
+                System.Drawing.Rectangle virtualScreen = SystemInformation.VirtualScreen;
+                this.Width = Math.Clamp(app.Default.Window_Width, 200, virtualScreen.Width);
+                this.Height = Math.Clamp(app.Default.Window_Height, 200, virtualScreen.Height);
 
             }));
             runner.SetInterval(app.Default.Drawing_Interval, app.Default.Idle_Interval);
@@ -770,9 +775,29 @@ namespace osucatch_editor_realtimeviewer
 
         private void Form1_SizeChanged(object? sender, EventArgs e)
         {
-            app.Default.Window_Width = this.Width;
-            app.Default.Window_Height = this.Height;
+            // 最大化/最小化过程中的尺寸不能写入设置：否则会把全屏尺寸存成普通窗口尺寸，
+            // 下次启动时窗口铺满桌面且（Wine 下）无法缩放
+            if (this.WindowState != FormWindowState.Normal) return;
+
+            System.Drawing.Rectangle virtualScreen = SystemInformation.VirtualScreen;
+            app.Default.Window_Width = Math.Clamp(this.Width, 200, virtualScreen.Width);
+            app.Default.Window_Height = Math.Clamp(this.Height, 200, virtualScreen.Height);
             app.Default.Save();
+        }
+
+        /// <summary>
+        /// 判断保存的窗口位置是否仍在某个屏幕内（防止窗口被恢复到屏幕外导致无法拖动/缩放）。
+        /// </summary>
+        private static bool IsPositionOnScreen(int x, int y)
+        {
+            foreach (System.Windows.Forms.Screen screen in System.Windows.Forms.Screen.AllScreens)
+            {
+                if (screen.Bounds.Contains(x, y) || screen.Bounds.Contains(x + 80, y + 40))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void openSettingsFileToolStripMenuItem_Click(object sender, EventArgs e)
