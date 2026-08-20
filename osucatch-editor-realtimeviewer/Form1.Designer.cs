@@ -116,6 +116,8 @@
             menuStrip1.Name = "menuStrip1";
             menuStrip1.Dock = DockStyle.Top;
             menuStrip1.Margin = new Padding(0);
+            // 窗口过窄时菜单项收进右侧溢出按钮（…），避免被直接裁剪
+            menuStrip1.CanOverflow = true;
             // 
             // viewerToolStripMenuItem
             // 
