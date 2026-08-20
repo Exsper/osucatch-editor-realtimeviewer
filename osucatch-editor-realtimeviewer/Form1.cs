@@ -142,6 +142,20 @@ namespace osucatch_editor_realtimeviewer
                 Form1.ApplyResources(this);
             }
 
+            // ApplyResources 会按 resx 重设 Canvas 的 Location/Anchor（设置 Anchor 会清空 Dock），
+            // 这里重新确认停靠布局：画布必须始终从菜单栏实际下沿开始，
+            // 高 DPI（如 200% 缩放）下菜单变高时才不会被画布遮挡
+            Canvas.Dock = DockStyle.Fill;
+            Canvas.Margin = new Padding(0);
+
+            // 窗口过窄时菜单项收进右侧溢出按钮（…），避免被直接裁剪；
+            // 必须在 CreateTemplateMenu（插入模板菜单项）之后执行
+            menuStrip1.CanOverflow = true;
+            foreach (ToolStripItem item in menuStrip1.Items)
+            {
+                item.Overflow = ToolStripItemOverflow.AsNeeded;
+            }
+
             if (app.Default.Window_X >= 0 && app.Default.Window_Y >= 0 &&
                 IsPositionOnScreen(app.Default.Window_X, app.Default.Window_Y))
             {

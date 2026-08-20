@@ -105,12 +105,19 @@
             Canvas.BackColor = Color.Black;
             Canvas.Name = "Canvas";
             Canvas.VSync = false;
+            // 停靠填充：画布始终从菜单栏实际下沿开始，高 DPI 缩放下菜单变高时不会被画布遮挡
+            Canvas.Dock = DockStyle.Fill;
+            Canvas.Margin = new Padding(0);
             // 
             // menuStrip1
             // 
             menuStrip1.Items.AddRange(new ToolStripItem[] { viewerToolStripMenuItem, settingsToolStripMenuItem, githubToolStripMenuItem, toolStripMenuItem1 });
             resources.ApplyResources(menuStrip1, "menuStrip1");
             menuStrip1.Name = "menuStrip1";
+            menuStrip1.Dock = DockStyle.Top;
+            menuStrip1.Margin = new Padding(0);
+            // 窗口过窄时菜单项收进右侧溢出按钮（…），避免被直接裁剪
+            menuStrip1.CanOverflow = true;
             // 
             // viewerToolStripMenuItem
             // 
@@ -487,6 +494,8 @@
             statusStrip1.Items.AddRange(new ToolStripItem[] { StateToolStripStatusLabel });
             resources.ApplyResources(statusStrip1, "statusStrip1");
             statusStrip1.Name = "statusStrip1";
+            statusStrip1.Dock = DockStyle.Bottom;
+            statusStrip1.Margin = new Padding(0);
             // 
             // StateToolStripStatusLabel
             // 
