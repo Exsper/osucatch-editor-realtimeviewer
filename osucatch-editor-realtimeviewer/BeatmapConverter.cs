@@ -1,12 +1,15 @@
-﻿using osu.Game.Beatmaps;
+using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Catch;
+using osu.Game.Rulesets.Catch.Difficulty;
+using osu.Game.Rulesets.Catch.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Catch.Difficulty.Skills;
 using osu.Game.Rulesets.Catch.Mods;
 using osu.Game.Rulesets.Catch.Objects;
 using osu.Game.Rulesets.Catch.UI;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Difficulty.Skills;
 using osu.Game.Rulesets.Mods;
 
@@ -196,40 +199,56 @@ namespace osucatch_editor_realtimeviewer
 
         }
 
+        /// <summary>
+        /// Calculates the star rating of <paramref name="beatmap"/> using the version
+        /// <see cref="CatchDifficultyCalculator.Version"/> difficulty calculation pipeline
+        /// (<see cref="CatchDifficultyHitObject"/> + <c>MovementEvaluator</c> + <see cref="Movement"/>),
+        /// and writes the per-object star rating to <see cref="PalpableCatchHitObject.DifficultyToLast"/>.
+        /// </summary>
         public double CalDifficulty(IBeatmap beatmap, List<PalpableCatchHitObject> comboHitObjects)
         {
             const double difficulty_multiplier = 4.59;
-            const float normalized_hitobject_radius = 41.0f;
+            const double clock_rate = 1.0;
+
             float halfCatcherWidth = Catcher.CalculateCatchWidth(beatmap.Difficulty) * 0.5f;
             // For circle sizes above 5.5, reduce the catcher width further to simulate imperfect gameplay.
             halfCatcherWidth *= 1 - (Math.Max(0, beatmap.Difficulty.CircleSize - 5.5f) * 0.0625f);
-            // We will scale everything by this factor, so we can assume a uniform CircleSize among beatmaps.
-            float scalingFactor = normalized_hitobject_radius / halfCatcherWidth;
 
-            StrainSkill skill = new Movement(halfCatcherWidth, 1);
+            var skill = new Movement(NoMod);
 
-            for (int i = 0; i < comboHitObjects.Count; i++)
-            {
-                CalDifficultyToLast(skill, comboHitObjects[i], scalingFactor);
-            }
+            CalDifficultyToLast(skill, comboHitObjects, halfCatcherWidth, clock_rate);
 
             return Math.Sqrt(skill.DifficultyValue()) * difficulty_multiplier;
         }
 
-        public void CalDifficultyToLast(StrainSkill skill, PalpableCatchHitObject hitObject, float scalingFactor)
+        /// <summary>
+        /// Feeds all combo-contributing objects of the beatmap through the difficulty pipeline.
+        /// </summary>
+        public void CalDifficultyToLast(Movement skill, List<PalpableCatchHitObject> comboHitObjects, float halfCatcherWidth, double clockRate)
         {
-            if (hitObject.lastObject == null)
+            List<DifficultyHitObject> difficultyHitObjects = new List<DifficultyHitObject>(comboHitObjects.Count);
+
+            for (int i = 0; i < comboHitObjects.Count; i++)
             {
-                hitObject.DifficultyToLast = 0;
-                return;
+                var hitObject = comboHitObjects[i];
+                var lastObject = hitObject.lastObject;
+
+                if (lastObject == null)
+                {
+                    hitObject.DifficultyToLast = 0;
+                    continue;
+                }
+
+                difficultyHitObjects.Add(new CatchDifficultyHitObject(hitObject, lastObject, clockRate, halfCatcherWidth, difficultyHitObjects, difficultyHitObjects.Count));
             }
 
-            hitObject.NormalizedPosition = hitObject.EffectiveX * scalingFactor;
-            hitObject.LastNormalizedPosition = hitObject.lastObject.EffectiveX * scalingFactor;
-            // Every strain interval is hard capped at the equivalent of 375 BPM streaming speed as a safety measure
-            hitObject.DeltaTime = hitObject.StartTime - hitObject.lastObject.StartTime;
-            hitObject.StrainTime = Math.Max(40, hitObject.DeltaTime);
-            skill.Process(hitObject);
+            foreach (var difficultyHitObject in difficultyHitObjects)
+            {
+                skill.Process(difficultyHitObject);
+
+                var hitObject = (PalpableCatchHitObject)difficultyHitObject.BaseObject;
+                hitObject.DifficultyToLast = difficultyHitObject.DifficultyToLast;
+            }
         }
 
         private void CalFruitCountInCombo(List<PalpableCatchHitObject> comboHitObjects)
