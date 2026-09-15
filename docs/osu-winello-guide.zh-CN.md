@@ -1,4 +1,4 @@
-# 在 osu-winello（Linux / Wine）中运行 OsuCatch Editor Realtime Viewer（32 位版）并与 osu! 同时启动
+﻿# 在 osu-winello（Linux / Wine）中运行 OsuCatch Editor Realtime Viewer（32 位版）并与 osu! 同时启动
 
 本文面向通过 [osu-winello](https://github.com/NelloKudo/osu-winello) 在 Linux 上安装 osu! stable 的用户，介绍如何把本查看器（32 位版）放进 osu! 所在的 Wine prefix，并让它在 osu! 启动时一起启动，从而实时监控 osu! 的编辑器（editor）。
 
@@ -135,12 +135,12 @@ chmod +x ~/.local/bin/osu-with-viewer
 - **日志里反复出现 `No Osu!.exe found`**：确认查看器是在同一 prefix 下启动的（用第二步的批处理启动即可），并确认 osu! 已经打开。
 - **启动查看器报 `Current version of GDI+ does not support this feature`（或 `Gdip` 类型初始化异常）后闪退**：osu-winello prefix 里的 `gdiplus_winxp`（旧版 GDI+ 1.0）与 .NET 8 的 System.Drawing（需要 GDI+ 1.1）不兼容。请使用自包含版 `release-x86-self-contained.zip`（已内置 Win7 版 `GdiPlus.dll`），并确认查看器目录里有 `GdiPlus.dll`；不要设置 `WINEDLLOVERRIDES=gdiplus=b`。
 - **提示 `No active editor found.`**：先确认已进入编辑器（窗口标题以 `.osu` 结尾）。osu! 更新后内存布局可能变化，请更新查看器到最新发布版。
-- **启动后一直停在 `Try fetch editor`，没有后续日志**：这是旧版本在 Wine 下内存扫描的兼容性问题，最新版已修复（分块读取 + 超时自动跳过阻塞区域）。请更新到最新 release；新版日志里如出现 `scan aborted ... blocked at region ...`，程序会在下一次重试时自动跳过该区域继续扫描，属于正常现象。
+- **启动后一直停在 `Try fetch editor`，没有后续日志**：这是旧版本在 Wine 下内存扫描的兼容性问题，最新版已修复（分块读取 + 对阻塞区域加看门狗）。新版日志里如出现 `scan aborted ... stalled at region ...`，该区域会被退避（稍后按递增间隔重试），下一次扫描从断点继续，属于正常现象；重扫在后台进行，期间画面仍会刷新。
 - **开启 cachy（wine-osu-cachy）后查看器直接退出、没有任何日志**：osu-winello 的 cachy wine（wow64 实验构建）与 .NET 8 不兼容，基于 .NET 8 的查看器无法启动。请保持默认 wine-osu，**不要**设置 `WINE_USE_CACHY="true"`（该选项只建议给 Mapping Tools 等 .NET 6 程序使用）。
-- **查看器窗口出现但画面不刷新**：编辑器不在前台或鼠标静止时刷新会按低频间隔走，这是正常设计；进入编辑器并移动鼠标即可看到实时刷新。
+- **查看器窗口出现但画面不刷新**：谱面本身是静态的，画面里唯一会动的是你正在拖动/放置的物件，而它的当前位置只能从编辑器内存读到——所以 `Full read` 间隔实际上就是"物件跟手"的帧率。编辑器不在前台或鼠标静止时，全量读取会降到低频间隔，这是正常设计；进入编辑器并移动鼠标（例如拖动物件）即可看到实时刷新。状态栏会说明当前处于哪种状态：`Editor is not running`（test mode / 选歌中，属正常，画面保留上一张图）、`Re-binding editor...`（正在后台重新查找编辑器地址）、`Editor read failed, retrying`（读取持续失败，程序按退避重试并继续绘制最后一份有效数据）。
 - **上次异常退出后性能相关设置被自动调整**：程序检测到上次非正常退出时会自动关闭批量渲染，可在设置里重新打开。
 - **`osu-wine --fixprefix` 之后查看器起不来**：prefix 被重装不影响查看器本体（它位于 `osuconfig` 下，自带的运行时与 `GdiPlus.dll` 也不会被清掉）；若仍启动失败，确认使用的是自包含版。
-- **如何反馈问题**：请附带 `logs/` 目录下的 `log_YYYYMMDD.log`（当天运行日志）和 `crash_*.log`（崩溃报告）。该目录位于 prefix 的 `%LocalAppData%\OsuCatch-Editor-RealtimeViewer\logs\`，对应 Linux 路径 `~/.local/share/wineprefixes/osu-wineprefix/drive_c/users/<你的用户名>/AppData/Local/OsuCatch-Editor-RealtimeViewer/logs/`。
+- **如何反馈问题**：请附带 `logs/` 目录下的 `log_YYYYMMDD.log`（当天运行日志）和 `crash_*.log`（崩溃报告）。该目录位于 prefix 的 `%LocalAppData%\OsuCatch-Editor-RealtimeViewer\logs\`，对应 Linux 路径 `~/.local/share/wineprefixes/osu-wineprefix/drive_c/users/<你的用户名>/AppData/Local/OsuCatch-Editor-RealtimeViewer/logs/`。如果问题与读取编辑器有关（例如反复出现 `Periodic task error: ... FetchEditor error.`），请先在 **设置 → 日志 → Editor Reader** 打开对应开关（并把日志级别调成 Debug）再复现：不开这个开关时日志里只有摘要，没有真正的原因（哪次读取失败、哪个区域卡住、哪份快照校验不通过）。
 
 ## 相关链接
 

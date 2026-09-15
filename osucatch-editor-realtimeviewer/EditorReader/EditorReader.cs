@@ -127,21 +127,44 @@ public class EditorReader
     private const long MaxScanRegionSize = 256L * 1024 * 1024;
 
     /// <summary>
-    /// 每次 ReadProcessMemory 的最大块大小（可能再加少量重叠字节），
-    /// 避免在 32 位进程中一次性分配超大缓冲区。
-    /// </summary>
-    private const int ReadChunkSize = 8 * 1024 * 1024;
-
-    /// <summary>
     /// 单次内存扫描的最长时间。Wine 下 ReadProcessMemory 可能对某些区域永久阻塞，
-    /// 无法从超时点中断原生调用，因此把扫描放到独立线程，超时后放弃该线程并跳过对应区域。
+    /// 无法从超时点中断原生调用，因此把扫描放到独立线程，超时后放弃该线程并稍后重试。
     /// </summary>
     private const int ScanTimeoutMs = 30000;
 
+    /// <summary>ReadProcessMemory 长时间不返回的区域：首次退避 60 秒，随后指数增长。</summary>
+    private const int InitialRegionPenaltyMs = 60 * 1000;
+
+    /// <summary>区域退避上限：保证"被拉黑的区域"最终一定会被重试。</summary>
+    private const int MaxRegionPenaltyMs = 30 * 60 * 1000;
+
+    /// <summary>某个区域的退避状态。</summary>
+    private sealed class RegionPenalty
+    {
+        public int Count;
+        public long NextRetryTimestamp;
+    }
+
     /// <summary>
-    /// Wine 下 ReadProcessMemory 永久阻塞过的区域起始地址，重试时跳过。
+    /// ReadProcessMemory 长时间不返回过的区域（Wine 上确实存在）：按指数退避延后重试，
+    /// 而不是永久跳过。永久拉黑会造成"该区域恰好含有 editor 对象时，本进程内永远无法重新绑定"，
+    /// 用户只能不断重启 viewer —— 这正是 issue 中"重启 3 次以上 / 永久卡住"的来源之一。
     /// </summary>
-    private static readonly HashSet<long> blockedRegionAddresses = new();
+    private readonly Dictionary<long, RegionPenalty> penalizedRegions = new();
+    private readonly object penalizedRegionsLock = new();
+
+    /// <summary>上次成功找到 editor 的区域起始地址：重绑时优先扫描它（快路径）。</summary>
+    private long lastFoundRegionBase;
+
+    /// <summary>上次扫描超时后继续扫描的起点，避免每次重试都从头开始。</summary>
+    private int scanCursorIndex;
+
+    /// <summary>
+    /// 仍在运行的扫描线程数（含超时被放弃、但可能还阻塞在 ReadProcessMemory 里的线程）。
+    /// 超时的线程无法被中断，这里限制并发数，避免反复重试时线程无限堆积。
+    /// </summary>
+    private int liveScanThreads;
+    private const int MaxLiveScanThreads = 3;
 
     /// <summary>当前扫描线程正在读取的区域起始地址（供超时看门狗定位卡点）。</summary>
     private long scanningRegionAddress;
@@ -256,53 +279,84 @@ public class EditorReader
 
         Internals internals = new Internals();
         internals.MemInfo(process.Handle);
-        Log.ConsoleLog("FindEditorAddress: " + internals.MemReg.Count + " region(s) to scan.", Log.LogType.EditorReader, Log.LogLevel.Info);
+        int regionCount = internals.MemReg.Count;
+        Log.ConsoleLog("FindEditorAddress: " + regionCount + " region(s) to scan.", Log.LogType.EditorReader, Log.LogLevel.Info);
 
         // 把扫描放到独立线程：若某个 ReadProcessMemory 在 Wine 下永久阻塞，
-        // Join 超时后放弃该线程、记录阻塞区域并在下次重试时跳过，而不是让整个程序卡死。
-        IntPtr result = IntPtr.Zero;
+        // Join 超时后放弃该线程，把该区域延后重试（而不是永久跳过），而不是让整个程序卡死。
+        // 扫描线程自带缓冲区（见 ScanForEditorAddress），超时被放弃后继续运行也不会与主线程抢共享字段。
+        if (Interlocked.Increment(ref liveScanThreads) > MaxLiveScanThreads)
+        {
+            Interlocked.Decrement(ref liveScanThreads);
+            throw new InvalidOperationException("Too many memory scans are still running; skipping this attempt.");
+        }
+
+        (IntPtr Address, long RegionBase, int RegionIndex) scanResult = (IntPtr.Zero, 0, -1);
         Exception? scanError = null;
         Thread scanThread = new Thread(() =>
         {
-            try { result = ScanForEditorAddress(internals); }
+            try { scanResult = ScanForEditorAddress(internals); }
             catch (Exception ex) { scanError = ex; }
+            finally { Interlocked.Decrement(ref liveScanThreads); }
         });
         scanThread.Start();
 
         if (!scanThread.Join(ScanTimeoutMs))
         {
-            long blocked = Interlocked.Read(ref scanningRegionAddress);
-            int blockedIndex = scanningRegionIndex;
-            if (blocked != 0)
-            {
-                lock (blockedRegionAddresses) blockedRegionAddresses.Add(blocked);
-            }
-            Log.ConsoleLog("FindEditorAddress: scan aborted after " + ScanTimeoutMs + " ms, blocked at region " + blockedIndex + "/" + internals.MemReg.Count + " (address " + blocked + "). Will skip it on the next attempt.", Log.LogType.EditorReader, Log.LogLevel.Warning);
+            long stalled = Interlocked.Read(ref scanningRegionAddress);
+            int stalledIndex = scanningRegionIndex;
+            if (stalled != 0) PenalizeRegion(stalled);
+            // 下一次从卡住区域之后继续扫（环形），保证多次重试能向前推进、最终覆盖整个地址空间
+            if (regionCount > 0) scanCursorIndex = (stalledIndex + 1) % regionCount;
+            Log.ConsoleLog("FindEditorAddress: scan aborted after " + ScanTimeoutMs + " ms, stalled at region " + stalledIndex + "/" + regionCount + " (address " + stalled + "). It will be retried with backoff.", Log.LogType.EditorReader, Log.LogLevel.Warning);
             throw new InvalidOperationException("Memory scan aborted: ReadProcessMemory did not return in time.");
         }
 
         if (scanError != null) throw scanError;
-        return result;
+
+        if (scanResult.Address != IntPtr.Zero)
+        {
+            lastFoundRegionBase = scanResult.RegionBase;
+            scanCursorIndex = scanResult.RegionIndex;
+            ClearRegionPenalties();
+        }
+        else
+        {
+            // 完整扫过一遍没有结果：下次重新从 0 开始
+            scanCursorIndex = 0;
+        }
+
+        return scanResult.Address;
     }
 
-    private IntPtr ScanForEditorAddress(Internals internals)
+    /// <summary>
+    /// 在目标进程里扫描编辑器签名。
+    /// <para />扫描线程不共享任何实例缓冲区：超时被放弃的线程可能仍在读内存，
+    /// 若与主线程共用 buffer/bytesRead 会读到互相覆盖的数据。
+    /// </summary>
+    private (IntPtr Address, long RegionBase, int RegionIndex) ScanForEditorAddress(Internals internals)
     {
+        const int ReadChunkSize = 8 * 1024 * 1024;
+
         byte[] array = ToByteArray("230000001400000019000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0C000000eeeeeeeeeeeeeeeeeeeeeeeeee00");
         int overlap = array.Length - 1;
+        byte[] scanBuffer = null;
+        byte[] probe16 = new byte[16];
+        byte[] probe4 = new byte[4];
+        IntPtr read = IntPtr.Zero;
+        int skippedPenalized = 0;
 
-        for (int i = 0; i < internals.MemReg.Count; i++)
+        foreach (int i in GetScanOrder(internals))
         {
             Internals.MEMORY_BASIC_INFORMATION mEMORY_BASIC_INFORMATION = internals.MemReg[i];
             long regionBase = mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64();
             long regionSize = mEMORY_BASIC_INFORMATION.RegionSize.ToInt64();
 
-            lock (blockedRegionAddresses)
+            if (IsRegionPenalized(regionBase))
             {
-                if (blockedRegionAddresses.Contains(regionBase))
-                {
-                    Log.ConsoleLog("FindEditorAddress: skip blocked region " + i + "/" + internals.MemReg.Count + " (address " + regionBase + ").", Log.LogType.EditorReader, Log.LogLevel.Info);
-                    continue;
-                }
+                skippedPenalized++;
+                Log.ConsoleLog("FindEditorAddress: region " + i + "/" + internals.MemReg.Count + " (address " + regionBase + ") is in backoff, skipped for now.", Log.LogType.EditorReader, Log.LogLevel.Info);
+                continue;
             }
 
             if (regionSize > MaxScanRegionSize)
@@ -324,38 +378,149 @@ public class EditorReader
                 int readSize = chunkSize;
                 if (offset + chunkSize < regionSize) readSize += overlap;
 
-                EnsureBuffer(ref buffer, readSize);
-                if (!ReadProcessMemory(process.Handle, IntPtr.Add(mEMORY_BASIC_INFORMATION.BaseAddress, (int)offset), buffer, readSize, ref bytesRead))
+                EnsureBuffer(ref scanBuffer, readSize);
+                if (!ReadProcessMemory(process.Handle, IntPtr.Add(mEMORY_BASIC_INFORMATION.BaseAddress, (int)offset), scanBuffer, readSize, ref read))
                 {
                     offset += chunkSize;
                     continue;
                 }
 
-                int bytesToScan = (int)bytesRead;
+                int bytesToScan = (int)read;
                 for (int j = 0; j <= bytesToScan - array.Length; j += 4)
                 {
-                    if (PatternCheck(buffer, array, j) && !EditorMissingObjects(new IntPtr(mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64() + offset + j - 160)))
-                    {
-                        IntPtr editorAddress = new IntPtr(mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64() + offset + j - 160);
-                        Log.ConsoleLog("FindEditorAddress: found at " + editorAddress, Log.LogType.EditorReader, Log.LogLevel.Debug);
-                        return editorAddress;
-                    }
+                    if (!PatternCheck(scanBuffer, array, j)) continue;
+
+                    IntPtr candidate = new IntPtr(mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64() + offset + j - 160);
+                    if (!IsPlausibleEditor(candidate, probe16, probe4)) continue;
+
+                    Log.ConsoleLog("FindEditorAddress: found at " + candidate, Log.LogType.EditorReader, Log.LogLevel.Debug);
+                    return (candidate, regionBase, i);
                 }
 
                 offset += chunkSize;
-                if ((long)bytesRead < readSize) break; // 区域剩余部分不可读，停止该区域
+                if ((long)read < readSize) break; // 区域剩余部分不可读，停止该区域
             }
+        }
+
+        if (skippedPenalized > 0)
+        {
+            Log.ConsoleLog("FindEditorAddress: " + skippedPenalized + " region(s) skipped due to backoff.", Log.LogType.EditorReader, Log.LogLevel.Warning);
         }
 
         Log.ConsoleLog("FindEditorAddress: no active editor found.", Log.LogType.EditorReader, Log.LogLevel.Warning);
         throw new InvalidOperationException("No active editor found.");
     }
 
+    /// <summary>
+    /// 扫描顺序：先试上次命中 editor 的区域（通常直接命中，省掉整轮全堆扫描），
+    /// 再从上次超时点按环形顺序扫完整个列表，避免每次重试都从头扫、反复卡在同一个区域。
+    /// </summary>
+    private IEnumerable<int> GetScanOrder(Internals internals)
+    {
+        int regionCount = internals.MemReg.Count;
+        int fastPathIndex = -1;
+
+        if (lastFoundRegionBase != 0)
+        {
+            for (int i = 0; i < regionCount; i++)
+            {
+                if (internals.MemReg[i].BaseAddress.ToInt64() == lastFoundRegionBase)
+                {
+                    fastPathIndex = i;
+                    yield return i;
+                    break;
+                }
+            }
+        }
+
+        int start = (scanCursorIndex >= 0 && scanCursorIndex < regionCount) ? scanCursorIndex : 0;
+        for (int k = 0; k < regionCount; k++)
+        {
+            int i = (start + k) % regionCount;
+            if (i == fastPathIndex) continue;
+            yield return i;
+        }
+    }
+
+    private bool IsRegionPenalized(long regionBase)
+    {
+        lock (penalizedRegionsLock)
+        {
+            return penalizedRegions.TryGetValue(regionBase, out RegionPenalty? penalty) &&
+                   Stopwatch.GetTimestamp() < penalty.NextRetryTimestamp;
+        }
+    }
+
+    /// <summary>
+    /// 把"读取超时"的区域延后重试（60 秒起，逐次翻倍，上限 30 分钟），而不是永久跳过。
+    /// </summary>
+    private void PenalizeRegion(long regionBase)
+    {
+        lock (penalizedRegionsLock)
+        {
+            if (!penalizedRegions.TryGetValue(regionBase, out RegionPenalty? penalty))
+            {
+                penalty = new RegionPenalty();
+                penalizedRegions[regionBase] = penalty;
+            }
+
+            penalty.Count++;
+            long delayMs = Math.Min((long)InitialRegionPenaltyMs << Math.Min(penalty.Count - 1, 10), MaxRegionPenaltyMs);
+            penalty.NextRetryTimestamp = Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * (delayMs / 1000.0));
+        }
+    }
+
+    private void ClearRegionPenalties()
+    {
+        lock (penalizedRegionsLock)
+        {
+            penalizedRegions.Clear();
+        }
+    }
+
+    /// <summary>
+    /// 候选编辑器的可信度校验：签名命中只说明内存里有这段字节。
+    /// osu! 退出 test mode 后会重建编辑器对象，堆里可能残留同样能通过签名的死副本，
+    /// 选错副本会造成之后持续读取失败。这里额外校验编辑器状态、HOM 与物件列表。
+    /// <para />失败返回 false（不抛异常），让扫描继续找下一个候选。
+    /// </summary>
+    private bool IsPlausibleEditor(IntPtr pE, byte[] probe16, byte[] probe4)
+    {
+        if (pE == IntPtr.Zero) return false;
+
+        IntPtr read = IntPtr.Zero;
+
+        // 编辑器状态字段（与 EditorNeedsReload 的判定一致）
+        if (!ReadProcessMemory(process.Handle, pE + 160, probe16, 16, ref read)) return false;
+        if (BitConverter.ToInt32(probe16, 0) != 35 || BitConverter.ToInt32(probe16, 4) != 20 || BitConverter.ToInt32(probe16, 8) != 25) return false;
+
+        // HOM 与物件列表：死副本通常指向已释放/清零的内存
+        if (!ReadProcessMemory(process.Handle, pE + 28, probe4, 4, ref read)) return false;
+        IntPtr pHom = ToIntPtr(probe4, 0);
+        if (pHom == IntPtr.Zero) return false;
+
+        if (!ReadProcessMemory(process.Handle, pHom + 72, probe4, 4, ref read)) return false;
+        IntPtr pObjectsList = ToIntPtr(probe4, 0);
+        if (pObjectsList == IntPtr.Zero) return false;
+
+        if (!ReadProcessMemory(process.Handle, pObjectsList, probe16, 16, ref read)) return false;
+        IntPtr pObjectsArray = ToIntPtr(probe16, 4);
+        int count = BitConverter.ToInt32(probe16, 12);
+        if (pObjectsArray == IntPtr.Zero || count < 0 || count > 1000000) return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// 绑定 osu! 进程。切换到新进程时清空扫描状态：地址空间已完全不同，
+    /// 旧的退避表/命中区域/扫描游标都失去意义。
+    /// </summary>
     public void SetProcess(Process forceProcess = null)
     {
         if (forceProcess != null)
         {
             this.process = forceProcess;
+            ResetScanState();
             return;
         }
 
@@ -365,11 +530,20 @@ public class EditorReader
             if (process.MainModule.ModuleName == "osu!.exe" && process.MainModule.FileVersionInfo.ProductName == "osu!")
             {
                 this.process = process;
+                ResetScanState();
                 return;
             }
         }
 
         throw new InvalidOperationException("No process for osu!.exe found.");
+    }
+
+    private void ResetScanState()
+    {
+        ClearRegionPenalties();
+        lastFoundRegionBase = 0;
+        scanCursorIndex = 0;
+        Interlocked.Exchange(ref scanningRegionAddress, 0);
     }
 
     public bool ProcessNeedsReload()
@@ -415,10 +589,12 @@ public class EditorReader
 
     /// <summary>
     /// 清空已缓存的编辑器地址，强制下一次检查时重新扫描内存。
+    /// 同时清掉扫描退避表/命中区域/游标：手动重绑时应当从干净状态重新开始。
     /// </summary>
     public void ResetEditor()
     {
         pEditor = IntPtr.Zero;
+        ResetScanState();
     }
 
     public bool EditorNeedsReload()

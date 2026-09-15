@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Catch.Objects;
 using System.ComponentModel;
@@ -414,31 +414,107 @@ namespace osucatch_editor_realtimeviewer
 
             if (!editorReaderHelper.FetchProcess())
             {
-                Invoke(new MethodInvoker(delegate ()
-                {
-                    StateToolStripStatusLabel.Text = "Osu!.exe is not running";
-                }));
-                _committed.Reader = null;
+                // 还没有任何可绘制数据时也要让状态栏说明原因（有数据时由 DrawLastKnownFrame 一并更新）
+                if (_committed.Reader == null) SetStatusText("Osu!.exe is not running");
                 return false;
             }
             return true;
         }
 
+        /// <summary>
+        /// 检查编辑器绑定。
+        /// <para />返回 false 时调用方应继续用上一份有效数据绘制（详见 <see cref="DrawLastKnownFrame"/>），
+        /// 而不是清空数据并抛异常中断这一帧——那正是"错误刷屏 + 画面冻结"的原因。
+        /// </summary>
         private bool FetchEditor()
         {
             if (!editorReaderHelper.FetchEditor())
             {
-                Invoke(new MethodInvoker(delegate ()
-                {
-                    StateToolStripStatusLabel.Text = "Editor is not running";
-                }));
-                _committed.Reader = null;
+                if (_committed.Reader == null) SetStatusText(UnavailableStatusText());
                 return false;
             }
-            else
+            return true;
+        }
+
+        /// <summary>
+        /// 读取不可用时的状态栏文本：区分"编辑器没打开"（正常空闲）、"正在重绑"与"读取失败"。
+        /// </summary>
+        private string UnavailableStatusText()
+        {
+            if (editorReaderHelper.IsRebinding) return "Re-binding editor...";
+            if (editorReaderHelper.LastEditorState == EditorReaderHelper.EditorState.Active) return "Editor read failed, retrying";
+            return StatusTextFor(editorReaderHelper.LastEditorState);
+        }
+
+        /// <summary>
+        /// 状态栏文本：区分"编辑器没打开"（正常空闲）与"读取失败"（故障）。
+        /// </summary>
+        private static string StatusTextFor(EditorReaderHelper.EditorState state)
+        {
+            return state switch
             {
-                return true;
+                EditorReaderHelper.EditorState.Active => "Drawing",
+                EditorReaderHelper.EditorState.NotInEditor => "Editor is not running",
+                EditorReaderHelper.EditorState.Failed => "Editor read failed, retrying",
+                _ => "Connecting to editor",
+            };
+        }
+
+        private void SetStatusText(string text)
+        {
+            try
+            {
+                if (IsDisposed || Disposing) return;
+                Invoke(new MethodInvoker(delegate ()
+                {
+                    if (IsDisposed || Disposing) return;
+                    if (StateToolStripStatusLabel.Text != text) StateToolStripStatusLabel.Text = text;
+                }));
             }
+            catch (Exception ex)
+            {
+                // 窗口正在关闭时 Invoke 会失败，这里不影响读取循环
+                Log.ConsoleLog("Set status text failed.\r\n" + ex, Log.LogType.Program, Log.LogLevel.Debug);
+            }
+        }
+
+        /// <summary>
+        /// 用上一份有效数据绘制一帧：读取失败/编辑器暂时不可用时保持画面，只更新状态栏。
+        /// 没有任何有效数据时什么都不做（等待第一次成功读取）。
+        /// </summary>
+        private void DrawLastKnownFrame(string statusText)
+        {
+            if (_committed.Reader == null) return;
+
+            RequestDraw(null, null, statusText);
+        }
+
+        /// <summary>
+        /// 向 UI 线程提交一帧绘制。
+        /// <para /><paramref name="editorTime"/> 为 null 时保持当前播放头不变：
+        /// 读取失败时沿用上一份数据绘制，不应把播放头退回旧值。
+        /// </summary>
+        private void RequestDraw(int? editorTime, string? title, string statusText)
+        {
+            try
+            {
+                if (editorTime.HasValue) drawingHelper.CurrentTime = editorTime.Value;
+
+                Invoke(new MethodInvoker(delegate ()
+                {
+                    if (IsDisposed || Disposing) return;
+                    if (title != null && this.Text != title) this.Text = title;
+                    if (StateToolStripStatusLabel.Text != statusText) StateToolStripStatusLabel.Text = statusText;
+                    this.Canvas.Canvas_Paint(null, null);
+                }));
+                Log.ConsoleLog("Draw a frame successful.", Log.LogType.Drawing, Log.LogLevel.Debug);
+            }
+            catch (Exception ex)
+            {
+                Log.ConsoleLog("Draw a frame failed.\r\n" + ex, Log.LogType.Drawing, Log.LogLevel.Debug);
+            }
+
+            if (DateTime.Now.Ticks > LastDrawingTimeStamp) LastDrawingTimeStamp = DateTime.Now.Ticks;
         }
 
         /// <summary>
@@ -597,12 +673,32 @@ namespace osucatch_editor_realtimeviewer
 
             try
             {
+                // 后台重建任务与读取是否成功无关：先消费掉，避免读取中断期间重建结果一直不生效
+                ConsumeFinishedRebuild();
+
+                // 后台重绑（可能长达 30 秒的内存扫描）期间不碰 EditorReader，只继续绘制上一份数据
+                if (editorReaderHelper.IsRebinding)
+                {
+                    DrawLastKnownFrame(UnavailableStatusText());
+                    return;
+                }
+
                 // Step1. fetch osu! process
-                if (!FetchOsuProcess()) throw new Exception("FetchOsuProcess error.");
+                if (!FetchOsuProcess())
+                {
+                    DrawLastKnownFrame("Osu!.exe is not running");
+                    return;
+                }
 
 
                 // Step2. fetch editor
-                if (!FetchEditor()) throw new Exception("FetchEditor error.");
+                if (!FetchEditor())
+                {
+                    // 编辑器不可用（test mode/选歌/读取失败）不是致命错误：
+                    // 保留上一份有效数据继续绘制，只更新状态栏
+                    DrawLastKnownFrame(UnavailableStatusText());
+                    return;
+                }
 
 
                 // Step3. fetch all
@@ -618,10 +714,14 @@ namespace osucatch_editor_realtimeviewer
                     thisReader = editorReaderHelper.FetchAll(partialLoadingHalfTimeSpan);
                 }
                 else thisReader = editorReaderHelper.FetchAll();
-                if (thisReader == null) throw new Exception("FetchAll error.");
+                if (thisReader == null)
+                {
+                    // 读取失败：helper 内部已按退避重试/触发后台重绑，这里同样不中断绘制
+                    DrawLastKnownFrame(UnavailableStatusText());
+                    return;
+                }
 
-                // Step4. 后台流水线：先消费已完成的重建结果，再判断是否需要启动新重建
-                ConsumeFinishedRebuild();
+                // Step4. 判断是否需要启动新重建
 
                 int mods = GetMods();
                 HitObjectLabelType labelType = GetHitObjectLabelType();
@@ -699,30 +799,13 @@ namespace osucatch_editor_realtimeviewer
 
 
                 // Step11. drawing（标题/状态栏/绘制合成一次跨线程调用，减少每 tick 的 Invoke 次数）
-                try
-                {
-                    drawingHelper.CurrentTime = thisReader.EditorTime;
-                    Log.ConsoleLog("Start drawing.", Log.LogType.Drawing, Log.LogLevel.Debug);
+                Log.ConsoleLog("Start drawing.", Log.LogType.Drawing, Log.LogLevel.Debug);
 
-                    string title = editorReaderHelper.beatmap_title;
-                    if (drawingHelper.LabelType == HitObjectLabelType.Difficulty_Stars && !app.Default.FilterNearbyHitObjects && _committed.ConvertedBeatmap != null)
-                        title = "Stars: " + _committed.ConvertedBeatmap.BeatmapInfo.StarRating.ToString("0.00") + "*";
+                string title = editorReaderHelper.beatmap_title;
+                if (drawingHelper.LabelType == HitObjectLabelType.Difficulty_Stars && !app.Default.FilterNearbyHitObjects && _committed.ConvertedBeatmap != null)
+                    title = "Stars: " + _committed.ConvertedBeatmap.BeatmapInfo.StarRating.ToString("0.00") + "*";
 
-                    Invoke(new MethodInvoker(delegate ()
-                    {
-                        if (this.Text != title) this.Text = title;
-                        StateToolStripStatusLabel.Text = "Drawing";
-                        this.Canvas.Canvas_Paint(null, null);
-                    }));
-                    Log.ConsoleLog("Draw a frame successful.", Log.LogType.Drawing, Log.LogLevel.Debug);
-                }
-                catch (Exception ex)
-                {
-                    Log.ConsoleLog("Draw a frame failed.\r\n" + ex, Log.LogType.Drawing, Log.LogLevel.Debug);
-                }
-
-
-                if (DateTime.Now.Ticks > LastDrawingTimeStamp) LastDrawingTimeStamp = DateTime.Now.Ticks;
+                RequestDraw(thisReader.EditorTime, title, "Drawing");
 
             }
 
@@ -1158,15 +1241,21 @@ namespace osucatch_editor_realtimeviewer
 
         private async void forceResetStripMenuItem_Click(object sender, EventArgs e)
         {
+            Log.Breadcrumb("Manual reset requested.");
             _committed = new CommittedState();
             _rebuildGeneration++;
             _rebuildTask = null;
             _rebuildRetryTicks = 0;
 
-            editorReaderHelper = new();
+            // 强制丢弃进程/编辑器绑定与全部缓存，并立即重新查找 osu! 进程、重扫编辑器地址。
+            // 此前只是 editorReaderHelper = new()，而 EditorReader 是静态实例，
+            // 编辑器地址/扫描退避表都还在，卡住时按 Reset 等于没按。
+            editorReaderHelper.ForceRebind(resetRebindBackoff: true);
 
             await runner.StopAsync();
-            runner = new PeriodicTaskRunner(app.Default.Idle_Interval, app.Default.Idle_Interval, reader_timer_Work);
+            // 恢复正常的绘制间隔：此前用 Idle_Interval 重建 runner，
+            // 于是 Reset 之后预览会变成每 3 秒才刷新一次
+            runner = new PeriodicTaskRunner(app.Default.Drawing_Interval, app.Default.Idle_Interval, reader_timer_Work);
             runner.Start();
         }
 
