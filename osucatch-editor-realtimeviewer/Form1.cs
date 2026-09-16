@@ -31,6 +31,12 @@ namespace osucatch_editor_realtimeviewer
         private ToolStripMenuItem? unloadTemplateStripMenuItem;
         private TemplateBeatmapData? templateData;
 
+        // 快捷开关条：可吸附在菜单栏下方的工具栏行里，也可拖出为浮动小窗口
+        private QuickToggleBar? quickToggleBar;
+        private QuickToggleDockRow? quickToggleDockRow;
+        private QuickToggleDocking? quickToggleDocking;
+        private ToolStripMenuItem? quickToggleStripMenuItem;
+
         /// <summary>
         /// 已提交（正在绘制）的解析/转换结果快照。
         /// </summary>
@@ -123,6 +129,9 @@ namespace osucatch_editor_realtimeviewer
 
             // 模板菜单在构造函数里创建，确保语言资源能应用到它
             CreateTemplateMenu();
+
+            // 快捷开关条（内容即开关由后续步骤添加）
+            CreateQuickToggleBar();
 
             if (app.Default.Language_String != "")
             {
@@ -230,6 +239,11 @@ namespace osucatch_editor_realtimeviewer
             cubicFittingCurveToolStripMenuItem.Checked = app.Default.Show_CubicFittingCurve;
 
             ReapplyBookmarkStyles();
+
+            // 快捷开关栏：恢复开关状态与停靠 / 浮动状态（浮窗要等主窗口显示出来后再弹出）
+            quickToggleBar?.ApplyCheckedStates(app.Default.QuickToggle_States);
+            quickToggleDocking?.ApplyStartupState(app.Default.QuickToggle_Visible, app.Default.QuickToggle_Floating);
+            if (quickToggleStripMenuItem != null) quickToggleStripMenuItem.Checked = app.Default.QuickToggle_Visible;
 
             // osu path
             if (app.Default.osu_path == "")
@@ -350,6 +364,8 @@ namespace osucatch_editor_realtimeviewer
             Invoke(new MethodInvoker(delegate ()
             {
                 if (this != null && !this.IsDisposed && !this.Disposing) this.TopMost = shouldTopmost;
+                // 浮动小窗口跟随主窗口置顶，编辑器在前台时开关也能一直看见
+                quickToggleDocking?.SyncTopMost(shouldTopmost);
             }));
         }
 
@@ -827,6 +843,11 @@ namespace osucatch_editor_realtimeviewer
             healthMonitor?.Dispose();
             healthMonitor = null;
 
+            // 保存开关状态与停靠 / 浮动位置，并释放浮窗（释放时会把开关条放回停靠行）
+            quickToggleDocking?.SaveState();
+            quickToggleDocking?.Dispose();
+            quickToggleDocking = null;
+
             if (app.Default.Bookmark_RegisterHotKey)
             {
                 GlobalHotkey.UnRegisterGlobalHotKey(this.Handle);
@@ -1159,6 +1180,7 @@ namespace osucatch_editor_realtimeviewer
             if (form is Form1 form1)
             {
                 form1.RestoreTemplateMenuText();
+                form1.ApplyQuickToggleLanguage();
             }
         }
 
@@ -1362,6 +1384,67 @@ namespace osucatch_editor_realtimeviewer
             if (suffixIndex > 0) baseText = baseText.Substring(0, suffixIndex);
 
             unloadTemplateStripMenuItem.Text = (templateData != null) ? baseText + " (" + templateData.Filename + ")" : baseText;
+        }
+
+        /// <summary>
+        /// 创建快捷开关条（菜单栏正下方的工具栏行）：吸附在工具栏与拖出为浮动小窗口之间切换。
+        /// <para />开关内容由后续步骤通过 <see cref="QuickToggleBar.AddToggle"/> 添加。
+        /// </summary>
+        private void CreateQuickToggleBar()
+        {
+            quickToggleBar = new QuickToggleBar();
+            quickToggleDockRow = new QuickToggleDockRow();
+            quickToggleDocking = new QuickToggleDocking(this, quickToggleBar, quickToggleDockRow, menuStrip1);
+
+            QuickToggleDocking docking = quickToggleDocking;
+            docking.StateChanged += (sender, e) =>
+            {
+                if (quickToggleStripMenuItem != null) quickToggleStripMenuItem.Checked = docking.BarVisible;
+            };
+
+            // 停靠行要排在菜单栏之后、画布之前参与停靠布局：
+            // WinForms 按控件集合的倒序布局停靠控件（集合末尾的控件最先被安排），
+            // 把行插到菜单栏原来的位置上，它才会正好占据菜单栏下方的一行，
+            // 而画布（Dock=Fill）在其下方填满剩余空间；否则行会盖在画布上而不是挤开画布。
+            Controls.Add(quickToggleDockRow);
+            Controls.SetChildIndex(quickToggleDockRow, Controls.GetChildIndex(menuStrip1));
+
+            CreateQuickToggleMenu();
+        }
+
+        /// <summary>
+        /// 程序内创建“快捷开关栏”菜单项（显示 / 隐藏整行）。
+        /// </summary>
+        private void CreateQuickToggleMenu()
+        {
+            quickToggleStripMenuItem = new ToolStripMenuItem
+            {
+                Name = "quickToggleStripMenuItem",
+                Checked = true,
+            };
+            quickToggleStripMenuItem.Click += quickToggleStripMenuItem_Click;
+
+            // 归入 Viewer 菜单的显示选项分组（分隔线之前的最后一项）
+            int insertIndex = viewerToolStripMenuItem.DropDownItems.IndexOf(toolStripSeparator1);
+            if (insertIndex < 0) insertIndex = viewerToolStripMenuItem.DropDownItems.Count;
+            viewerToolStripMenuItem.DropDownItems.Insert(insertIndex, quickToggleStripMenuItem);
+        }
+
+        private void quickToggleStripMenuItem_Click(object? sender, EventArgs e)
+        {
+            if (quickToggleDocking == null) return;
+
+            bool visible = !quickToggleDocking.BarVisible;
+            quickToggleDocking.BarVisible = visible;
+            if (quickToggleStripMenuItem != null) quickToggleStripMenuItem.Checked = visible;
+            quickToggleDocking.SaveState();
+            app.Default.Save();
+        }
+
+        /// <summary>语言切换后刷新快捷开关条上的固定文本。</summary>
+        private void ApplyQuickToggleLanguage()
+        {
+            quickToggleDocking?.ApplyLanguage();
         }
 
         /// <summary>
