@@ -37,6 +37,18 @@ namespace osucatch_editor_realtimeviewer
         private QuickToggleDocking? quickToggleDocking;
         private ToolStripMenuItem? quickToggleStripMenuItem;
 
+        /// <summary>快捷开关“固定预览时刻”的标识（勾选状态随其它开关一起持久化）。</summary>
+        private const string FreezePreviewTimeKey = "FreezePreviewTime";
+
+        /// <summary>预览时刻是否被固定（“固定预览时刻”开关打开）：为 true 时预览画布不再跟随编辑器。</summary>
+        private bool previewTimeFrozen;
+
+        /// <summary>固定预览时刻后是否还没完成“钉住”（启动恢复固定状态、或还没读到过 editor 时刻）。</summary>
+        private bool previewTimePinPending;
+
+        /// <summary>是否已经从编辑器读到过时刻（用于避免把预览固定在未初始化的 0 上）。</summary>
+        private bool editorTimeAvailable;
+
         /// <summary>
         /// 已提交（正在绘制）的解析/转换结果快照。
         /// </summary>
@@ -130,8 +142,9 @@ namespace osucatch_editor_realtimeviewer
             // 模板菜单在构造函数里创建，确保语言资源能应用到它
             CreateTemplateMenu();
 
-            // 快捷开关条（内容即开关由后续步骤添加）
+            // 快捷开关条（开关内容在 CreateQuickToggles 里添加）
             CreateQuickToggleBar();
+            CreateQuickToggles();
 
             if (app.Default.Language_String != "")
             {
@@ -242,6 +255,8 @@ namespace osucatch_editor_realtimeviewer
 
             // 快捷开关栏：恢复开关状态与停靠 / 浮动状态（浮窗要等主窗口显示出来后再弹出）
             quickToggleBar?.ApplyCheckedStates(app.Default.QuickToggle_States);
+            // ApplyCheckedStates 不触发事件，这里手动把“固定预览时刻”的内部状态同步过来
+            SetPreviewTimeFrozen(quickToggleBar?.IsChecked(FreezePreviewTimeKey) ?? false);
             quickToggleDocking?.ApplyStartupState(app.Default.QuickToggle_Visible, app.Default.QuickToggle_Floating);
             if (quickToggleStripMenuItem != null) quickToggleStripMenuItem.Checked = app.Default.QuickToggle_Visible;
 
@@ -514,7 +529,7 @@ namespace osucatch_editor_realtimeviewer
         {
             try
             {
-                if (editorTime.HasValue) drawingHelper.CurrentTime = editorTime.Value;
+                if (editorTime.HasValue) ApplyEditorTime(editorTime.Value);
 
                 Invoke(new MethodInvoker(delegate ()
                 {
@@ -1388,11 +1403,14 @@ namespace osucatch_editor_realtimeviewer
 
         /// <summary>
         /// 创建快捷开关条（菜单栏正下方的工具栏行）：吸附在工具栏与拖出为浮动小窗口之间切换。
-        /// <para />开关内容由后续步骤通过 <see cref="QuickToggleBar.AddToggle"/> 添加。
         /// </summary>
         private void CreateQuickToggleBar()
         {
             quickToggleBar = new QuickToggleBar();
+            // 先于停靠管理器订阅：停靠管理器在自己的 ToggleChanged 处理里统一保存设置，
+            // 这里先更新运行状态，保证同一次保存里带上的都是最新状态
+            quickToggleBar.ToggleChanged += quickToggleBar_ToggleChanged;
+
             quickToggleDockRow = new QuickToggleDockRow();
             quickToggleDocking = new QuickToggleDocking(this, quickToggleBar, quickToggleDockRow, menuStrip1);
 
@@ -1410,6 +1428,90 @@ namespace osucatch_editor_realtimeviewer
             Controls.SetChildIndex(quickToggleDockRow, Controls.GetChildIndex(menuStrip1));
 
             CreateQuickToggleMenu();
+        }
+
+        /// <summary>
+        /// 创建快捷开关条上的即时开关。开关内容后续继续在这里添加。
+        /// </summary>
+        private void CreateQuickToggles()
+        {
+            if (quickToggleBar == null) return;
+
+            (string text, string toolTip) = FreezePreviewTimeText(previewTimeFrozen);
+            quickToggleBar.AddToggle(FreezePreviewTimeKey, text, false);
+            quickToggleBar.SetToggleText(FreezePreviewTimeKey, text, toolTip);
+        }
+
+        /// <summary>
+        /// “固定预览时刻”开关在当前语言下的按钮文本与提示。
+        /// 按钮文本按“点击后会做什么”显示（与右端“浮动/吸附”按钮一致）：
+        /// 跟随中显示 ⏸️（点击固定），已固定显示 ▶️（点击恢复跟随）。
+        /// </summary>
+        private static (string Text, string ToolTip) FreezePreviewTimeText(bool frozen)
+        {
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            string text = frozen ? "▶️" : "⏸️";
+            string toolTip = frozen
+                ? (chinese ? "恢复跟随 editor 时刻" : "Resume following the editor time")
+                : (chinese
+                    ? "固定预览时刻：预览停在当前 editor 时刻（距离辅助线仍跟随 editor 实时时刻）"
+                    : "Freeze the preview at the current editor time (the distance helper still follows the editor)");
+            return (text, toolTip);
+        }
+
+        private void quickToggleBar_ToggleChanged(object? sender, QuickToggleChangedEventArgs e)
+        {
+            if (e.Key == FreezePreviewTimeKey) SetPreviewTimeFrozen(e.IsChecked);
+        }
+
+        /// <summary>
+        /// 切换“固定预览时刻”：打开后预览画布钉在当前 editor 时刻不再跟随，关闭后恢复跟随。
+        /// <para />只影响预览时刻（<see cref="DrawingHelper.CurrentTime"/>）；
+        /// 距离辅助线用的是始终跟随编辑器的 <see cref="DrawingHelper.EditorTime"/>，不受影响。
+        /// </summary>
+        private void SetPreviewTimeFrozen(bool frozen)
+        {
+            previewTimeFrozen = frozen;
+            previewTimePinPending = frozen;
+
+            // 按钮文本/提示跟随状态：⏸️ 表示点击后固定，▶️ 表示点击后恢复跟随
+            (string text, string toolTip) = FreezePreviewTimeText(frozen);
+            quickToggleBar?.SetToggleText(FreezePreviewTimeKey, text, toolTip);
+
+            if (!frozen)
+            {
+                Log.ConsoleLog("Preview time follows editor again.", Log.LogType.Drawing, Log.LogLevel.Info);
+                return;
+            }
+
+            if (editorTimeAvailable)
+            {
+                // 已经读到过 editor 时刻：立刻钉住（即使随后还有一帧在路上，时刻也只差一帧，约 20ms）
+                previewTimePinPending = false;
+                drawingHelper.CurrentTime = drawingHelper.EditorTime;
+                Log.ConsoleLog("Preview time frozen at " + drawingHelper.EditorTime.ToString("F0") + " ms.", Log.LogType.Drawing, Log.LogLevel.Info);
+            }
+            else
+            {
+                // 还没读到过 editor 时刻（例如启动时恢复固定状态）：等第一帧读到时刻时再钉住，避免固定到 0
+                Log.ConsoleLog("Preview time freeze is waiting for the first editor time.", Log.LogType.Drawing, Log.LogLevel.Info);
+            }
+        }
+
+        /// <summary>
+        /// 用一帧读到的 editor 时刻更新绘制时间：
+        /// <see cref="DrawingHelper.EditorTime"/> 始终跟随编辑器；
+        /// 预览时刻只在正常模式（未固定）或刚打开固定模式（需要钉住）时更新。
+        /// </summary>
+        private void ApplyEditorTime(int editorTime)
+        {
+            drawingHelper.EditorTime = editorTime;
+            editorTimeAvailable = true;
+
+            if (previewTimeFrozen && !previewTimePinPending) return;
+
+            previewTimePinPending = false;
+            drawingHelper.CurrentTime = editorTime;
         }
 
         /// <summary>
@@ -1445,6 +1547,9 @@ namespace osucatch_editor_realtimeviewer
         private void ApplyQuickToggleLanguage()
         {
             quickToggleDocking?.ApplyLanguage();
+
+            (string text, string toolTip) = FreezePreviewTimeText(previewTimeFrozen);
+            quickToggleBar?.SetToggleText(FreezePreviewTimeKey, text, toolTip);
         }
 
         /// <summary>

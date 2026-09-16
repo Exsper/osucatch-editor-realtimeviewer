@@ -129,6 +129,20 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>读取开关的勾选状态；开关不存在时返回 false。</summary>
         internal bool IsChecked(string key) => toggles.TryGetValue(key, out ToolStripButton? item) && item.Checked;
 
+        /// <summary>
+        /// 更新开关按钮的文本与提示（语言切换等场景），
+        /// 并通知宿主重新计算浮窗尺寸（条自身不自动调整大小）。
+        /// </summary>
+        internal void SetToggleText(string key, string text, string? toolTip = null)
+        {
+            if (!toggles.TryGetValue(key, out ToolStripButton? item)) return;
+
+            item.Text = text;
+            item.ToolTipText = toolTip ?? text;
+            item.AutoToolTip = false;
+            ContentChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         /// <summary>设置开关的勾选状态（会触发 <see cref="ToggleChanged"/>）。</summary>
         internal void SetChecked(string key, bool isChecked)
         {
