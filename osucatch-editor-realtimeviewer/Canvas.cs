@@ -605,18 +605,26 @@ namespace osucatch_editor_realtimeviewer
 
         private static void DrawJudgementLine()
         {
-            if (screensContain > 1)
-            {
-                Vector2 rp0 = new Vector2(64, (float)(240.0 * screensContain));
-                Vector2 rp1 = new Vector2(576, (float)(240.0 * screensContain));
-                DrawLine(rp0, rp1, Color.White, 1f, LineType.Solid, true);
-            }
-            else
-            {
-                Vector2 rp0 = new Vector2(64, 408);
-                Vector2 rp1 = new Vector2(576, 408);
-                DrawLine(rp0, rp1, Color.White, 1f, LineType.Solid, true);
-            }
+            double baseY = (screensContain > 1) ? 240.0 * screensContain : 408;
+            DrawingHelper drawing = Form1.drawingHelper;
+            double y = JudgementLineY(baseY, drawing.FixedPreviewTime, drawing.EditorTime, drawing.CurrentTime, drawing.TimePerPixels);
+
+            Vector2 rp0 = new Vector2(64, (float)y);
+            Vector2 rp1 = new Vector2(576, (float)y);
+            DrawLine(rp0, rp1, Color.White, 1f, LineType.Solid, true);
+        }
+
+        /// <summary>
+        /// 判定线（当前时刻线）在画面上的 Y 坐标。
+        /// 正常模式：画在判定线本身的位置（当前时刻所在高度）。
+        /// 固定预览时刻：画面停在预览时刻，判定线改为按 editor 时刻在画面上的位置绘制
+        /// （换算方式与绘制物件完全一致：<c>baseY - (time - CurrentTime) / TimePerPixels</c>），
+        /// 这样固定预览时也能一眼看出当前编辑位置在画面的哪里。
+        /// </summary>
+        private static double JudgementLineY(double baseY, bool fixedPreviewTime, double editorTime, double currentTime, double timePerPixels)
+        {
+            if (!fixedPreviewTime || !(timePerPixels > 0)) return baseY;
+            return baseY - (editorTime - currentTime) / timePerPixels;
         }
     }
 }

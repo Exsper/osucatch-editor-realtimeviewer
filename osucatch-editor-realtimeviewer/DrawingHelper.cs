@@ -51,6 +51,13 @@ namespace osucatch_editor_realtimeviewer
         /// 否则固定预览后就看不到当前放置物件相对上个物件的可达距离了。
         /// </summary>
         public float EditorTime { get; set; }
+
+        /// <summary>
+        /// 是否处于“固定预览时刻”模式：为 true 时 <see cref="CurrentTime"/> 被钉住不再跟随编辑器，
+        /// 判定线改画在 <see cref="EditorTime"/> 对应的画面位置上（见 Canvas.DrawJudgementLine）。
+        /// </summary>
+        public bool FixedPreviewTime { get; set; }
+
         public ControlPointInfo? ControlPointInfo { get; set; }
         List<BarLine> BarLines { get; set; }
         public List<PalpableCatchHitObject> CatchHitObjects { get; set; }

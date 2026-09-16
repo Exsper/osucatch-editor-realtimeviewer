@@ -1473,8 +1473,10 @@ namespace osucatch_editor_realtimeviewer
         {
             previewTimeFrozen = frozen;
             previewTimePinPending = frozen;
+            // 判定线据此改为跟随 editor 时刻在画面上的位置
+            drawingHelper.FixedPreviewTime = frozen;
 
-            // 按钮文本/提示跟随状态：⏸️ 表示点击后固定，▶️ 表示点击后恢复跟随
+            // 按钮文本/提示跟随状态：⏸ 表示点击后固定，▶ 表示点击后恢复跟随
             (string text, string toolTip) = FreezePreviewTimeText(frozen);
             quickToggleBar?.SetToggleText(FreezePreviewTimeKey, text, toolTip);
 
