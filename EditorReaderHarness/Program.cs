@@ -66,6 +66,16 @@ internal static class Program
             case "p": PointerSizeRepro(); break;
             case "b": BatchReadBench(); break;
             case "z": FastPathBench(); break;
+            case "t": TickLoopSim(); break;
+            case "c": ListEditorCandidates(); break;
+            case "u": DiagnoseStuck(); break;
+            case "w": ReplayFetchAll(); break;
+            case "y": PointerSignCheck(); break;
+            case "j": DiagnoseSegmentRead(); break;
+            case "n": SwitchStress(); break;
+            case "q2": SnapshotConsistency(); break;
+            case "L": LoadWindowStress(); break;
+            case "T": ProbeReadThreshold(); break;
             case "e": EagerVsLazyLines(); break;
             case "k": ReadCostBreakdown(); break;
             case "x": RetryHealTest(); break;
@@ -994,6 +1004,93 @@ internal static class Program
     // ------------------------------------------------------------------ 快速路径（指针表未变则跳过全量）
 
     /// <summary>
+    /// tick 循环模拟：复刻 EditorReaderHelper.FetchWithCache 的判定链，
+    /// 对比"修复前（标题判断放在间隔判断之前）"与"修复后"在同样时长里各做了多少次全量读取。
+    /// 只测判定链与读取成本，不涉及绘制/转换。
+    /// </summary>
+    private static void TickLoopSim()
+    {
+        if (_reader.numObjects <= 0) { WriteLine("没有物件，先 a 绑定"); return; }
+
+        const int TickIntervalMs = 20;   // Drawing_Interval
+        const int TicksToSimulate = 400;
+
+        WriteLine($"物件={_reader.numObjects}  虚拟 tick 间隔=20ms  模拟 {TicksToSimulate} 个 tick");
+        WriteLine("（同一段操作里各配置下的全量读取次数）\n");        foreach (int fullInterval in new[] { 20, 100, 500, 2000 })
+        foreach (bool titleCheckFirst in new[] { true, false })
+        {
+            // 先建立一份缓存
+            _reader.FetchAll(false);
+            object? cachedCollection = new object();
+            string cachedTitle = "x.osu@0";
+            long virtualNow = 0;                  // 虚拟时钟：只用于判定，避免被真实读取耗时掩盖结论
+            long lastEditorCheck = 0;
+            long lastFullFetch = 0;
+            long ticks = 0, fullFetches = 0;
+            double realFetchMs = 0;
+
+            while (ticks < TicksToSimulate)
+            {
+                ticks++;
+                // 每次 tick 之间至少隔一个 Drawing_Interval：虚拟时钟必须先前进再判定，
+                // 否则 lastFullFetch 会一直等于当前虚拟时间，间隔判断永远成立。
+                virtualNow += TickIntervalMs;
+
+                // FetchEditor：每 20ms 做一次真实校验
+                if (virtualNow - lastEditorCheck >= TickIntervalMs)
+                {
+                    lastEditorCheck = virtualNow;
+                }
+
+                // beatmap_title 由 FetchEditor() 在每次校验时刷新、并在**全量读取成功后才**被记进 cachedTitle。
+                // 同一个谱面期间标题文本不变，但它的"最新来源"总是比 cachedTitle 新 —— 用校验时间来模拟：
+                // 只要"校验过但还没读"的 tick 存在，两者就不等。
+                string beatmapTitle = "x.osu@" + lastEditorCheck;
+
+                bool due;
+                if (titleCheckFirst)
+                {
+                    due = cachedCollection == null || cachedTitle != beatmapTitle;
+                    if (!due) due = virtualNow - lastFullFetch >= fullInterval;
+                }
+                else
+                {
+                    due = cachedCollection == null || virtualNow - lastFullFetch >= fullInterval;
+                    if (!due) due = cachedTitle != beatmapTitle;
+                }
+
+                if (due)
+                {
+                    fullFetches++;
+                    lastFullFetch = virtualNow;
+                    long a = Stopwatch.GetTimestamp();
+                    _reader.FetchAll(false);
+                    long b = Stopwatch.GetTimestamp();
+                    realFetchMs += Us(a, b) / 1000.0;
+                    cachedTitle = beatmapTitle;      // 全量读取成功后才记下标题
+                }
+                else
+                {
+                    _reader.EditorTime();
+                }
+            }
+
+            string label = titleCheckFirst ? "修复前" : "修复后";
+            WriteLine($"读取间隔={fullInterval,5}ms  {label}  tick={ticks,-6} 全量读取={fullFetches,-6} 读取总耗时={realFetchMs,9:F0} ms");
+        }
+
+        WriteLine("\n结论：同一个谱面期间 beatmap_title 每次校验都被刷新，而 cachedTitle 只有全量读取成功才更新，");
+        WriteLine("于是'标题判断放在间隔判断之前'会让间隔设置完全失效；修复后间隔判断先返回，标题只在间隔到时才参与。");
+        WriteLine("另外注意：默认 FullRead_Interval=20ms 与 Drawing_Interval 相同时，间隔本身每个 tick 都会到期，");
+        WriteLine("所以默认配置下修好这一项并不会减少读取次数 —— 它的价值在于把 LowFreqRead_Interval / 放大后的");
+        WriteLine("间隔设置重新变成有效参数（修复前无论设多大都等于每 tick 全量读）。");
+
+        WriteLine("\n（虚拟时钟：两次 tick 固定间隔 20ms，读取间隔 50ms。同一段操作里的全量读取次数对比。）");
+
+        WriteLine("\n（同一段操作里各配置下的全量读取次数）\n");
+    }
+
+    /// <summary>
     /// 候选 C：把"物件指针表"缓存下来，每 tick 只做少量低成本读取判断表是否变化，
     /// 未变化则完全跳过全量重读，只刷新选中/时间。
     /// </summary>
@@ -1148,6 +1245,1008 @@ internal static class Program
 
         var t5 = Mem.Time(15, () => _reader.EditorTime());
         WriteLine($"{"reader.EditorTime（高频路径）",-32} {Mem.Fmt(t5.AvgUs),10}   1 次 RPM");
+    }
+
+    // ------------------------------------------------------------------ 编辑器候选枚举
+
+    /// <summary>
+    /// 枚举进程里所有"看起来像 editor 对象"的候选（签名 + IsPlausibleEditor 那套字段校验），
+    /// 用来诊断"从同一谱面集切难度后永久卡住"：堆里会残留死副本，选错就会一直读失败。
+    /// </summary>
+    private static void ListEditorCandidates()
+    {
+        if (_hProcess == IntPtr.Zero) { WriteLine("先 a 绑定"); return; }
+
+        // 与主工程 ScanForEditorAddress 里的 ToByteArray("230000001400000019000000…") 完全一致：
+        // 50 字节，0x0C 在索引 32，0xEE 是通配符
+        byte[] pattern = new byte[]
+        {
+            0x23,0,0,0, 0x14,0,0,0, 0x19,0,0,0,
+            0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,
+            0xEE,0xEE,0xEE,0xEE,
+            0x0C,0,0,0,
+            0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,
+            0x00
+        };
+        WriteLine($"模式长度自检: {pattern.Length} 字节 (应为 50)");
+
+        // 先验证模式本身：在"已知能读到数据的编辑器地址 +160"处应该能匹配
+        {
+            byte[] known = new byte[pattern.Length];
+            if (Mem.Rpm(_hProcess, _reader.EditorAddress + 160, known, known.Length))
+            {
+                bool match = PatternMatch(known, pattern, 0);
+                WriteLine($"模式自检：当前绑定编辑器 0x{_reader.EditorAddress:X} +160 处 {(match ? "匹配" : "不匹配")}");
+                WriteLine("  实际字节: " + string.Join(" ", known.Select(b => b.ToString("X2"))));
+                WriteLine("  模式字节: " + string.Join(" ", pattern.Select(b => b == 0xEE ? "??" : b.ToString("X2"))));
+                for (int i = 0; i < pattern.Length; i++)
+                {
+                    if (pattern[i] != 0xEE && pattern[i] != known[i])
+                    {
+                        WriteLine($"  第 {i} 字节不符: 模式=0x{pattern[i]:X2} 实际=0x{known[i]:X2}");
+                    }
+                }
+
+                WriteLine();
+            }
+            else
+            {
+                WriteLine("模式自检：读取当前编辑器失败\n");
+            }
+        }
+
+        WriteLine("正在枚举内存区域并扫描 editor 签名（每个区域一次读取，稍等）…");
+        var regions = Mem.Regions(_hProcess);
+        WriteLine($"已提交且可读的区域数: {regions.Count}\n");
+
+        var found = new List<(long Candidate, long RegionBase, long RegionSize, string Verdict)>();
+        long totalRead = 0;
+        var sw = Stopwatch.StartNew();
+
+        foreach (var r in regions)
+        {
+            long size = r.RegionSize.ToInt64();
+            if (size <= 0 || size > 256L * 1024 * 1024) continue;
+
+            byte[] buffer = new byte[size];
+            if (!Mem.Rpm(_hProcess, r.BaseAddress, buffer, (int)size)) continue;
+            totalRead += size;
+
+            for (int j = 0; j + pattern.Length <= buffer.Length; j += 4)
+            {
+                // 只用模式里"确定"的字节做快速筛除（0xEE 是通配符，不能拿来筛）
+                if (buffer[j] != 0x23 || buffer[j + 1] != 0 || buffer[j + 2] != 0 || buffer[j + 3] != 0) continue;
+                if (buffer[j + 4] != 0x14 || buffer[j + 8] != 0x19 || buffer[j + 32] != 0x0C || buffer[j + 49] != 0x00) continue;
+                if (!PatternMatch(buffer, pattern, j)) continue;
+
+                long candidate = r.BaseAddress.ToInt64() + j - 160;
+                found.Add((candidate, r.BaseAddress.ToInt64(), size, ""));
+            }
+
+            if (sw.ElapsedMilliseconds > 60000) { WriteLine("扫描超时，提前结束"); break; }
+        }
+
+        WriteLine($"扫描完成: {sw.ElapsedMilliseconds} ms, 读取 {totalRead / 1024.0 / 1024.0:F0} MB, 命中 {found.Count} 个候选\n");
+
+        byte[] probe16 = new byte[16];
+        byte[] probe4 = new byte[4];
+
+        foreach (var (candidate, regionBase, regionSize, _) in found)
+        {
+            string verdict = DescribeEditorCandidate(candidate, probe16, probe4);
+            bool isCurrent = candidate == _reader.EditorAddress.ToInt64();
+            WriteLine($"  0x{candidate:X8}  region=0x{regionBase:X8}({regionSize / 1024}KB)  {(isCurrent ? "[当前绑定] " : "")}{verdict}");
+        }
+
+        WriteLine($"\n各候选的 pEditor+28(HOM) 指向的对象列表情况：");
+        foreach (var (candidate, _, _, _) in found)
+        {
+            DumpCandidateChain(candidate, probe16, probe4);
+        }
+    }
+
+    private static bool PatternMatch(byte[] buffer, byte[] pattern, int offset)
+    {
+        for (int i = 0; i < pattern.Length; i++)
+        {
+            if (pattern[i] != 0xEE && pattern[i] != buffer[offset + i]) return false;
+        }
+        return true;
+    }
+
+    /// <summary>复刻 IsPlausibleEditor 的每一步，并把失败在哪一步说清楚。</summary>
+    private static string DescribeEditorCandidate(long candidate, byte[] probe16, byte[] probe4)
+    {
+        IntPtr pE = (IntPtr)candidate;
+        if (!Mem.Rpm(_hProcess, pE + 160, probe16, 16))
+        {
+            return "字段读取失败 (pE+160)";
+        }
+
+        int f0 = BitConverter.ToInt32(probe16, 0), f4 = BitConverter.ToInt32(probe16, 4), f8 = BitConverter.ToInt32(probe16, 8);
+        if (f0 != 35 || f4 != 20 || f8 != 25) return $"状态字段不符 ({f0},{f4},{f8})";
+
+        if (!Mem.Rpm(_hProcess, pE + 28, probe4, 4)) return "pE+28 读取失败";
+        IntPtr pHom = (IntPtr)BitConverter.ToUInt32(probe4, 0);
+        if (pHom == IntPtr.Zero) return "HOM 为空";
+
+        if (!Mem.Rpm(_hProcess, pHom + 72, probe4, 4)) return "HOM+72 读取失败";
+        IntPtr pObjectsList = (IntPtr)BitConverter.ToUInt32(probe4, 0);
+        if (pObjectsList == IntPtr.Zero) return "物件列表为空";
+
+        if (!Mem.Rpm(_hProcess, pObjectsList, probe16, 16)) return "物件列表头读取失败";
+        IntPtr pObjectsArray = (IntPtr)BitConverter.ToUInt32(probe16, 4);
+        int count = BitConverter.ToInt32(probe16, 12);
+        if (pObjectsArray == IntPtr.Zero || count < 0 || count > 1000000) return $"物件表非法 (items=0x{pObjectsArray:X}, size={count})";
+
+        return $"通过校验 items=0x{pObjectsArray:X} count={count}";
+    }
+
+    /// <summary>逐个候选看它整条指针链读到的是什么谱面（HOM+48 是 Beatmap）。</summary>
+    private static void DumpCandidateChain(long candidate, byte[] probe16, byte[] probe4)
+    {
+        IntPtr pE = (IntPtr)candidate;
+        byte[] buffer = new byte[256];
+
+        if (!Mem.Rpm(_hProcess, pE + 28, probe4, 4)) { WriteLine($"  0x{candidate:X8}: HOM 读取失败"); return; }
+        IntPtr pHom = (IntPtr)BitConverter.ToUInt32(probe4, 0);
+        if (pHom == IntPtr.Zero) { WriteLine($"  0x{candidate:X8}: HOM 为空"); return; }
+
+        if (!Mem.Rpm(_hProcess, pHom + 48, probe4, 4)) { WriteLine($"  0x{candidate:X8}: HOM+48 读取失败"); return; }
+        IntPtr pBeatmap = (IntPtr)BitConverter.ToUInt32(probe4, 0);
+        if (pBeatmap == IntPtr.Zero) { WriteLine($"  0x{candidate:X8}: Beatmap 为空"); return; }
+
+        // 物件列表
+        Mem.Rpm(_hProcess, pHom + 72, probe4, 4);
+        IntPtr pObjL = (IntPtr)BitConverter.ToUInt32(probe4, 0);
+        int objCount = -1;
+        if (pObjL != IntPtr.Zero && Mem.Rpm(_hProcess, pObjL, probe16, 16)) objCount = BitConverter.ToInt32(probe16, 12);
+
+        // 控制点列表
+        int cpCount = -1;
+        if (Mem.Rpm(_hProcess, pBeatmap, buffer, 192))
+        {
+            IntPtr pCpL = (IntPtr)BitConverter.ToUInt32(buffer, 176);
+            if (pCpL != IntPtr.Zero && Mem.Rpm(_hProcess, pCpL, probe16, 16)) cpCount = BitConverter.ToInt32(probe16, 12);
+        }
+
+        // 文件名
+        string filename = "?";
+        if (Mem.Rpm(_hProcess, pBeatmap, buffer, 320))
+        {
+            filename = ReadStringSafe(BitConverter.ToUInt32(buffer, 144));
+        }
+
+        // 编辑器状态字段
+        int v0 = -1, v4 = -1, v8 = -1;
+        if (Mem.Rpm(_hProcess, pE + 160, probe16, 16))
+        {
+            v0 = BitConverter.ToInt32(probe16, 0); v4 = BitConverter.ToInt32(probe16, 4); v8 = BitConverter.ToInt32(probe16, 8);
+        }
+
+        bool isCurrent = candidate == _reader.EditorAddress.ToInt64();
+        WriteLine($"  0x{candidate:X8} {(isCurrent ? "[当前绑定]" : "          ")} 物件={objCount,-6} 控制点={cpCount,-4} 状态=({v0},{v4},{v8}) 文件={filename}");
+    }
+
+    private static string ReadStringSafe(uint pString)
+    {
+        if (pString == 0) return "(null)";
+        byte[] len = new byte[4];
+        if (!Mem.Rpm(_hProcess, (IntPtr)(pString + 4), len, 4)) return "(读取失败)";
+        int n = BitConverter.ToInt32(len, 0);
+        if (n <= 0 || n > 512) return "(长度异常 " + n + ")";
+        byte[] buf = new byte[2 * n];
+        if (!Mem.Rpm(_hProcess, (IntPtr)(pString + 8), buf, 2 * n)) return "(内容读取失败)";
+        return new string(System.Text.Encoding.Unicode.GetChars(buf));
+    }
+
+    // ------------------------------------------------------------------ 卡住状态诊断
+
+    /// <summary>
+    /// 复刻主工程"读取失败 → 退避 → 重绑"的那条判定链，逐步打印每一环的结果，
+    /// 用来定位"切难度后永久卡住"到底卡在哪一步。
+    /// </summary>
+    private static void DiagnoseStuck()
+    {
+        if (_hProcess == IntPtr.Zero) { WriteLine("先 a 绑定"); return; }
+        if (_osu == null) return;
+
+        WriteLine($"窗口标题(当前)     : {_osu.MainWindowTitle}");
+        WriteLine($"缓存编辑器地址     : 0x{_reader.EditorAddress:X}");
+        WriteLine($"缓存 HOM 地址      : 0x{_reader.HomAddress:X}");
+        WriteLine();
+
+        byte[] b16 = new byte[16];
+        byte[] b4 = new byte[4];
+        IntPtr pE = _reader.EditorAddress;
+
+        bool ok160 = Mem.Rpm(_hProcess, pE + 160, b16, 16);
+        bool ok208 = Mem.Rpm(_hProcess, pE + 208, b4, 4);
+
+        WriteLine($"RPM(pE+160,16)     : {ok160}  -> ({BitConverter.ToInt32(b16, 0)}, {BitConverter.ToInt32(b16, 4)}, {BitConverter.ToInt32(b16, 8)})");
+        WriteLine($"                    期望 (35, 20, 25)");
+        WriteLine($"RPM(pE+208,4)      : {ok208}  -> 字节 = {string.Join(" ", b4.Select(b => b.ToString("X2")))}");
+        if (ok208) WriteLine($"                    BitConverter.ToBoolean(b,1) = {BitConverter.ToBoolean(b4, 1)}   （true 即判定为需要重载）");
+        WriteLine();
+
+        if (ok160 && ok208)
+        {
+            bool flag = BitConverter.ToBoolean(b4, 1);
+            bool fields = BitConverter.ToInt32(b16, 0) == 35 && BitConverter.ToInt32(b16, 4) == 20 && BitConverter.ToInt32(b16, 8) == 25;
+            WriteLine($"EditorNeedsReload 的判定: 标志位={flag} 字段匹配={fields} => {(flag || !fields ? "需要重载" : "不需要重载")}");
+        }
+
+        WriteLine();
+        WriteLine("FetchAll 逐步走一遍（定位到底哪一步读不到）：");
+        {
+            bool ok;
+            ok = Mem.Rpm(_hProcess, pE + 28, b4, 4);
+            IntPtr pHomNow = ok ? (IntPtr)BitConverter.ToUInt32(b4, 0) : IntPtr.Zero;
+            WriteLine($"  1) pE+28 -> HOM       : ok={ok}  HOM=0x{pHomNow:X}   （缓存里是 0x{_reader.HomAddress:X}）");
+
+            ok = Mem.Rpm(_hProcess, pE + 112, b4, 4);
+            IntPtr pCompose = ok ? (IntPtr)BitConverter.ToUInt32(b4, 0) : IntPtr.Zero;
+            WriteLine($"  2) pE+112 -> Compose  : ok={ok}  Compose=0x{pCompose:X}");
+
+            byte[] hom = new byte[256];
+            ok = Mem.Rpm(_hProcess, pHomNow, hom, 256);
+            WriteLine($"  3) HOM 头部 256B      : ok={ok}");
+            if (ok)
+            {
+                WriteLine($"     HOM+48  Beatmap    = 0x{BitConverter.ToUInt32(hom, 48):X}   (缓存 0x{_reader.BeatmapAddress:X})");
+                WriteLine($"     HOM+56  Bookmarks  = 0x{BitConverter.ToUInt32(hom, 56):X}");
+                WriteLine($"     HOM+72  Objects    = 0x{BitConverter.ToUInt32(hom, 72):X}");
+                WriteLine($"     objectRadius={BitConverter.ToSingle(hom, 24)} stackOffset={BitConverter.ToSingle(hom, 44)}");
+            }
+
+            IntPtr pObjL = ok ? (IntPtr)BitConverter.ToUInt32(hom, 72) : IntPtr.Zero;
+            ok = pObjL != IntPtr.Zero && Mem.Rpm(_hProcess, pObjL, b16, 16);
+            int count = ok ? BitConverter.ToInt32(b16, 12) : -1;
+            IntPtr pArr = ok ? (IntPtr)BitConverter.ToUInt32(b16, 4) : IntPtr.Zero;
+            WriteLine($"  4) HOM+72 -> 物件列表 : ok={ok}  list=0x{pObjL:X} items=0x{pArr:X} count={count}");
+
+            ok = count > 0 && Mem.Rpm(_hProcess, pArr + 8, b4, 4);
+            IntPtr first = ok ? (IntPtr)BitConverter.ToUInt32(b4, 0) : IntPtr.Zero;
+            WriteLine($"  5) 首个物件指针       : ok={ok}  p0=0x{first:X}");
+
+            byte[] obj = new byte[336];
+            ok = first != IntPtr.Zero && Mem.Rpm(_hProcess, first, obj, 336);
+            WriteLine($"  6) 读取首个物件 336B  : ok={ok}");
+            if (ok)
+            {
+                WriteLine($"     Start={BitConverter.ToInt32(obj, 16)} Type={BitConverter.ToInt32(obj, 24)} X={BitConverter.ToSingle(obj, 56)} Y={BitConverter.ToSingle(obj, 60)}");
+            }
+        }
+
+        WriteLine();
+        WriteLine("尝试读取一次全量数据（复刻 FetchAll）：");
+        try
+        {
+            Mem.ResetCounters();
+            long a = Stopwatch.GetTimestamp();
+            _reader.FetchAll(false);
+            long b = Stopwatch.GetTimestamp();
+            WriteLine($"  FetchAll 成功: 物件={_reader.numObjects} 控制点={_reader.numControlPoints} 耗时={(b - a) * 1000.0 / Stopwatch.Frequency:F2} ms");
+            string? why = Snapshot.Validate(_reader, out int rejects, out var reasons);
+            WriteLine($"  校验: {(why == null ? "通过" : why)}");
+            if (reasons.Count > 0)
+            {
+                foreach (var kv in reasons) WriteLine($"    {Snapshot.ReasonName(kv.Key)}: {kv.Value}");
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteLine($"  FetchAll 失败: {ex.Message}");
+            if (_reader.DiagReadObjectFailure != null) WriteLine($"  失败位置: {_reader.DiagReadObjectFailure}");
+        }
+
+        WriteLine();
+        WriteLine("pE+208 附近的字段语义探测（按 4 字节逐格打印 pE+192 .. pE+240）：");
+        byte[] window = new byte[48];
+        if (Mem.Rpm(_hProcess, pE + 192, window, 48))
+        {
+            for (int i = 0; i < 48; i += 4)
+            {
+                int asInt = BitConverter.ToInt32(window, i);
+                float asFloat = BitConverter.ToSingle(window, i);
+                WriteLine($"  pE+{192 + i,-4} = 0x{asInt:X8}  int={asInt,-12} float={asFloat}");
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ 复刻 FetchAll 读取序列
+
+    /// <summary>
+    /// 按主工程 FetchAll 的顺序把每一次 RPM 都重放一遍，精确指出第一个失败的调用。
+    /// 主工程的读取散落在多个方法里，一旦抛异常就只剩一句 "ReadProcessMemory Error"，
+    /// 这个重放是为了把失败的那一次读（地址、大小、属于哪个字段）暴露出来。
+    /// </summary>
+    private static void ReplayFetchAll()
+    {
+        if (_hProcess == IntPtr.Zero) { WriteLine("先 a 绑定"); return; }
+
+        byte[] b4 = new byte[4];
+        byte[] b16 = new byte[16];
+        long fails = 0;
+        int step = 0;
+
+        void R(string what, IntPtr address, byte[] buf, int size)
+        {
+            step++;
+            if (Mem.Rpm(_hProcess, address, buf, size)) return;
+            fails++;
+            if (fails <= 20)
+            {
+                WriteLine($"  [{step}] 失败 {what}: addr=0x{address:X} size={size}");
+            }
+        }
+
+        int ptr(uint v) => (int)v;
+
+        // ---- SetEditor 之后的部分：FetchHOM / FetchBeatmap / FetchControlPoints / FetchObjects
+        R("pEditor+28 (HOM)", _reader.EditorAddress + 28, b4, 4);
+        int pHom = BitConverter.ToInt32(b4, 0);
+        R("pEditor+112 (Compose)", _reader.EditorAddress + 112, b4, 4);
+        int pCompose = BitConverter.ToInt32(b4, 0);
+
+        byte[] hom = new byte[256];
+        R("HOM 头部 80", (IntPtr)pHom, hom, 80);
+        int pBookmarksL = BitConverter.ToInt32(hom, 56);
+        int pObjectsL = BitConverter.ToInt32(hom, 72);
+        R("Compose 256", (IntPtr)pCompose, hom, 256);
+        int pClipboardL = BitConverter.ToInt32(hom, 48);
+        int pSelectedL = BitConverter.ToInt32(hom, 72);
+
+        R("HOM+48 -> Beatmap", (IntPtr)(pHom + 48), b4, 4);
+        int pBeatmap = BitConverter.ToInt32(b4, 0);
+
+        byte[] bm = new byte[320];
+        R("Beatmap 320", (IntPtr)pBeatmap, bm, 320);
+        int pFolderStr = BitConverter.ToInt32(bm, 120);
+        int pFileStr = BitConverter.ToInt32(bm, 144);
+
+        void ReadStringDiag(string what, int pString)
+        {
+            if (pString == 0) { WriteLine($"  {what}: 空指针"); return; }
+            R(what + " 长度", (IntPtr)(pString + 4), b4, 4);
+            int n = BitConverter.ToInt32(b4, 0);
+            if (n < 0 || n > 100000)
+            {
+                WriteLine($"  {what}: 长度异常 = {n}  (字符串指针 0x{pString:X})");
+                return;
+            }
+            byte[] s = new byte[2 * Math.Max(n, 1)];
+            R(what + " 内容", (IntPtr)(pString + 8), s, 2 * n);
+        }
+
+        ReadStringDiag("ContainingFolder", pFolderStr);
+        ReadStringDiag("Filename", pFileStr);
+
+        // 控制点
+        R("Beatmap+176 -> 控制点列表", (IntPtr)(pBeatmap + 176), b4, 4);
+        int pControlPointsL = BitConverter.ToInt32(b4, 0);
+        R("控制点列表头", (IntPtr)pControlPointsL, b16, 16);
+        int pControlPointsA = BitConverter.ToInt32(b16, 4);
+        int numControlPoints = BitConverter.ToInt32(b16, 12);
+        WriteLine($"  控制点: list=0x{pControlPointsL:X} items=0x{pControlPointsA:X} count={numControlPoints}");
+        if (numControlPoints > 0 && numControlPoints < 1000000)
+        {
+            byte[] cps = new byte[4 * numControlPoints];
+            R("控制点指针数组", (IntPtr)(pControlPointsA + 8), cps, 4 * numControlPoints);
+            byte[] cp = new byte[48];
+            for (int i = 0; i < numControlPoints; i++)
+            {
+                R($"控制点[{i}] 48B", (IntPtr)BitConverter.ToInt32(cps, 4 * i), cp, 48);
+            }
+        }
+
+        // 物件
+        R("物件列表头", (IntPtr)pObjectsL, b16, 16);
+        int pObjectsA = BitConverter.ToInt32(b16, 4);
+        int numObjects = BitConverter.ToInt32(b16, 12);
+        WriteLine($"  物件: list=0x{pObjectsL:X} items=0x{pObjectsA:X} count={numObjects}");
+
+        byte[] ptrs = new byte[4 * Math.Max(numObjects, 1)];
+        R("物件指针数组", (IntPtr)(pObjectsA + 8), ptrs, 4 * numObjects);
+
+        byte[] obj = new byte[336];
+        int firstBadObject = -1;
+        int badFieldStep = 0;
+        long stringFails = 0;
+
+        for (int i = 0; i < numObjects; i++)
+        {
+            int pObj = BitConverter.ToInt32(ptrs, 4 * i);
+            step++;
+            if (!Mem.Rpm(_hProcess, (IntPtr)pObj, obj, 336))
+            {
+                if (firstBadObject < 0) { firstBadObject = i; badFieldStep = step; }
+                fails++;
+                if (fails <= 20) WriteLine($"  [{step}] 失败 物件[{i}] 336B: addr=0x{pObj:X}");
+                continue;
+            }
+
+            int type = BitConverter.ToInt32(obj, 24);
+            string sampleFile = "";
+
+            // SampleFile 字符串
+            int pStr = BitConverter.ToInt32(obj, 84);
+            if (pStr != 0)
+            {
+                step++;
+                if (!Mem.Rpm(_hProcess, (IntPtr)(pStr + 4), b4, 4))
+                {
+                    stringFails++;
+                    if (stringFails <= 10) WriteLine($"  [{step}] 失败 物件[{i}] SampleFile 长度: str=0x{pStr:X}");
+                    continue;
+                }
+                int n = BitConverter.ToInt32(b4, 0);
+                if (n < 0 || n > 100000)
+                {
+                    if (stringFails <= 10) WriteLine($"  [{step}] 物件[{i}] SampleFile 长度异常 = {n}");
+                    stringFails++;
+                    continue;
+                }
+                step++;
+                byte[] s = new byte[2 * Math.Max(n, 1)];
+                if (!Mem.Rpm(_hProcess, (IntPtr)(pStr + 8), s, 2 * n))
+                {
+                    stringFails++;
+                    if (stringFails <= 10) WriteLine($"  [{step}] 失败 物件[{i}] SampleFile 内容: str=0x{pStr:X} len={n}");
+                    continue;
+                }
+                sampleFile = new string(System.Text.Encoding.Unicode.GetChars(s, 0, 2 * n));
+            }
+
+            if ((type & 2) > 0)   // slider
+            {
+                int pPointsL = BitConverter.ToInt32(obj, 196);
+                int pSTL = BitConverter.ToInt32(obj, 224);
+                int pSSL = BitConverter.ToInt32(obj, 228);
+                int pSSAL = BitConverter.ToInt32(obj, 232);
+
+                R($"物件[{i}] slider 控制点列表头", (IntPtr)pPointsL, b16, 16);
+                int pTempA = BitConverter.ToInt32(b16, 4);
+                int numTemp = BitConverter.ToInt32(b16, 12);
+                if (numTemp > 0 && numTemp < 1000000)
+                {
+                    byte[] curve = new byte[8 * numTemp];
+                    R($"物件[{i}] slider 曲线点", (IntPtr)(pTempA + 8), curve, 8 * numTemp);
+                }
+
+                bool unified = BitConverter.ToBoolean(obj, 286);
+                if (!unified)
+                {
+                    foreach ((string name, int list) in new[] { ("SoundTypeList", pSTL), ("SampleSetList", pSSL), ("SampleSetAdditionsList", pSSAL) })
+                    {
+                        R($"物件[{i}] {name} 列表头", (IntPtr)list, b16, 16);
+                        int a = BitConverter.ToInt32(b16, 4);
+                        int c = BitConverter.ToInt32(b16, 12);
+                        if (c > 0 && c < 1000000)
+                        {
+                            byte[] tmp = new byte[4 * c];
+                            R($"物件[{i}] {name} 内容", (IntPtr)(a + 8), tmp, 4 * c);
+                        }
+                    }
+                }
+            }
+        }
+
+        WriteLine();
+        WriteLine($"重放结果: 共 {step} 次读取, 失败 {fails} 次");
+        WriteLine($"  第一个读不到的物件下标 = {(firstBadObject < 0 ? "无" : firstBadObject.ToString())}（该次读取是第 {badFieldStep} 步）");
+        WriteLine($"  SampleFile 相关失败 = {stringFails}");
+
+        // 边界与内存映射状态：失败是不是"地址根本没映射"？
+        WriteLine();
+        WriteLine($"边界诊断入口: firstBadObject={firstBadObject} numObjects={numObjects} pObjectsA=0x{pObjectsA:X}");
+        if (firstBadObject > 0 && firstBadObject < numObjects)
+        {
+            WriteLine("失败边界处的指针与映射状态：");
+            for (int i = Math.Max(0, firstBadObject - 2); i < Math.Min(numObjects, firstBadObject + 2); i++)
+            {
+                long addr = (uint)BitConverter.ToInt32(ptrs, 4 * i);
+                string state = Mem.DescribeRegion(_hProcess, (IntPtr)addr);
+                bool readable = Mem.Rpm(_hProcess, (IntPtr)addr, obj, 336);
+                WriteLine($"  物件[{i,6}] ptr=0x{addr:X8} 可读={readable,-6} {state}");
+            }
+
+            byte[] ptrs2 = new byte[4 * numObjects];
+            bool ok2 = Mem.Rpm(_hProcess, (IntPtr)(pObjectsA + 8), ptrs2, 4 * numObjects);
+            int changed = 0, firstChanged = -1;
+            if (ok2)
+            {
+                for (int i = 0; i < numObjects; i++)
+                {
+                    if (ptrs[i] != ptrs2[i])
+                    {
+                        changed++;
+                        if (firstChanged < 0) firstChanged = i;
+                    }
+                }
+            }
+            WriteLine($"\n两次读取指针数组的差异: 变化 {changed} 个（首个变化下标 {(firstChanged < 0 ? "无" : firstChanged.ToString())}）");
+            WriteLine($"列表头二次读取: items=0x{Mem.ReadUInt32(_hProcess, pObjectsL + 4):X8} size={Mem.ReadInt32(_hProcess, pObjectsL + 12)}");
+
+            // 把边界附近的内存区域全部列出来，看两个"可读"地址之间是不是夹了不可读的洞
+            WriteLine();
+            WriteLine("0x7F12F000..0x80014000 之间的内存区域：");
+            foreach (string line in Mem.DescribeRegionsIn(_hProcess, 0x7F12F000, 0x80014000))
+            {
+                WriteLine("  " + line);
+            }
+
+            // 单页读取测试：失败是不是因为"跨页"，还是因为某段确实读不到
+            WriteLine();
+            WriteLine("逐地址 336B 读取测试：");
+            foreach (long addr in new long[] { 0x7F12F550, 0x7F12FE00, 0x7F12FEC8, 0x7F12FF00, 0x7F12FFD0, 0x7F130000, 0x7F131000, 0x80011DDC })
+            {
+                bool r336 = Mem.Rpm(_hProcess, (IntPtr)addr, obj, 336);
+                bool r1 = Mem.Rpm(_hProcess, (IntPtr)addr, b4, 4);
+                WriteLine($"  0x{addr:X8}: 读336B={r336,-6} 读4B={r1}");
+            }
+
+            // 关键判断：失败物件是真的没数据，还是"数据存在但读取被最后几个字节卡住"？
+            WriteLine();
+            WriteLine("失败物件的内容可用性测试（能读多少就读多少）：");
+            foreach (int i in new[] { firstBadObject, firstBadObject + 1, firstBadObject + 500, numObjects - 1 })
+            {
+                long addr = (uint)BitConverter.ToInt32(ptrs, 4 * i);
+                var reads = Mem.ReadAsMuchAsPossible(_hProcess, (IntPtr)addr, 336);
+                string desc = reads.Bytes > 0
+                    ? $"读到 {reads.Bytes}B: Start={BitConverter.ToInt32(reads.Data, 16)} Type={BitConverter.ToInt32(reads.Data, 24)} X={BitConverter.ToSingle(reads.Data, 56):F1} Y={BitConverter.ToSingle(reads.Data, 60):F1}"
+                    : "一个字节都读不到";
+                WriteLine($"  物件[{i,6}] ptr=0x{addr:X8}  {desc}");
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ 指针符号扩展验证
+
+    /// <summary>
+    /// 直接对比"有符号读指针"与"无符号读指针"：对地址 >= 0x80000000 的物件，
+    /// 有符号读会在 64 位宿主上符号扩展成 0xFFFFFFFF8xxxxxxx，RPM 立刻失败。
+    /// </summary>
+    private static void PointerSignCheck()
+    {
+        var (_, dataArray, count, _) = _reader.GetObjectPointers();
+        if (count <= 0) { WriteLine("没有物件，先 a 绑定"); return; }
+
+        byte[] ptrs = new byte[4 * count + 64];
+        Mem.Rpm(_hProcess, dataArray + 8, ptrs, 4 * count);
+
+        int below = 0, above = 0;
+        int signedFailBelow = 0, unsignedFailBelow = 0;
+        int signedFailAbove = 0;
+        string firstAboveSample = "";
+
+        byte[] obj = new byte[336];
+        for (int i = 0; i < count; i++)
+        {
+            uint raw = BitConverter.ToUInt32(ptrs, 4 * i);
+
+            // 有符号读（修复前的行为）
+            int signedVal = BitConverter.ToInt32(ptrs, 4 * i);
+            IntPtr signedPtr = (IntPtr)signedVal;                 // x64 上会符号扩展
+            // 无符号读（修复后的行为）
+            IntPtr unsignedPtr = (IntPtr)(long)raw;
+
+            bool above2G = raw >= 0x80000000;
+            if (above2G)
+            {
+                above++;
+                if (signedPtr == unsignedPtr)
+                {
+                    signedFailAbove++;   // 出乎意料：应当不同
+                }
+                if (firstAboveSample.Length == 0)
+                {
+                    firstAboveSample = $"#{i} raw=0x{raw:X8} 有符号=0x{signedPtr.ToInt64():X16} 无符号=0x{unsignedPtr.ToInt64():X16}";
+                }
+            }
+            else
+            {
+                below++;
+                if (!Mem.Rpm(_hProcess, signedPtr, obj, 336)) signedFailBelow++;
+                if (!Mem.Rpm(_hProcess, unsignedPtr, obj, 336)) unsignedFailBelow++;
+            }
+        }
+
+        WriteLine($"物件总数 = {count}");
+        WriteLine($"  地址 <  0x80000000 的物件: {below}（有符号/无符号读结果相同，失败 有符号={signedFailBelow} 无符号={unsignedFailBelow}）");
+        WriteLine($"  地址 >= 0x80000000 的物件: {above}");
+        if (firstAboveSample.Length > 0)
+        {
+            WriteLine($"  首个高位地址样本: {firstAboveSample}");
+            WriteLine($"  其中有符号与无符号相同的数量 = {signedFailAbove}（应当为 0，否则说明符号扩展没发生）");
+        }
+
+        // 对高位地址做实际读取对比
+        WriteLine();
+        WriteLine("对高位地址物件的实际读取对比：");
+        int shown = 0;
+        for (int i = 0; i < count && shown < 5; i++)
+        {
+            uint raw = BitConverter.ToUInt32(ptrs, 4 * i);
+            if (raw < 0x80000000) continue;
+            shown++;
+            IntPtr signedPtr = (IntPtr)BitConverter.ToInt32(ptrs, 4 * i);
+            IntPtr unsignedPtr = (IntPtr)(long)raw;
+            bool a = Mem.Rpm(_hProcess, signedPtr, obj, 336);
+            bool b = Mem.Rpm(_hProcess, unsignedPtr, obj, 336);
+            WriteLine($"  物件[{i,6}] raw=0x{raw:X8}  有符号读={a,-6} 无符号读={b}");
+        }
+    }
+
+    // ------------------------------------------------------------------ 分段读取诊断
+
+    /// <summary>
+    /// 对当前失败的那个物件地址，手工重放"整块读 → 按页切分逐段读"的过程，
+    /// 看每一段到底能不能读、差多少字节。
+    /// </summary>
+    private static void DiagnoseSegmentRead()
+    {
+        var (_, dataArray, count, _) = _reader.GetObjectPointers();
+        if (count <= 0) { WriteLine("没有物件，先 a 绑定"); return; }
+        if (dataArray == IntPtr.Zero) { WriteLine("物件数组为空"); return; }
+
+        try { _reader.FetchAll(false); WriteLine("FetchAll 成功，当前没有失败物件"); return; }
+        catch { }
+
+        string? diag = _reader.DiagReadObjectFailure;
+        WriteLine($"DiagReadObjectFailure = {diag ?? "(无)"}");
+
+        int index = -1;
+        if (diag != null)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(diag, @"index=(\d+)");
+            if (m.Success) index = int.Parse(m.Groups[1].Value);
+        }
+        if (index < 0) { WriteLine("无法解析失败下标"); return; }
+
+        byte[] ptrs = new byte[4 * count + 64];
+        Mem.Rpm(_hProcess, dataArray + 8, ptrs, 4 * count);
+
+        WriteLine();
+        for (int i = Math.Max(0, index - 2); i <= Math.Min(count - 1, index + 2); i++)
+        {
+            uint p = BitConverter.ToUInt32(ptrs, 4 * i);
+            byte[] b = new byte[336];
+            bool full = Mem.Rpm(_hProcess, (IntPtr)(long)p, b, 336);
+            var partial = Mem.ReadAsMuchAsPossible(_hProcess, (IntPtr)(long)p, 336);
+            WriteLine($"  物件[{i,6}] ptr=0x{p:X8} 整块336B={full,-6} 最多可读={partial.Bytes}B");
+            WriteLine($"      {Mem.DescribeRegion(_hProcess, (IntPtr)(long)p)}");
+        }
+
+        uint bad = BitConverter.ToUInt32(ptrs, 4 * index);
+        WriteLine();
+        WriteLine($"失败物件 0x{bad:X8} 的逐块可读性（每块 16B，只打印每 64B 一次或不ok的）：");
+        for (int off = 0; off < 336; off += 16)
+        {
+            byte[] b = new byte[16];
+            bool ok = Mem.Rpm(_hProcess, (IntPtr)(long)(bad + off), b, 16);
+            if (!ok || off % 64 == 0)
+            {
+                WriteLine($"  +{off,4}..{off + 16,4}: {(ok ? "ok" : "读取失败")}  地址=0x{bad + off:X8}");
+            }
+        }
+
+        WriteLine();
+        WriteLine("解析所需的最大偏移 = 286（unifiedSoundAddition），即需要 287 字节");
+        var p2 = Mem.ReadAsMuchAsPossible(_hProcess, (IntPtr)(long)bad, 336);
+        WriteLine($"该物件实际可读 {p2.Bytes} 字节 => 是否够 287: {p2.Bytes >= 287}");
+        if (p2.Bytes >= 160)
+        {
+            WriteLine($"  已读到的字段: Start={BitConverter.ToInt32(p2.Data, 16)} Type={BitConverter.ToInt32(p2.Data, 24)} X={BitConverter.ToSingle(p2.Data, 56):F1} Y={BitConverter.ToSingle(p2.Data, 60):F1}");
+        }
+    }
+
+    // ------------------------------------------------------------------ 切难度压力测试
+
+    /// <summary>
+    /// 专门针对"切换同一谱面集的不同难度"：持续全量读取并记录每次失败的下标/地址，
+    /// 同时打印谱面是否发生了变化，用于定位剩下那 ~1/12 的失败。
+    /// </summary>
+    private static void SwitchStress()
+    {
+        WriteLine("切难度压力测试：每 50ms 全量读取一次，记录谱面变化与失败。");
+        WriteLine("输入持续秒数（回车=90）：");
+        string? s = Console.ReadLine();
+        int seconds = int.TryParse(s, out int v) && v > 0 ? v : 90;
+        WriteLine($"开始，请现在反复切换同类谱面集的不同难度（{seconds} 秒）…\n");
+
+        int lastObjects = -1;
+        string lastFile = "";
+        long fetches = 0, failures = 0, switches = 0, healed = 0, persistent = 0;
+        var failureReasons = new Dictionary<string, long>();
+        var sw = Stopwatch.StartNew();
+
+        while (sw.ElapsedMilliseconds < seconds * 1000L)
+        {
+            fetches++;
+            try
+            {
+                _reader.FetchAll(false);
+
+                if (_reader.numObjects != lastObjects || _reader.Filename != lastFile)
+                {
+                    switches++;
+                    WriteLine($"  [{(sw.ElapsedMilliseconds / 1000.0):F1}s] 谱面变化: 物件 {lastObjects} -> {_reader.numObjects}  文件={_reader.Filename}");
+                    lastObjects = _reader.numObjects;
+                    lastFile = _reader.Filename;
+                }
+            }
+            catch (Exception ex)
+            {
+                failures++;
+                string detail = _reader.DiagReadObjectFailure ?? ex.Message;
+                failureReasons[detail] = failureReasons.GetValueOrDefault(detail) + 1;
+                WriteLine($"  [{(sw.ElapsedMilliseconds / 1000.0):F1}s] !! 读取失败: {detail}");
+
+                // 立刻重试：区分"瞬时撕裂（重读即可）"与"真的读不到"
+                bool ok = false;
+                for (int r = 0; r < 3 && !ok; r++)
+                {
+                    try { _reader.FetchAll(false); ok = true; }
+                    catch { }
+                }
+                if (ok) healed++; else persistent++;
+                WriteLine($"      立即重试 => {(ok ? "成功（瞬时）" : "仍然失败（持续）")}");
+
+                if (!ok)
+                {
+                    // 持续失败：把失败物件的映射状态、可读字节数都打出来
+                    WriteLine("      --- 持续失败详细诊断 ---");
+                    var (_, dataArray, count, _) = _reader.GetObjectPointers();
+                    int idx = -1;
+                    var m = System.Text.RegularExpressions.Regex.Match(detail, @"index=(\d+)");
+                    if (m.Success) idx = int.Parse(m.Groups[1].Value);
+
+                    if (dataArray != IntPtr.Zero && idx >= 0 && idx < count)
+                    {
+                        byte[] ptrs = new byte[4 * count + 64];
+                        if (Mem.Rpm(_hProcess, dataArray + 8, ptrs, 4 * count))
+                        {
+                            for (int i = Math.Max(0, idx - 1); i <= Math.Min(count - 1, idx + 1); i++)
+                            {
+                                uint p = BitConverter.ToUInt32(ptrs, 4 * i);
+                                var partial = Mem.ReadAsMuchAsPossible(_hProcess, (IntPtr)(long)p, 336);
+                                // 用 Type 判断这个物件需要多少字节
+                                int need = 148;
+                                if (partial.Bytes >= 28)
+                                {
+                                    int type = BitConverter.ToInt32(partial.Data, 24);
+                                    if ((type & 2) > 0) need = 287;
+                                }
+                                WriteLine($"      物件[{i,6}] ptr=0x{p:X8} 可读={partial.Bytes}B 需要={need}B 够用={(partial.Bytes >= need)}");
+                                WriteLine($"         {Mem.DescribeRegion(_hProcess, (IntPtr)(long)p)}");
+                            }
+                        }
+                    }
+
+                    // 三次重试分别失败在哪
+                    WriteLine("      连续 3 次重试的失败位置:");
+                    for (int r = 0; r < 3; r++)
+                    {
+                        try { _reader.FetchAll(false); WriteLine($"        第{r + 1}次: 成功"); }
+                        catch (Exception ex2) { WriteLine($"        第{r + 1}次: {(_reader.DiagReadObjectFailure ?? ex2.Message)}"); }
+                    }
+                }
+            }
+
+            Thread.Sleep(50);
+        }
+
+        WriteLine($"\n总计: 读取 {fetches} 次, 谱面变化 {switches} 次, 失败 {failures} 次");
+        WriteLine($"  失败后立即重试即可恢复(瞬时): {healed}");
+        WriteLine($"  失败后重试仍失败(持续)    : {persistent}");
+        if (failureReasons.Count > 0)
+        {
+            WriteLine("失败明细:");
+            foreach (var kv in failureReasons.OrderByDescending(k => k.Value)) WriteLine($"  ×{kv.Value}  {kv.Key}");
+        }
+        else
+        {
+            WriteLine("没有失败。");
+        }
+    }
+
+    // ------------------------------------------------------------------ 快照一致性（seqlock）测试
+
+    /// <summary>
+    /// 验证"边加载边读"导致的撕裂：列表头读到的 _size / _items，与随后读到的指针数组
+    /// 可能不属于同一时刻（编辑器正在往里添加物件）。做法是读完指针数组后再读一次列表头，
+    /// 看两次头是否一致；不一致就说明这一份快照是撕裂的。
+    /// </summary>
+    private static void SnapshotConsistency()
+    {
+        var (listHeader, _, _, _) = _reader.GetObjectPointers();
+        if (listHeader == IntPtr.Zero) { WriteLine("先 a 绑定"); return; }
+
+        WriteLine("快照一致性测试：每次读取前后各读一次列表头，统计不一致（撕裂）的比例。");
+        WriteLine("输入持续秒数（回车=60）：");
+        string? s = Console.ReadLine();
+        int seconds = int.TryParse(s, out int v) && v > 0 ? v : 60;
+        WriteLine($"开始，请现在反复切换难度 / 让编辑器加载谱面（{seconds} 秒）…\n");
+
+        byte[] h1 = new byte[16];
+        byte[] h2 = new byte[16];
+        byte[] ptrs = new byte[4 * 200000];
+
+        long reads = 0, torn = 0, tornAndFailed = 0, tornAndOk = 0;
+        var sw = Stopwatch.StartNew();
+
+        while (sw.ElapsedMilliseconds < seconds * 1000L)
+        {
+            reads++;
+
+            if (!Mem.Rpm(_hProcess, listHeader, h1, 16)) { Thread.Sleep(20); continue; }
+            uint items1 = BitConverter.ToUInt32(h1, 4);
+            int size1 = BitConverter.ToInt32(h1, 12);
+            if (items1 == 0 || size1 <= 0 || size1 > 200000) { Thread.Sleep(20); continue; }
+
+            bool arrOk = Mem.Rpm(_hProcess, (IntPtr)(long)(items1 + 8), ptrs, 4 * size1);
+
+            bool hdr2Ok = Mem.Rpm(_hProcess, listHeader, h2, 16);
+            uint items2 = BitConverter.ToUInt32(h2, 4);
+            int size2 = BitConverter.ToInt32(h2, 12);
+
+            bool isTorn = !hdr2Ok || items1 != items2 || size1 != size2;
+
+            if (isTorn)
+            {
+                torn++;
+                bool anyFail = !arrOk;
+                if (!anyFail)
+                {
+                    byte[] one = new byte[336];
+                    for (int i = Math.Max(0, size1 - 3); i < size1; i++)
+                    {
+                        if (!Mem.Rpm(_hProcess, (IntPtr)(long)BitConverter.ToUInt32(ptrs, 4 * i), one, 336)) { anyFail = true; break; }
+                    }
+                }
+                if (anyFail) tornAndFailed++; else tornAndOk++;
+            }
+
+            Thread.Sleep(20);
+        }
+
+        WriteLine($"\n总计读取 {reads} 次，其中快照撕裂 {torn} 次 ({100.0 * torn / Math.Max(1, reads):F1}%)");
+        WriteLine($"  撕裂且末尾物件读不到: {tornAndFailed}");
+        WriteLine($"  撕裂但恰好还能读  : {tornAndOk}");
+        WriteLine("\n若撕裂比例明显高于实际失败率，说明'撕裂 → 抛异常 → 退避'是对的，");
+        WriteLine("但可以通过'读前后各校验一次列表头'把撕裂的快照直接丢弃，而不是让它去撞异常。");
+    }
+
+    // ------------------------------------------------------------------ 加载窗口自动压测
+
+    /// <summary>
+    /// 只在"检测到谱面正在加载/切换"时才高强度读取，从而稳定命中撕裂窗口。
+    /// 检测方式：物件数变化，或前后两次读取的数不一致。命中后立刻连续读取 200 次，
+    /// 记录每次失败并判断"重读一次是否恢复"。
+    /// </summary>
+    private static void LoadWindowStress()
+    {
+        WriteLine("加载窗口自动压测：检测到谱面变化后立刻连读 200 次，专门抓撕裂窗口。");
+        WriteLine("输入持续秒数（回车=120）：");
+        string? s = Console.ReadLine();
+        int seconds = int.TryParse(s, out int v) && v > 0 ? v : 120;
+        WriteLine("无需你配合——你只要照常切难度就行。也可以什么都不做。\n");
+
+        int lastObjects = -1;
+        string lastFile = "";
+        long loads = 0, bursts = 0, burstReads = 0, fails = 0, healed = 0, persistent = 0;
+        var sw = Stopwatch.StartNew();
+
+        while (sw.ElapsedMilliseconds < seconds * 1000L)
+        {
+            try
+            {
+                _reader.FetchAll(false);
+                if (_reader.numObjects != lastObjects || _reader.Filename != lastFile)
+                {
+                    WriteLine($"  [{(sw.ElapsedMilliseconds / 1000.0):F1}s] 谱面变化: {lastObjects} -> {_reader.numObjects}  {_reader.Filename}");
+                    lastObjects = _reader.numObjects;
+                    lastFile = _reader.Filename;
+                    loads++;
+
+                    // 命中变化：立刻连打，把加载窗口里的撕裂都抓出来
+                    bursts++;
+                    for (int k = 0; k < 200; k++)
+                    {
+                        burstReads++;
+                        try { _reader.FetchAll(false); }
+                        catch (Exception ex)
+                        {
+                            fails++;
+                            string detail = _reader.DiagReadObjectFailure ?? ex.Message;
+                            // 判断是否瞬时：立刻重试
+                            bool ok = false;
+                            for (int r = 0; r < 3 && !ok; r++)
+                            {
+                                try { _reader.FetchAll(false); ok = true; } catch { }
+                            }
+                            if (ok) healed++; else
+                            {
+                                // "立即重试也失败"不等于"永久读不到"：可能几次都落在同一个重分配窗口里。
+                                // 隔 1 秒再确认，才能区分真·持续失败。
+                                Thread.Sleep(1000);
+                                bool stillBad = false;
+                                try { _reader.FetchAll(false); } catch { stillBad = true; }
+
+                                if (stillBad)
+                                {
+                                    persistent++;
+                                    WriteLine($"      !! 真·持续失败: {detail}");
+                                    WriteLine($"         {Mem.DescribeRegion(_hProcess, _reader.EditorAddress)}");
+                                }
+                                else
+                                {
+                                    healed++;
+                                    if (fails <= 8) WriteLine($"      [burst{k}] 瞬时（1 秒后恢复）: {detail}");
+                                }
+                            }
+
+                            if (fails <= 8 && ok) WriteLine($"      [burst{k}] 瞬时: {detail}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLine($"  [{(sw.ElapsedMilliseconds / 1000.0):F1}s] 常规读取失败: {_reader.DiagReadObjectFailure ?? ex.Message}");
+            }
+
+            Thread.Sleep(200);
+        }
+
+        WriteLine($"\n总计: 谱面变化 {loads} 次, 其中触发连打 {bursts} 次, 连打共读 {burstReads} 次");
+        WriteLine($"  失败 {fails} 次 ({(burstReads > 0 ? 100.0 * fails / burstReads : 0):F2}%)");
+        WriteLine($"  瞬时(重读即恢复): {healed}");
+        WriteLine($"  持续(重读仍失败): {persistent}");
+    }
+
+    // ------------------------------------------------------------------ 读取长度阈值探测
+
+    /// <summary>
+    /// 对一个"读不到"的地址，用递增的长度反复读，找出从多少字节开始失败。
+    /// 这能区分"整页不可读" / "跨页不可读" / "只有尾部几条字节不可读"。
+    /// </summary>
+    private static void ProbeReadThreshold()
+    {
+        WriteLine("输入要探测的地址（十六进制，可带 0x 前缀）：");
+        string? input = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(input)) { WriteLine("未输入"); return; }
+        input = input.Trim();
+        if (input.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) input = input.Substring(2);
+        if (input.Length > 8) input = input.Substring(input.Length - 8);   // 只取低 32 位
+
+        if (!long.TryParse(input, System.Globalization.NumberStyles.HexNumber, null, out long addr))
+        {
+            WriteLine("地址解析失败");
+            return;
+        }
+
+        IntPtr p = (IntPtr)addr;
+        WriteLine($"\n目标地址 = 0x{addr:X8}");
+        WriteLine(Mem.DescribeRegion(_hProcess, p));
+        WriteLine($"页 = 0x{addr & ~0xFFFL:X8}，页内偏移 = 0x{addr & 0xFFF:X}，距页尾 {0x1000 - (addr & 0xFFF)} 字节\n");
+
+        WriteLine("长度阈值（从哪个长度开始失败）：");
+        byte[] buf = new byte[4096];
+        foreach (int size in new[] { 4, 16, 28, 32, 64, 128, 148, 192, 256, 272, 287, 288, 320, 336, 352, 512, 1024, 2048, 4096 })
+        {
+            bool ok = Mem.Rpm(_hProcess, p, buf, size);
+            WriteLine($"  {size,5} B  {(ok ? "ok" : "失败")}");
+        }
+
+        WriteLine("\n逐 16 字节分段（前 400 字节）：");
+        for (int off = 0; off < 400; off += 16)
+        {
+            byte[] b = new byte[16];
+            bool ok = Mem.Rpm(_hProcess, (IntPtr)(addr + off), b, 16);
+            WriteLine($"  +{off,4} (0x{addr + off:X8}): {(ok ? "ok" : "失败")}");
+        }
     }
 
     // ------------------------------------------------------------------ 8. 重试修复测试

@@ -39,6 +39,13 @@ namespace osucatch_editor_realtimeviewer
         private int fetchAll_Failed_Count = 0;
         private const int FetchAll_MaxRetry_Count = 10;
 
+        /// <summary>
+        /// 一次全量读取因"快照被编辑器改到一半"而失败时，原地重试几次。
+        /// 实测切难度时的撕裂失败重读一次即可恢复，因此默认 1 次；
+        /// 重试仍失败才计入连败（连败 10 次会触发 ForceRebind，那是一次最长 30 秒的后台重扫）。
+        /// </summary>
+        private const int FetchAll_SnapshotRetryCount = 1;
+
         // 连续读取失败后的指数退避区间：编辑器批量修改（拖拽/撤销/加载）期间会连续读到
         // 不一致的快照，此时按最高频率反复重读既无意义又会拖慢 osu!。
         private const long FetchAll_RetryBaseIntervalMs = 200;
@@ -430,31 +437,64 @@ namespace osucatch_editor_realtimeviewer
                 }
 
                 lastFullFetchAttemptTimestamp = now;
-                Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);
-                bool needFetchFull = app.Default.Backup_Enabled && !filterNearby;
-                reader.FetchAll(needFetchFull);
-                BeatmapInfoCollection thisReaderData = filterNearby
-                    ? new BeatmapInfoCollection(reader, partialLoadingHalfTimeSpan)
-                    : new BeatmapInfoCollection(reader);
 
-                Log.ConsoleLog("FetchAll complete.", Log.LogType.EditorReader, Log.LogLevel.Debug);
+                // 编辑器正在加载谱面（换难度/新谱面）时，列表头、指针数组与物件数据
+                // 不属于同一时刻，必然会读到撕裂的快照而失败。实测切难度时约 1% 的读取会这样，
+                // 且同一物件重读立刻就好（11 次失败落在 11 个不同下标，无一重复）。
+                // 这类失败不该累加连败计数：一旦累到 10 次就会触发 ForceRebind，
+                // 而那会触发最长 30 秒的后台重扫，正好发生在"用户刚切完难度想看图"的时候。
+                // 所以这里先原地重试一次，仍然失败才计入连败。
+                for (int attempt = 0; ; attempt++)
+                {
+                    try
+                    {
+                        Log.ConsoleLog(attempt == 0 ? "Start FetchAll()." : "FetchAll retry #" + attempt + ".",
+                            Log.LogType.EditorReader, Log.LogLevel.Debug);
+                        bool needFetchFull = app.Default.Backup_Enabled && !filterNearby;
+                        reader.FetchAll(needFetchFull);
+                        BeatmapInfoCollection thisReaderData = filterNearby
+                            ? new BeatmapInfoCollection(reader, partialLoadingHalfTimeSpan)
+                            : new BeatmapInfoCollection(reader);
 
-                cachedCollection = thisReaderData;
-                cachedTitle = beatmap_title;
-                lastFullFetchTimestamp = stopwatch.ElapsedMilliseconds;
-                fetchAll_Failed_Count = 0;
-                thisReaderData.IsFreshFetch = true;
-                if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
-                return thisReaderData;
+                        Log.ConsoleLog("FetchAll complete.", Log.LogType.EditorReader, Log.LogLevel.Debug);
+
+                        cachedCollection = thisReaderData;
+                        cachedTitle = beatmap_title;
+                        lastFullFetchTimestamp = stopwatch.ElapsedMilliseconds;
+                        fetchAll_Failed_Count = 0;
+                        thisReaderData.IsFreshFetch = true;
+                        if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
+                        return thisReaderData;
+                    }
+                    catch (Exception ex)
+                    {
+                        // 快照撕裂会表现为两类异常：读内存失败（SafeReadProcessMemory）与
+                        // 读到不一致数据（BeatmapInfoCollection 的校验）。两类都值得原地重试一次。
+                        if (attempt < FetchAll_SnapshotRetryCount)
+                        {
+                            Log.ConsoleLog("FetchAll snapshot invalid, retrying immediately.\r\n" + ex.Message,
+                                Log.LogType.EditorReader, Log.LogLevel.Info);
+                            continue;
+                        }
+
+                        Log.ConsoleLog("FetchAll failed.(" + fetchAll_Failed_Count + ")\r\n" + ex.ToString(), Log.LogType.EditorReader, Log.LogLevel.Error);
+                        fetchAll_Failed_Count++;
+                        lastFullFetchAttemptTimestamp = stopwatch.ElapsedMilliseconds;
+
+                        // 读失败说明缓存的 editor 地址可能已经失效：让下一次 FetchEditor 做真实校验，
+                        // 而不是继续复用"上次校验成功"的缓存结果（否则重绑永远被缓存吞掉）
+                        editorCheckSucceeded = false;
+                        return null;
+                    }
+                }
             }
             catch (Exception ex)
             {
-                Log.ConsoleLog("FetchAll failed.(" + fetchAll_Failed_Count + ")\r\n" + ex.ToString(), Log.LogType.EditorReader, Log.LogLevel.Error);
+                // 兜底：异常发生在重试循环之外（例如 IsFullFetchDue / RefreshSelection）。
+                // 这里同样要计入连败并记时间戳，否则退避永远不生效、每 tick 都会重走一遍。
+                Log.ConsoleLog("FetchWithCache failed.\r\n" + ex, Log.LogType.EditorReader, Log.LogLevel.Error);
                 fetchAll_Failed_Count++;
                 lastFullFetchAttemptTimestamp = stopwatch.ElapsedMilliseconds;
-
-                // 读失败说明缓存的 editor 地址可能已经失效：让下一次 FetchEditor 做真实校验，
-                // 而不是继续复用"上次校验成功"的缓存结果（否则重绑永远被缓存吞掉）
                 editorCheckSucceeded = false;
                 return null;
             }
@@ -508,13 +548,21 @@ namespace osucatch_editor_realtimeviewer
         private bool IsFullFetchDue()
         {
             if (cachedCollection == null) return true;
-            if (cachedTitle != beatmap_title) return true;
 
             // 编辑器前台且鼠标正在移动时用 FullRead_Interval（作图期间保持跟随手感），
             // 其它情况（不在前台 / 鼠标静止）用 LowFreqRead_Interval。
             long interval = (ProcessFocus.IsEditorForeground(reader.OsuProcessId) && ProcessFocus.IsMouseMoving())
                 ? FullCheckIntervalMs : LowFreqCheckIntervalMs;
-            if (stopwatch.ElapsedMilliseconds - lastFullFetchTimestamp >= interval) return true;
+            bool intervalElapsed = stopwatch.ElapsedMilliseconds - lastFullFetchTimestamp >= interval;
+
+            // 切换谱面：标题变化时立即全量读取，不必等间隔。
+            // <para />注意顺序：这个判断必须放在间隔判断之后。
+            // beatmap_title 由 FetchEditor() 在**每次成功校验时**刷新，而 cachedTitle 只在全量读取成功后才赋值，
+            // 于是校验与读取之间标题一变，两者就会永久不等 —— 放在前面会让本方法每 tick 都返回 true，
+            // "高频/低频分离"整个失效（等于回到每 tick 全量读取）。
+            // 放到间隔之后，最坏代价只是把切换谱面的检测推迟到下一个间隔（前台移动鼠标时 20ms）。
+            if (intervalElapsed) return true;
+            if (cachedTitle != beatmap_title) return true;
 
             // 物件/控制点数量变化（增删）立即触发全量读取，不必等间隔
             if (reader.TryReadCounts(out int numObjects, out int numControlPoints, out _) &&

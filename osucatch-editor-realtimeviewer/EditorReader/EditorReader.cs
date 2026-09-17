@@ -139,6 +139,9 @@ public class EditorReader
     /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 中被拒绝的对象样本（物件字符串 + 原因）。</summary>
     public string? DiagLastRejectSample;
 
+    /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 抛异常时的物件下标与地址。</summary>
+    public string? DiagReadObjectFailure;
+
     private IntPtr pClipboardL;
 
     private IntPtr pClipboardA;
@@ -266,6 +269,54 @@ public class EditorReader
         {
             buf = new byte[size];
         }
+    }
+
+    /// <summary>目标进程的页大小（读失败时按页对齐切分重试用）。</summary>
+    private const int TargetPageSize = 4096;
+
+    /// <summary>
+    /// 分段读取：先整块读，失败则按页边界切分后逐段读。
+    /// <para /><b>为什么需要它</b>：osu! 的物件结构体跨页时，后一页可能已被回收
+    /// （编辑器增删物件会让堆在页边界上增长/收缩，压在页尾的那个物件就会有一段读不到）。
+    /// 单次 RPM 只要有任何一页不可读就整体失败，于是那个物件永远读不出来 ——
+    /// 全量读取每 tick 都抛异常，客户端就永久卡在"重试中"。
+    /// 分段读取能把这些"大部分仍可读"的物件救回来：实测 0xB981FEF0 这个物件
+    /// 336 字节里只有前 256 字节可读，而普通物件真正用到的字段全在前 148 字节内。
+    /// </summary>
+    /// <returns>true 表示至少读到了前 <paramref name="minRequired"/> 字节。</returns>
+    private bool SafeReadSegmented(IntPtr address, byte[] buf, int size, int minRequired)
+    {
+        // 1) 常规情况：一次读成功
+        if (ReadProcessMemory(TargetHandle, address, buf, size, ref bytesRead))
+        {
+            return true;
+        }
+
+        // 2) 失败：按页边界切分，逐段读进临时缓冲再拼起来
+        EnsureBuffer(ref buf, size);
+        byte[] tmp = new byte[Math.Min(TargetPageSize, size)];
+        int offset = 0;
+
+        while (offset < size)
+        {
+            long here = address.ToInt64() + offset;
+            long pageEnd = ((here / TargetPageSize) + 1) * TargetPageSize;
+            int chunk = (int)Math.Min(pageEnd - here, size - offset);
+            if (chunk <= 0) break;
+
+            if (!ReadProcessMemory(TargetHandle, IntPtr.Add(address, offset), tmp, chunk, ref bytesRead))
+            {
+                if (offset >= minRequired) break;   // 需要的字段已经读到了，后面的字节用不上
+                Log.ConsoleLog("SafeReadSegmented: unreadable at " + (address.ToInt64() + offset) +
+                               " (need " + minRequired + " bytes, got " + offset + ")", Log.LogType.EditorReader, Log.LogLevel.Error);
+                throw new Exception("ReadProcessMemory Error. Cancelled reading.");
+            }
+
+            Buffer.BlockCopy(tmp, 0, buf, offset, chunk);
+            offset += chunk;
+        }
+
+        return offset >= minRequired;
     }
 
     private string ReadString(IntPtr pString)
@@ -614,13 +665,17 @@ public class EditorReader
 
     private IntPtr ToIntPtr(byte[] value, int startIndex)
     {
-        // 目标进程（osu!）是 32 位：必须按 4 字节读取，不能跟随 viewer 自身的 IntPtr.Size
+        // 目标进程（osu!）是 32 位：必须按 4 字节读取，不能跟随 viewer 自身的 IntPtr.Size。
+        // <para /><b>必须按无符号读</b>：指针最高位为 1（地址 >= 0x80000000，编辑器堆长大后会用到）
+        // 时，ToInt32 得到负数，在 x64 宿主上转 IntPtr 会符号扩展成 0xFFFFFFFF8xxxxxxx，
+        // ReadProcessMemory 立刻失败 —— 表现就是"编辑一会儿之后某个物件开始永久读不到，
+        // 整个全量读取每 tick 抛异常，客户端卡在重试中"。ToUInt32 零扩展，得到正确的 0x8xxxxxxx。
         if (TargetPointerSize > 4)
         {
-            return (IntPtr)BitConverter.ToUInt32(value, startIndex);
+            return (IntPtr)(long)BitConverter.ToUInt64(value, startIndex);
         }
 
-        return (IntPtr)BitConverter.ToInt32(value, startIndex);
+        return (IntPtr)(long)BitConverter.ToUInt32(value, startIndex);
     }
 
     public void SetEditor()
@@ -911,9 +966,21 @@ public class EditorReader
     public void ReadObjects(bool fetchHitSound = true)
     {
         var hitObjects = new List<HitObject>();
+        DiagReadObjectFailure = null;
         for (int i = 0; i < numObjects; i++)
         {
-            hitObjects.Add(ReadObject(ToIntPtr(pObjects, 4 * i), fetchHitSound));
+            IntPtr pObject = ToIntPtr(pObjects, 4 * i);
+            try
+            {
+                hitObjects.Add(ReadObject(pObject, fetchHitSound));
+            }
+            catch (Exception ex)
+            {
+                // 把"读到第几个物件、地址是多少"记下来：否则只剩一句笼统的 RPM 错误无从定位
+                DiagReadObjectFailure = $"index={i} ptr=0x{pObject.ToInt64():X} numObjects={numObjects} : {ex.Message}";
+                Log.ConsoleLog("ReadObjects failed: " + DiagReadObjectFailure, Log.LogType.EditorReader, Log.LogLevel.Error);
+                throw;
+            }
         }
 
         // 诊断：统计哪些字段越界（EditorReaderHarness 使用，正常运行时开销为 0）
@@ -962,9 +1029,47 @@ public class EditorReader
     /// <summary>诊断用：当前缓存的 Beatmap 地址。</summary>
     public IntPtr BeatmapAddress => pBeatmap;
 
+    /// <summary>
+    /// 读取物件结构体时"至少要读到多少字节"。
+    /// <para />普通物件（圆/滑条头）解析用到的最大偏移是 144（BaseY）+4 = 148；
+    /// 滑条额外用到 286（unifiedSoundAddition）+1 = 287，以及 196/224/228/232 处的子列表指针。
+    /// <para />为什么必须区分：编辑器增删物件会让堆在页边界上收缩，压在页尾的物件
+    /// 可能只有前 256 字节可读（实测 0xB981FEF0 就是这种）。若一律要求 287 字节，
+    /// 这类物件会永久读取失败，一个物件就能让整个全量读取每 tick 抛异常、客户端卡死。
+    /// </summary>
+    private const int ObjectRequiredBytesBase = 148;
+    private const int ObjectRequiredBytesSlider = 287;
+
+    /// <summary>先用它把 Type（偏移 24）读出来，据此决定这个物件要读到多少字节。</summary>
+    private const int ObjectTypeProbeBytes = 32;
+
     private HitObject ReadObject(IntPtr pObject, bool fetchHitSound)
     {
-        SafeReadProcessMemory(TargetHandle, pObject, bufferOb, 336, ref bytesRead);
+        int required;
+
+        // 快路径：整块读成功就说明 336 字节全可读，直接判类型，省掉一次探测读取
+        //（每秒约 1.6 万次物件读取，多一次 RPM 就是多 1.6ms/帧）。
+        if (ReadProcessMemory(TargetHandle, pObject, bufferOb, 336, ref bytesRead))
+        {
+            required = (BitConverter.ToInt32(bufferOb, 24) & 2) > 0 ? ObjectRequiredBytesSlider : ObjectRequiredBytesBase;
+        }
+        else
+        {
+            // 慢路径：物件跨页且后一页被回收。先读结构体头部拿 Type，据此决定需要多少字节。
+            byte[] head = new byte[ObjectTypeProbeBytes];
+            if (!SafeReadSegmented(pObject, head, ObjectTypeProbeBytes, sizeof(int)))
+            {
+                throw new Exception("ReadProcessMemory Error. Cancelled reading.");
+            }
+
+            required = (BitConverter.ToInt32(head, 24) & 2) > 0 ? ObjectRequiredBytesSlider : ObjectRequiredBytesBase;
+            if (!SafeReadSegmented(pObject, bufferOb, 336, required))
+            {
+                throw new Exception("ReadProcessMemory Error. Cancelled reading.");
+            }
+        }
+
+        bool isSlider = required == ObjectRequiredBytesSlider;
         HitObject hitObject = new HitObject();
         hitObject.SpatialLength = BitConverter.ToDouble(bufferOb, 8);
         hitObject.StartTime = BitConverter.ToInt32(bufferOb, 16);
@@ -983,7 +1088,7 @@ public class EditorReader
         hitObject.IsSelected = BitConverter.ToBoolean(bufferOb, 133);
         hitObject.BaseX = BitConverter.ToSingle(bufferOb, 140);
         hitObject.BaseY = BitConverter.ToSingle(bufferOb, 144);
-        if (hitObject.IsSlider())
+        if (isSlider)
         {
             hitObject.curveLength = BitConverter.ToDouble(bufferOb, 148);
             hitObject.CurveType = BitConverter.ToInt32(bufferOb, 248);

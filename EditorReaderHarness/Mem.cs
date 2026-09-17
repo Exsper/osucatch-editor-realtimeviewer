@@ -288,6 +288,101 @@ public static class Mem
         if (buffer == null || buffer.Length < size) buffer = new byte[size];
     }
 
+    /// <summary>查询某个地址所在的内存区域，用于判断"读不到"是因为地址没映射还是权限不足。</summary>
+    public static string DescribeRegion(IntPtr hProcess, IntPtr address)
+    {
+        if (VirtualQueryEx(hProcess, address, out MEMORY_BASIC_INFORMATION mbi, Marshal.SizeOf<MEMORY_BASIC_INFORMATION>()) == 0)
+        {
+            return "VirtualQueryEx 失败 err=" + Marshal.GetLastWin32Error();
+        }
+
+        string state = mbi.State switch { 0x1000 => "MEM_COMMIT", 0x2000 => "MEM_RESERVE", 0x10000 => "MEM_FREE", _ => "0x" + mbi.State.ToString("X") };
+        string protect = mbi.Protect switch
+        {
+            0x01 => "PAGE_NOACCESS",
+            0x02 => "PAGE_READONLY",
+            0x04 => "PAGE_READWRITE",
+            0x10 => "PAGE_EXECUTE",
+            0x20 => "PAGE_EXECUTE_READ",
+            0x40 => "PAGE_EXECUTE_READWRITE",
+            0x00 => "(none)",
+            _ => "0x" + mbi.Protect.ToString("X")
+        };
+        string type = mbi.Type switch { 0x20000 => "MEM_PRIVATE", 0x40000 => "MEM_MAPPED", 0x1000000 => "MEM_IMAGE", _ => "0x" + mbi.Type.ToString("X") };
+
+        return $"{state} {protect} {type} 区域=[0x{mbi.BaseAddress.ToInt64():X8}, +{mbi.RegionSize.ToInt64()})  查询地址偏移={address.ToInt64() - mbi.BaseAddress.ToInt64()}";
+    }
+
+    public static uint ReadUInt32(IntPtr hProcess, long address)
+    {
+        byte[] b = new byte[4];
+        return Rpm(hProcess, (IntPtr)address, b, 4) ? BitConverter.ToUInt32(b, 0) : 0;
+    }
+
+    /// <summary>枚举 [from, to) 之间的所有内存区域并描述它们。</summary>
+    public static List<string> DescribeRegionsIn(IntPtr hProcess, long from, long to)
+    {
+        var result = new List<string>();
+        long address = from;
+        int guard = 0;
+        while (address < to && guard++ < 500)
+        {
+            if (VirtualQueryEx(hProcess, (IntPtr)address, out MEMORY_BASIC_INFORMATION mbi, Marshal.SizeOf<MEMORY_BASIC_INFORMATION>()) == 0)
+            {
+                result.Add($"0x{address:X8}: VirtualQueryEx 失败 err={Marshal.GetLastWin32Error()}");
+                break;
+            }
+
+            string state = mbi.State switch { 0x1000 => "COMMIT", 0x2000 => "RESERVE", 0x10000 => "FREE", _ => "0x" + mbi.State.ToString("X") };
+            string protect = mbi.Protect switch
+            {
+                0x01 => "NOACCESS",
+                0x02 => "READONLY",
+                0x04 => "READWRITE",
+                0x10 => "EXECUTE",
+                0x20 => "EXECUTE_READ",
+                0x40 => "EXECUTE_READWRITE",
+                0x00 => "-",
+                _ => "0x" + mbi.Protect.ToString("X")
+            };
+            string type = mbi.Type switch { 0x20000 => "PRIVATE", 0x40000 => "MAPPED", 0x1000000 => "IMAGE", _ => "-" };
+
+            long size = mbi.RegionSize.ToInt64();
+            result.Add($"[0x{mbi.BaseAddress.ToInt64():X8}, +0x{size:X}) {state} {protect} {type}");
+
+            long next = mbi.BaseAddress.ToInt64() + size;
+            if (next <= address) break;
+            address = next;
+        }
+        return result;
+    }
+
+    public static int ReadInt32(IntPtr hProcess, long address)
+    {
+        byte[] b = new byte[4];
+        return Rpm(hProcess, (IntPtr)address, b, 4) ? BitConverter.ToInt32(b, 0) : int.MinValue;
+    }
+
+    /// <summary>
+    /// 从地址开始尽量往后读，遇到不可读就停。用于判断"整块读失败"是因为数据不存在，
+    /// 还是因为尾部越过了已提交区域（例如对象正好压在页边界上）。
+    /// </summary>
+    public static (int Bytes, byte[] Data) ReadAsMuchAsPossible(IntPtr hProcess, IntPtr address, int size)
+    {
+        byte[] data = new byte[size];
+        int got = 0;
+        int step = 64;
+        while (got < size)
+        {
+            int want = Math.Min(step, size - got);
+            byte[] chunk = new byte[want];
+            if (!Rpm(hProcess, address + got, chunk, want)) break;
+            Buffer.BlockCopy(chunk, 0, data, got, want);
+            got += want;
+        }
+        return (got, data);
+    }
+
     /// <summary>指针解析宽度覆盖（诊断用：模拟旧的 IntPtr.Size 行为）。</summary>
     public static int? PointerSizeOverride;
 }
