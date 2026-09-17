@@ -64,8 +64,23 @@ namespace osucatch_editor_realtimeviewer
         /// </summary>
         public static bool UseBatchRendering = false;
 
-        private readonly float Border_Height = 32;
-        private readonly float Border_Width = 32;
+        /// <summary>
+        /// playfield 四周额外留出的边框（世界坐标），与 <see cref="Init"/> 里 GL.Ortho 的投影范围一致；
+        /// 单屏模式（ScreensContain == 1）不留边框。
+        /// </summary>
+        private const float Border_Height = 32;
+        private const float Border_Width = 32;
+
+        /// <summary>
+        /// 画面可视区域的世界 Y 上边缘（与 <see cref="Init"/> 的投影范围一致）。
+        /// 时间轴向上，所以上边缘对应最晚的时刻。
+        /// </summary>
+        public static float VisibleTopY => (screensContain > 1) ? -Border_Height : 0f;
+
+        /// <summary>
+        /// 画面可视区域的世界 Y 下边缘（时间轴向上，所以下边缘对应最早的时刻）。
+        /// </summary>
+        public static float VisibleBottomY => (screensContain > 1) ? 480f * screensContain + Border_Height : 480f;
 
         public Canvas()
             : base()

@@ -1504,16 +1504,26 @@ namespace osucatch_editor_realtimeviewer
         /// 用一帧读到的 editor 时刻更新绘制时间：
         /// <see cref="DrawingHelper.EditorTime"/> 始终跟随编辑器；
         /// 预览时刻只在正常模式（未固定）或刚打开固定模式（需要钉住）时更新。
+        /// <para />固定模式下预览时刻不连续跟随，而是在 editor 位置（判定线）越出画面时才整页翻页，
+        /// 见 <see cref="DrawingHelper.PageToKeepEditorVisible"/>。
         /// </summary>
         private void ApplyEditorTime(int editorTime)
         {
             drawingHelper.EditorTime = editorTime;
             editorTimeAvailable = true;
 
-            if (previewTimeFrozen && !previewTimePinPending) return;
+            if (!previewTimeFrozen || previewTimePinPending)
+            {
+                // 正常跟随；或刚打开固定模式：把预览钉在这一刻
+                previewTimePinPending = false;
+                drawingHelper.CurrentTime = editorTime;
+                return;
+            }
 
-            previewTimePinPending = false;
-            drawingHelper.CurrentTime = editorTime;
+            if (drawingHelper.PageToKeepEditorVisible(Canvas.VisibleTopY, Canvas.VisibleBottomY))
+            {
+                Log.ConsoleLog("Preview time paged to keep editor position visible.", Log.LogType.Drawing, Log.LogLevel.Info);
+            }
         }
 
         /// <summary>

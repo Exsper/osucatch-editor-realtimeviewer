@@ -168,6 +168,41 @@ namespace osucatch_editor_realtimeviewer
             LabelType = staged.LabelType;
         }
 
+        /// <summary>
+        /// 当前时刻（deltaTime = 0）在画面上的 Y 坐标，也就是判定线的基准高度。
+        /// </summary>
+        public double JudgeLineBaseY => (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
+
+        /// <summary>
+        /// 整页翻页后判定线与画面边缘保留的距离（占可视高度的比例）。
+        /// <para />留余量有两个作用：翻页后判定线不贴边（看得清），
+        /// 并且翻页落点与触发边界之间留出足够间隔——否则落点正好压在边缘上时，
+        /// 浮点换算的零点几像素误差会让它在“刚好越界/刚好没越界”之间来回翻页，肉眼看到不停闪烁。
+        /// </summary>
+        private const double PageMarginRatio = 0.06;
+
+        /// <summary>
+        /// 固定预览模式下按“整页”跟随 editor：画面本身不连续滚动，但 editor 的位置始终留在画面内。
+        /// <para />editor 时刻在画面上的位置（判定线）越过画面上边缘 <paramref name="visibleTopY"/> 时，
+        /// 预览时刻整页向前翻，使判定线落到画面下边缘内侧；
+        /// 越过下边缘时反向翻页，使判定线落到上边缘内侧（内侧距离见 <see cref="PageMarginRatio"/>）。
+        /// 翻页后的时刻由 editor 时刻直接反推，所以 editor 一次跳很远（拖动进度条）也只需一页即可到位。
+        /// </summary>
+        /// <returns>是否发生了翻页。未处于固定预览模式或时刻数据无效时不做事。</returns>
+        public bool PageToKeepEditorVisible(double visibleTopY, double visibleBottomY)
+        {
+            if (!FixedPreviewTime || !(TimePerPixels > 0)) return false;
+
+            double baseY = JudgeLineBaseY;
+            double lineY = baseY - (EditorTime - CurrentTime) / TimePerPixels;
+            if (lineY >= visibleTopY && lineY <= visibleBottomY) return false;
+
+            double margin = Math.Max((visibleBottomY - visibleTopY) * PageMarginRatio, 1);
+            double targetY = (lineY < visibleTopY) ? visibleBottomY - margin : visibleTopY + margin;
+            CurrentTime = (float)(EditorTime - (baseY - targetY) * TimePerPixels);
+            return true;
+        }
+
         public void Draw()
         {
             BuildNearby();
