@@ -1,4 +1,4 @@
-﻿using Editor_Reader;
+using Editor_Reader;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -6,10 +6,27 @@ namespace osucatch_editor_realtimeviewer
 
     public class EditorReaderHelper
     {
-        private static readonly EditorReader reader = new();
+        private readonly EditorReader reader = new();
+
+        /// <summary>
+        /// 编辑器读取状态：区分"编辑器本来就没打开"（正常空闲，例如 test mode / 选歌）
+        /// 与"在编辑器里但读不到"（异常），调用方据此决定是安静等待还是记录错误。
+        /// </summary>
+        public enum EditorState
+        {
+            Unknown,
+            /// <summary>已成功绑定编辑器，数据可读。</summary>
+            Active,
+            /// <summary>osu! 在运行，但当前不在编辑器（test mode / 选歌 / 加载中）。</summary>
+            NotInEditor,
+            /// <summary>当前在编辑器里，但绑定或读取失败。</summary>
+            Failed,
+        }
+
+        /// <summary>最近一次编辑器检查的结果，供调用方区分空闲与故障。</summary>
+        public EditorState LastEditorState { get; private set; } = EditorState.Unknown;
 
         private bool Is_Doing_SetProcess = false;
-        private bool Is_Doing_FetchEditor = false;
         private bool Is_Osu_Running = false;
         public bool Is_Editor_Running = false;
 
@@ -22,6 +39,18 @@ namespace osucatch_editor_realtimeviewer
         private int fetchAll_Failed_Count = 0;
         private const int FetchAll_MaxRetry_Count = 10;
 
+        /// <summary>
+        /// 一次全量读取因"快照被编辑器改到一半"而失败时，原地重试几次。
+        /// 实测切难度时的撕裂失败重读一次即可恢复，因此默认 1 次；
+        /// 重试仍失败才计入连败（连败 10 次会触发 ForceRebind，那是一次最长 30 秒的后台重扫）。
+        /// </summary>
+        private const int FetchAll_SnapshotRetryCount = 1;
+
+        // 连续读取失败后的指数退避区间：编辑器批量修改（拖拽/撤销/加载）期间会连续读到
+        // 不一致的快照，此时按最高频率反复重读既无意义又会拖慢 osu!。
+        private const long FetchAll_RetryBaseIntervalMs = 200;
+        private const long FetchAll_RetryMaxIntervalMs = 3000;
+
         // 高频/低频分离：多数 tick 只读 EditorTime，全量读取有间隔限制
         private BeatmapInfoCollection? cachedCollection;
         private string cachedTitle = "";
@@ -29,19 +58,128 @@ namespace osucatch_editor_realtimeviewer
         private long lastEditorCheckTimestamp;
         private long lastEditorFailedTimestamp;
         private long lastFullFetchTimestamp;
+        private long lastFullFetchAttemptTimestamp;
         private bool editorCheckSucceeded;
         /// <summary>
         /// FetchEditor 失败后的最小重试间隔：避免以 Drawing_Interval（默认 20ms）级别的
-        /// 高频循环反复触发全量内存扫描（Wine 下扫描可能很慢）。
+        /// 高频循环反复做编辑器校验。真正的重扫由 <see cref="StartBackgroundRebind"/>
+        /// 自己的退避（2 秒起）控制，因此这里可以放短一些，让 test mode 退出后尽快恢复。
         /// </summary>
-        private const long FetchEditor_RetryIntervalMs = 1000;
-        // 低频读取间隔（静止时）与全量读取间隔（编辑器前台且鼠标正在移动时），可在设置面板中自定义
-        private static long FullCheckIntervalMs => Math.Clamp(app.Default.LowFreqRead_Interval, 5, 10000);
-        private static long FullCheckIntervalMsEditing => Math.Clamp(app.Default.FullRead_Interval, 5, 10000);
+        private const long FetchEditor_RetryIntervalMs = 250;
+        /// <summary>
+        /// 全量（物件数据）读取间隔：编辑器在前台且鼠标正在移动时用 FullRead_Interval（默认 20ms，
+        /// 保持作图期间的跟随手感），其它情况用 LowFreqRead_Interval（默认 100ms）。
+        /// <para />注意：拖动/放置物件时，画面里唯一的动态内容就是"物件跟着鼠标走"，而物件当前位置
+        /// 只能从编辑器内存读到，因此这个间隔直接等于跟手的帧率（20ms ≈ 50fps，50ms 会看出明显卡顿）。
+        /// 不要把默认值调大来"省读取"；真要降低读取量，应该只对正在拖动/选中的物件做增量读取，
+        /// 而不是降低整个谱面的重读频率。
+        /// </summary>
+        private static long FullCheckIntervalMs => Math.Clamp(app.Default.FullRead_Interval, 5, 10000);
+        private static long LowFreqCheckIntervalMs => Math.Clamp(app.Default.LowFreqRead_Interval, 5, 10000);
+
+        /// <summary>
+        /// 后台重绑是否正在进行。
+        /// <para />内存扫描最长可能耗时 ScanTimeoutMs（默认 30 秒），绝不能在绘制循环上同步执行，
+        /// 否则读取失败期间画面会整段停住（issue 里的"卡死"）。扫描期间循环只绘制上一份数据。
+        /// </summary>
+        public bool IsRebinding => rebinding;
+
+        private volatile bool rebinding;
+        private int rebindAttemptCount;
+        private long nextRebindAllowedTimestamp;
+
+        /// <summary>重绑失败后的最小间隔，逐次翻倍至上限，避免不断重复整轮内存扫描。</summary>
+        private const int Rebind_MinIntervalMs = 2000;
+        private const int Rebind_MaxIntervalMs = 60000;
 
         public EditorReaderHelper()
         {
             reader.autoDeStack = true;
+        }
+
+        /// <summary>
+        /// 在后台线程重新绑定 osu! 进程与编辑器地址（必要时重扫整个地址空间）。
+        /// 扫描期间 <see cref="IsRebinding"/> 为 true，调用方应跳过所有读取、继续绘制上一份数据。
+        /// </summary>
+        private void StartBackgroundRebind(string reason)
+        {
+            if (rebinding) return;
+
+            long now = stopwatch.ElapsedMilliseconds;
+            if (now < nextRebindAllowedTimestamp) return;
+
+            rebindAttemptCount++;
+            nextRebindAllowedTimestamp = now + Math.Min((long)Rebind_MinIntervalMs << Math.Min(rebindAttemptCount - 1, 8), Rebind_MaxIntervalMs);
+            rebinding = true;
+
+            Log.ConsoleLog("Start background editor re-bind (" + reason + "), attempt " + rebindAttemptCount + ".", Log.LogType.EditorReader, Log.LogLevel.Info);
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    if (reader.ProcessNeedsReload())
+                    {
+                        reader.SetProcess();
+                        Is_Osu_Running = true;
+                    }
+
+                    // 强制重扫：清掉旧的编辑器地址与扫描退避/游标状态
+                    reader.ResetEditor();
+                    reader.FetchEditor();
+                    Log.ConsoleLog("Background editor re-bind succeeded.", Log.LogType.EditorReader, Log.LogLevel.Info);
+                }
+                catch (Exception ex)
+                {
+                    Log.ConsoleLog("Background editor re-bind failed.\r\n" + ex, Log.LogType.EditorReader, Log.LogLevel.Error);
+                }
+                finally
+                {
+                    rebinding = false;
+                }
+            });
+        }
+
+        /// <summary>
+        /// 强制丢弃当前的进程/编辑器绑定与所有缓存，下一个 tick 会重新查找 osu! 进程并重新扫描编辑器地址。
+        /// 供"Reset"菜单与"连续读取失败"路径使用：此前的 Reset 只是新建 Helper，
+        /// 而 EditorReader 是静态实例，编辑器地址与扫描状态都没被清掉，卡住时按 Reset 等于没按。
+        /// </summary>
+        /// <param name="resetRebindBackoff">手动 Reset 时传 true：立即允许下一次重扫，
+        /// 而不是等内部退避（最长 60 秒）过去。</param>
+        public void ForceRebind(bool resetRebindBackoff = false)
+        {
+            Is_Osu_Running = false;
+            Is_Doing_SetProcess = false;
+            Is_Editor_Running = false;
+            editorCheckSucceeded = false;
+            LastEditorState = EditorState.Unknown;
+
+            fetchEditor_Failed_Count = 0;
+            fetchAll_Failed_Count = 0;
+            cachedCollection = null;
+            cachedTitle = "";
+            lastEditorCheckTimestamp = 0;
+            lastEditorFailedTimestamp = 0;
+            lastFullFetchTimestamp = 0;
+            lastFullFetchAttemptTimestamp = 0;
+
+            if (resetRebindBackoff)
+            {
+                rebindAttemptCount = 0;
+                nextRebindAllowedTimestamp = 0;
+            }
+
+            try
+            {
+                reader.ResetEditor();
+            }
+            catch (Exception ex)
+            {
+                Log.ConsoleLog("Reset editor address failed.\r\n" + ex, Log.LogType.EditorReader, Log.LogLevel.Error);
+            }
+
+            Log.ConsoleLog("Editor binding was reset manually.", Log.LogType.EditorReader, Log.LogLevel.Info);
         }
 
         /// <summary>
@@ -55,6 +193,13 @@ namespace osucatch_editor_realtimeviewer
         /// <returns>Is success or not.</returns>
         public bool FetchProcess()
         {
+            // 后台重绑正在操作 EditorReader：此时不要在循环线程上碰同一个实例
+            if (rebinding)
+            {
+                Is_Editor_Running = false;
+                return false;
+            }
+
             bool isNeedReload = true;
             try
             {
@@ -118,93 +263,90 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>
         /// Fetch editor if needed for Editor Reader.
         /// </summary>
+        /// <param name="force">true 时不再相信"地址看起来还有效"的廉价校验，直接重新绑定。
+        /// 读取连续失败时必须用它，否则会被成功缓存吞掉——这正是此前"连败后重绑"无效的原因。</param>
         /// <returns>Is success or not.</returns>
-        public bool FetchEditor()
+        public bool FetchEditor(bool force = false)
         {
+            // 后台重绑进行中：本轮不做任何读取（扫描可能长达数十秒）
+            if (rebinding)
+            {
+                Is_Editor_Running = false;
+                beatmap_path = "";
+                LastEditorState = EditorState.Unknown;
+                return false;
+            }
+
+            long elapsed = stopwatch.ElapsedMilliseconds;
+
             // 高频路径：FullCheckIntervalMs 内已经完整验证过 editor，直接复用上次结果
-            if (editorCheckSucceeded && stopwatch.ElapsedMilliseconds - lastEditorCheckTimestamp < FullCheckIntervalMs)
+            if (!force && editorCheckSucceeded && elapsed - lastEditorCheckTimestamp < FullCheckIntervalMs)
             {
                 Is_Editor_Running = true;
+                LastEditorState = EditorState.Active;
                 return true;
             }
 
-            // 失败节流：上次检测/扫描失败后至少等 1 秒再重试
-            if (!editorCheckSucceeded && stopwatch.ElapsedMilliseconds - lastEditorFailedTimestamp < FetchEditor_RetryIntervalMs)
+            // 失败节流：上次检测失败后至少等 FetchEditor_RetryIntervalMs 再做下一次校验（0 表示还没检测过）
+            if (!force && !editorCheckSucceeded && lastEditorFailedTimestamp != 0 &&
+                elapsed - lastEditorFailedTimestamp < FetchEditor_RetryIntervalMs)
             {
                 Is_Editor_Running = false;
                 beatmap_path = "";
                 return false;
             }
 
-            lastEditorFailedTimestamp = stopwatch.ElapsedMilliseconds;
+            lastEditorFailedTimestamp = elapsed;
             beatmap_title = "";
             string title = FetchTitle();
             if (title == "")
             {
+                // osu! 没运行/窗口还没建好：属正常空闲，不是故障
                 Log.ConsoleLog("Empty osu title.", Log.LogType.EditorReader, Log.LogLevel.Info);
-                Is_Editor_Running = false;
-                beatmap_path = "";
-                editorCheckSucceeded = false;
+                SetNotInEditor();
                 return false;
             }
             if (!title.EndsWith(".osu"))
             {
+                // test mode / 选歌 / 加载中：此刻本来就无法读取，属正常空闲，不是故障
                 Log.ConsoleLog("Osu title is not editor: " + title, Log.LogType.EditorReader, Log.LogLevel.Info);
-                Is_Editor_Running = false;
-                beatmap_path = "";
-                editorCheckSucceeded = false;
+                SetNotInEditor();
                 return false;
             }
             try
             {
-                if (reader.EditorNeedsReload())
+                if (force || reader.EditorNeedsReload())
                 {
-                    Log.ConsoleLog("Editor needs Reload.", Log.LogType.EditorReader, Log.LogLevel.Info);
-                    if (Is_Doing_SetProcess || Is_Doing_FetchEditor)
-                    {
-                        Log.ConsoleLog("Still fetching editor.", Log.LogType.EditorReader, Log.LogLevel.Info);
-                        editorCheckSucceeded = false;
-                        return false;
-                    }
-                    if (reader.ProcessNeedsReload())
-                    {
-                        Log.ConsoleLog("Process needs reload.", Log.LogType.EditorReader, Log.LogLevel.Info);
-                        editorCheckSucceeded = false;
-                        return false;
-                    }
-                    Log.ConsoleLog("Try fetch editor.", Log.LogType.EditorReader, Log.LogLevel.Info);
-                    Is_Doing_FetchEditor = true;
-                    reader.FetchEditor();
-                    Is_Doing_FetchEditor = false;
-                    Log.ConsoleLog("Fetch editor successfully.", Log.LogType.EditorReader, Log.LogLevel.Info);
-                    Is_Osu_Running = true;
-                    Is_Editor_Running = true;
+                    Log.ConsoleLog(force ? "Editor binding is suspect, re-binding." : "Editor needs Reload.", Log.LogType.EditorReader, Log.LogLevel.Info);
+                    Is_Editor_Running = false;
+                    beatmap_path = "";
+                    editorCheckSucceeded = false;
+                    LastEditorState = EditorState.Unknown;
+
+                    // 扫描放到后台线程：这一步最长可达 30 秒，同步执行会让画面整段停住
+                    StartBackgroundRebind(force ? "read failures" : "editor address invalid");
+                    return false;
                 }
             }
             catch (Exception ex)
             {
+                // 廉价校验本身失败（例如地址已不可读）：同样交给后台重绑，而不是在循环里扫内存
                 Log.ConsoleLog("Fetch editor failed.\r\n" + ex, Log.LogType.EditorReader, Log.LogLevel.Error);
-                Is_Doing_FetchEditor = false;
                 Is_Editor_Running = false;
                 beatmap_path = "";
                 editorCheckSucceeded = false;
+                LastEditorState = EditorState.Failed;
 
-                // 连续失败（例如 osu! test mode 快速进出后旧地址失效）时，强制重新绑定进程并清空 editor 地址，
-                // 避免永远停留在"检测到失效却不去重新扫描"的状态
                 fetchEditor_Failed_Count++;
                 if (fetchEditor_Failed_Count > FetchEditor_MaxRetry_Count)
                 {
                     Log.ConsoleLog("Refetching osu! process and editor...", Log.LogType.EditorReader, Log.LogLevel.Warning);
                     fetchEditor_Failed_Count = 0;
-                    try
-                    {
-                        reader.SetProcess();
-                    }
-                    catch (Exception setProcessEx)
-                    {
-                        Log.ConsoleLog("Refetch osu! process failed.\r\n" + setProcessEx, Log.LogType.EditorReader, Log.LogLevel.Error);
-                    }
-                    reader.ResetEditor();
+                    ForceRebind();
+                }
+                else
+                {
+                    StartBackgroundRebind("validation failed");
                 }
                 return false;
             }
@@ -213,7 +355,21 @@ namespace osucatch_editor_realtimeviewer
             lastEditorCheckTimestamp = stopwatch.ElapsedMilliseconds;
             editorCheckSucceeded = true;
             fetchEditor_Failed_Count = 0;
+            rebindAttemptCount = 0;
+            nextRebindAllowedTimestamp = 0;
+            LastEditorState = EditorState.Active;
             return true;
+        }
+
+        /// <summary>
+        /// 标记"当前不在编辑器"：清掉成功缓存，退出 test mode 后下一次检查会重新做真实校验。
+        /// </summary>
+        private void SetNotInEditor()
+        {
+            Is_Editor_Running = false;
+            beatmap_path = "";
+            editorCheckSucceeded = false;
+            LastEditorState = EditorState.NotInEditor;
         }
 
         /// <summary>
@@ -241,21 +397,36 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>
         /// 高频/低频分离读取：多数 tick 只读 EditorTime 并复用缓存数据，
         /// 只有在编辑器/地图变化、物件数量变化或超过 FullCheckIntervalMs 时才做全量读取。
+        /// <para />读取失败不抛异常，只返回 null：调用方应继续用上一份有效数据绘制。
         /// </summary>
         private BeatmapInfoCollection? FetchWithCache(bool filterNearby, double partialLoadingHalfTimeSpan)
         {
             try
             {
-                if (fetchAll_Failed_Count > FetchAll_MaxRetry_Count)
+                // 后台重绑正在操作 EditorReader：本轮不读，调用方继续绘制上一份数据
+                if (rebinding) return null;
+
+                long now = stopwatch.ElapsedMilliseconds;
+
+                // 连续失败退避：这一轮直接不读，调用方继续绘制上一份有效数据
+                if (fetchAll_Failed_Count > 0 && now - lastFullFetchAttemptTimestamp < FetchAllBackoffMs(fetchAll_Failed_Count))
                 {
-                    Log.ConsoleLog("Refetching editor...", Log.LogType.EditorReader, Log.LogLevel.Warning);
-                    fetchAll_Failed_Count = 0;
-                    FetchEditor();
-                    cachedCollection = null;
                     return null;
                 }
 
-                if (!IsFullFetchDue())
+                if (fetchAll_Failed_Count > FetchAll_MaxRetry_Count)
+                {
+                    // 连续读不到：强制重绑编辑器地址（忽略成功缓存），并丢弃缓存数据
+                    Log.ConsoleLog("Refetching editor...", Log.LogType.EditorReader, Log.LogLevel.Warning);
+                    fetchAll_Failed_Count = 0;
+                    cachedCollection = null;
+                    FetchEditor(true);
+                    return null;
+                }
+
+                // 只有"绑定被认为是有效的"才允许走只读播放头的高频路径，
+                // 否则会对着已失效的地址反复读 EditorTime
+                if (!IsFullFetchDue() && editorCheckSucceeded)
                 {
                     // 高频路径：只刷新播放头时间，其余数据沿用上次全量读取
                     cachedCollection!.EditorTime = reader.EditorTime();
@@ -265,29 +436,79 @@ namespace osucatch_editor_realtimeviewer
                     return cachedCollection;
                 }
 
-                Log.ConsoleLog("Start FetchAll().", Log.LogType.EditorReader, Log.LogLevel.Debug);
-                bool needFetchFull = app.Default.Backup_Enabled && !filterNearby;
-                reader.FetchAll(needFetchFull);
-                BeatmapInfoCollection thisReaderData = filterNearby
-                    ? new BeatmapInfoCollection(reader, partialLoadingHalfTimeSpan)
-                    : new BeatmapInfoCollection(reader);
+                lastFullFetchAttemptTimestamp = now;
 
-                Log.ConsoleLog("FetchAll complete.", Log.LogType.EditorReader, Log.LogLevel.Debug);
+                // 编辑器正在加载谱面（换难度/新谱面）时，列表头、指针数组与物件数据
+                // 不属于同一时刻，必然会读到撕裂的快照而失败。实测切难度时约 1% 的读取会这样，
+                // 且同一物件重读立刻就好（11 次失败落在 11 个不同下标，无一重复）。
+                // 这类失败不该累加连败计数：一旦累到 10 次就会触发 ForceRebind，
+                // 而那会触发最长 30 秒的后台重扫，正好发生在"用户刚切完难度想看图"的时候。
+                // 所以这里先原地重试一次，仍然失败才计入连败。
+                for (int attempt = 0; ; attempt++)
+                {
+                    try
+                    {
+                        Log.ConsoleLog(attempt == 0 ? "Start FetchAll()." : "FetchAll retry #" + attempt + ".",
+                            Log.LogType.EditorReader, Log.LogLevel.Debug);
+                        bool needFetchFull = app.Default.Backup_Enabled && !filterNearby;
+                        reader.FetchAll(needFetchFull);
+                        BeatmapInfoCollection thisReaderData = filterNearby
+                            ? new BeatmapInfoCollection(reader, partialLoadingHalfTimeSpan)
+                            : new BeatmapInfoCollection(reader);
 
-                cachedCollection = thisReaderData;
-                cachedTitle = beatmap_title;
-                lastFullFetchTimestamp = stopwatch.ElapsedMilliseconds;
-                fetchAll_Failed_Count = 0;
-                thisReaderData.IsFreshFetch = true;
-                if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
-                return thisReaderData;
+                        Log.ConsoleLog("FetchAll complete.", Log.LogType.EditorReader, Log.LogLevel.Debug);
+
+                        cachedCollection = thisReaderData;
+                        cachedTitle = beatmap_title;
+                        lastFullFetchTimestamp = stopwatch.ElapsedMilliseconds;
+                        fetchAll_Failed_Count = 0;
+                        thisReaderData.IsFreshFetch = true;
+                        if (app.Default.Selected_Show) RefreshSelection(cachedCollection);
+                        return thisReaderData;
+                    }
+                    catch (Exception ex)
+                    {
+                        // 快照撕裂会表现为两类异常：读内存失败（SafeReadProcessMemory）与
+                        // 读到不一致数据（BeatmapInfoCollection 的校验）。两类都值得原地重试一次。
+                        if (attempt < FetchAll_SnapshotRetryCount)
+                        {
+                            Log.ConsoleLog("FetchAll snapshot invalid, retrying immediately.\r\n" + ex.Message,
+                                Log.LogType.EditorReader, Log.LogLevel.Info);
+                            continue;
+                        }
+
+                        Log.ConsoleLog("FetchAll failed.(" + fetchAll_Failed_Count + ")\r\n" + ex.ToString(), Log.LogType.EditorReader, Log.LogLevel.Error);
+                        fetchAll_Failed_Count++;
+                        lastFullFetchAttemptTimestamp = stopwatch.ElapsedMilliseconds;
+
+                        // 读失败说明缓存的 editor 地址可能已经失效：让下一次 FetchEditor 做真实校验，
+                        // 而不是继续复用"上次校验成功"的缓存结果（否则重绑永远被缓存吞掉）
+                        editorCheckSucceeded = false;
+                        return null;
+                    }
+                }
             }
             catch (Exception ex)
             {
-                Log.ConsoleLog("FetchAll failed.(" + fetchAll_Failed_Count + ")\r\n" + ex.ToString(), Log.LogType.EditorReader, Log.LogLevel.Error);
+                // 兜底：异常发生在重试循环之外（例如 IsFullFetchDue / RefreshSelection）。
+                // 这里同样要计入连败并记时间戳，否则退避永远不生效、每 tick 都会重走一遍。
+                Log.ConsoleLog("FetchWithCache failed.\r\n" + ex, Log.LogType.EditorReader, Log.LogLevel.Error);
                 fetchAll_Failed_Count++;
+                lastFullFetchAttemptTimestamp = stopwatch.ElapsedMilliseconds;
+                editorCheckSucceeded = false;
                 return null;
             }
+        }
+
+        /// <summary>
+        /// 连续失败后的重试退避：200ms 起，逐次翻倍，上限 3 秒。
+        /// 编辑器批量修改（拖拽/撤销/加载地图）时会连续读到不一致快照，退避可避免
+        /// 以最高频率反复失败、把 osu! 和自身都拖慢。
+        /// </summary>
+        private static long FetchAllBackoffMs(int failedCount)
+        {
+            long backoff = FetchAll_RetryBaseIntervalMs << Math.Min(Math.Max(failedCount - 1, 0), 8);
+            return Math.Min(backoff, FetchAll_RetryMaxIntervalMs);
         }
 
         /// <summary>
@@ -316,7 +537,7 @@ namespace osucatch_editor_realtimeviewer
                 }
             }
 
-            foreach (ReaderHitObjectWithSelect line in collection.HitObjectLines)
+            foreach (ReaderHitObjectWithSelect line in collection.SelectionLines)
             {
                 line.IsSelect = line.MasterIndex >= 0 && line.MasterIndex < selectionScratch.Length && selectionScratch[line.MasterIndex];
             }
@@ -327,12 +548,21 @@ namespace osucatch_editor_realtimeviewer
         private bool IsFullFetchDue()
         {
             if (cachedCollection == null) return true;
-            if (cachedTitle != beatmap_title) return true;
 
-            // 编辑器前台且鼠标正在移动时缩短全量读取间隔，保证编辑操作实时反映到预览
+            // 编辑器前台且鼠标正在移动时用 FullRead_Interval（作图期间保持跟随手感），
+            // 其它情况（不在前台 / 鼠标静止）用 LowFreqRead_Interval。
             long interval = (ProcessFocus.IsEditorForeground(reader.OsuProcessId) && ProcessFocus.IsMouseMoving())
-                ? FullCheckIntervalMsEditing : FullCheckIntervalMs;
-            if (stopwatch.ElapsedMilliseconds - lastFullFetchTimestamp >= interval) return true;
+                ? FullCheckIntervalMs : LowFreqCheckIntervalMs;
+            bool intervalElapsed = stopwatch.ElapsedMilliseconds - lastFullFetchTimestamp >= interval;
+
+            // 切换谱面：标题变化时立即全量读取，不必等间隔。
+            // <para />注意顺序：这个判断必须放在间隔判断之后。
+            // beatmap_title 由 FetchEditor() 在**每次成功校验时**刷新，而 cachedTitle 只在全量读取成功后才赋值，
+            // 于是校验与读取之间标题一变，两者就会永久不等 —— 放在前面会让本方法每 tick 都返回 true，
+            // "高频/低频分离"整个失效（等于回到每 tick 全量读取）。
+            // 放到间隔之后，最坏代价只是把切换谱面的检测推迟到下一个间隔（前台移动鼠标时 20ms）。
+            if (intervalElapsed) return true;
+            if (cachedTitle != beatmap_title) return true;
 
             // 物件/控制点数量变化（增删）立即触发全量读取，不必等间隔
             if (reader.TryReadCounts(out int numObjects, out int numControlPoints, out _) &&
@@ -369,7 +599,63 @@ namespace osucatch_editor_realtimeviewer
         public int BeatmapVersion;
         public int[] Bookmarks;
         public List<string> ControlPointLines;
-        public List<ReaderHitObjectWithSelect> HitObjectLines;
+        private List<ReaderHitObjectWithSelect>? hitObjectLines;
+
+        /// <summary>
+        /// 每个物件一行 .osu 文本 + 选中标志。
+        /// <para /><b>惰性构建</b>：这些字符串只在"重建谱面"（<see cref="BeatmapBuilder.BuildNewBeatmapWithColorString"/>）
+        /// 与备份时才被消费；绘制路径只用 <see cref="ReaderHitObjectWithSelect.IsSelect"/>。
+        /// 而 <c>ho.ToString()</c> 在 16000 物件的谱面上要 ~33ms —— 每次全量读取都构建它就是白白花掉的时间，
+        /// 所以这里改成首次访问时才生成（并缓存）。
+        /// <para />注意：访问前请确认 <c>thisReader=</c> 已赋值，且不要再往 <see cref="HitObjects"/> 里追加物件。
+        /// </summary>
+        public List<ReaderHitObjectWithSelect> HitObjectLines
+        {
+            get
+            {
+                if (hitObjectLines == null)
+                {
+                    var lines = new List<ReaderHitObjectWithSelect>(HitObjects.Count);
+                    for (int i = 0; i < HitObjects.Count; i++)
+                    {
+                        Editor_Reader.HitObject ho = HitObjects[i];
+                        lines.Add(new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected, i));
+                    }
+                    hitObjectLines = lines;
+                }
+                return hitObjectLines;
+            }
+            set => hitObjectLines = value;
+        }
+
+        /// <summary>
+        /// 显式生成每行 .osu 文本（等价于访问 <see cref="HitObjectLines"/>）。
+        /// 在"决定要重建谱面"的那一刻调用：既不拖慢每次全量读取，又保证后台重建线程
+        /// 拿到的是已经固定下来的表（此时读取循环已经不会再修改这个 collection）。
+        /// </summary>
+        public void EnsureHitObjectLines() => _ = HitObjectLines;
+
+        /// <summary>
+        /// 只建"每行对象"但不拼字符串：绘制高亮需要的 IsSelect 标志走这条路径，
+        /// 避免在每次全量读取时付出 ToString() 的代价（16000 物件约 33ms/次）。
+        /// <para />顺序与 <see cref="HitObjects"/> 一一对应，因此 MasterIndex 就是列表下标。
+        /// </summary>
+        public static List<ReaderHitObjectWithSelect> BuildSelectionLines(List<Editor_Reader.HitObject> hitObjects)
+        {
+            var lines = new List<ReaderHitObjectWithSelect>(hitObjects.Count);
+            for (int i = 0; i < hitObjects.Count; i++)
+            {
+                lines.Add(new ReaderHitObjectWithSelect(null!, hitObjects[i].IsSelected, i));
+            }
+            return lines;
+        }
+
+        /// <summary>
+        /// 绘制用（高频刷新选中态）的行表：只携带 IsSelect，不带 .osu 文本。
+        /// <see cref="HitObjectLines"/> 仅在重建谱面/备份时才需要。
+        /// </summary>
+        public List<ReaderHitObjectWithSelect> SelectionLines = new();
+
         public List<Editor_Reader.ControlPoint> ControlPoints;
         public List<Editor_Reader.HitObject> HitObjects;
 
@@ -379,7 +665,6 @@ namespace osucatch_editor_realtimeviewer
             Filename = "";
             Bookmarks = [];
             ControlPointLines = new();
-            HitObjectLines = new();
             ControlPoints = new();
             HitObjects = new();
             IsFull = false;
@@ -443,9 +728,10 @@ namespace osucatch_editor_realtimeviewer
             BeatmapVersion = reader.BeatmapVersion;
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
-            HitObjectLines = reader.hitObjects.Select((ho, i) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected, i)).ToList();
             ControlPoints = reader.controlPoints;
             HitObjects = reader.hitObjects;
+            // HitObjectLines（.osu 文本）改为惰性构建：只有重建谱面/备份才需要，见属性注释
+            SelectionLines = BuildSelectionLines(HitObjects);
 
             // We don't need breaks because editor force a new combo after every break.
         }
@@ -503,9 +789,10 @@ namespace osucatch_editor_realtimeviewer
             BeatmapVersion = reader.BeatmapVersion;
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
-            HitObjectLines = NearbyHitObjects.Select((pair) => new ReaderHitObjectWithSelect(pair.Object.ToString(), pair.Object.IsSelected, pair.Index)).ToList();
-            ControlPoints = reader.controlPoints;
             HitObjects = NearbyHitObjects.Select((pair) => pair.Object).ToList();
+            // 过滤模式下不能走惰性：惰性表用列表下标当 MasterIndex，会丢掉 pair.Index 这个主列表下标
+            SelectionLines = NearbyHitObjects.Select((pair) => new ReaderHitObjectWithSelect(pair.Object.ToString(), pair.Object.IsSelected, pair.Index)).ToList();
+            ControlPoints = reader.controlPoints;
 
             // We don't need breaks because editor force a new combo after every break.
         }

@@ -442,4 +442,7 @@
   <data name="unloadTemplateStripMenuItem.Text" xml:space="preserve">
     <value>卸载模板</value>
   </data>
+  <data name="quickToggleStripMenuItem.Text" xml:space="preserve">
+    <value>快捷开关栏 (&amp;Q)</value>
+  </data>
 </root>

@@ -1007,5 +1007,65 @@ namespace osucatch_editor_realtimeviewer {
             }
         }
         
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool QuickToggle_Visible {
+            get {
+                return ((bool)(this["QuickToggle_Visible"]));
+            }
+            set {
+                this["QuickToggle_Visible"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool QuickToggle_Floating {
+            get {
+                return ((bool)(this["QuickToggle_Floating"]));
+            }
+            set {
+                this["QuickToggle_Floating"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("-1")]
+        public int QuickToggle_Float_X {
+            get {
+                return ((int)(this["QuickToggle_Float_X"]));
+            }
+            set {
+                this["QuickToggle_Float_X"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("-1")]
+        public int QuickToggle_Float_Y {
+            get {
+                return ((int)(this["QuickToggle_Float_Y"]));
+            }
+            set {
+                this["QuickToggle_Float_Y"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string QuickToggle_States {
+            get {
+                return ((string)(this["QuickToggle_States"]));
+            }
+            set {
+                this["QuickToggle_States"] = value;
+            }
+        }
+        
     }
 }

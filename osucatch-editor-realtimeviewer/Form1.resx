@@ -1006,4 +1006,7 @@
   <data name="unloadTemplateStripMenuItem.Text" xml:space="preserve">
     <value>&amp;Unload Template</value>
   </data>
+  <data name="quickToggleStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Quick Toggle Bar</value>
+  </data>
 </root>

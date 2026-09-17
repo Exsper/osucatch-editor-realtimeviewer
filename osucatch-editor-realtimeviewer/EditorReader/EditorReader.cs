@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Karoo13. Licensed under https://github.com/Karoo13/EditorReader/blob/master/LICENSE
+// Copyright (c) 2019 Karoo13. Licensed under https://github.com/Karoo13/EditorReader/blob/master/LICENSE
 // See the LICENCE file in the EditorReader folder for full licence text.
 // https://github.com/Karoo13/EditorReader
 // Decompiled with ICSharpCode.Decompiler 8.1.1.7464
@@ -28,6 +28,25 @@ public class EditorReader
     private IntPtr bytesRead;
 
     private Process process;
+
+    /// <summary>
+    /// 目标进程句柄。默认走 <see cref="Process.Handle"/>；
+    /// 若宿主已用 <c>OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_LIMITED_INFORMATION)</c> 打开句柄，
+    /// 可写入 <see cref="ForceHandle"/> 以避免 .NET 默认权限不足（osu! 以管理员身份运行时会出现）。
+    /// </summary>
+    private IntPtr TargetHandle => forceHandle != IntPtr.Zero ? forceHandle : process.Handle;
+
+    private IntPtr forceHandle;
+
+    /// <summary>
+    /// 由宿主提供的目标进程句柄（例如只有 VM_READ 权限的句柄）。
+    /// 设为非 0 后所有读取都使用它；宿主负责在换绑进程时替换/关闭句柄。
+    /// </summary>
+    public IntPtr ForceHandle
+    {
+        get => forceHandle;
+        set => forceHandle = value;
+    }
 
     private IntPtr pEditor;
 
@@ -99,6 +118,30 @@ public class EditorReader
 
     public List<HitObject> hitObjects;
 
+    /// <summary>
+    /// 目标进程的指针宽度。绝不能再用 <see cref="IntPtr.Size"/>：
+    /// 那是 viewer 自己的位数，而 osu! 是 32 位进程。viewer 汇编成 AnyCPU/x64 时
+    /// <c>IntPtr.Size == 8</c>，会把每 8 字节才读一次指针，从第二个物件起全部错位
+    /// ——表现为"物件读出来全是垃圾值 / 数量为 0"，而不是报错。
+    /// 因此 32 位目标必须按 4 字节指针读取。
+    /// </summary>
+    private const int TargetPointerSize = 4;
+
+    /// <summary>
+    /// 诊断用：最近一次 <see cref="ReadObjects"/> 的失败分类计数。
+    /// 仅用于性能/稳定性测量（EditorReaderHarness），不参与正常读取逻辑。
+    /// </summary>
+    public readonly long[] DiagObjectRejectReasons = new long[8];
+
+    /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 读取的对象数。</summary>
+    public int DiagLastInvalidObjectIndex = -1;
+
+    /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 中被拒绝的对象样本（物件字符串 + 原因）。</summary>
+    public string? DiagLastRejectSample;
+
+    /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 抛异常时的物件下标与地址。</summary>
+    public string? DiagReadObjectFailure;
+
     private IntPtr pClipboardL;
 
     private IntPtr pClipboardA;
@@ -127,21 +170,44 @@ public class EditorReader
     private const long MaxScanRegionSize = 256L * 1024 * 1024;
 
     /// <summary>
-    /// 每次 ReadProcessMemory 的最大块大小（可能再加少量重叠字节），
-    /// 避免在 32 位进程中一次性分配超大缓冲区。
-    /// </summary>
-    private const int ReadChunkSize = 8 * 1024 * 1024;
-
-    /// <summary>
     /// 单次内存扫描的最长时间。Wine 下 ReadProcessMemory 可能对某些区域永久阻塞，
-    /// 无法从超时点中断原生调用，因此把扫描放到独立线程，超时后放弃该线程并跳过对应区域。
+    /// 无法从超时点中断原生调用，因此把扫描放到独立线程，超时后放弃该线程并稍后重试。
     /// </summary>
     private const int ScanTimeoutMs = 30000;
 
+    /// <summary>ReadProcessMemory 长时间不返回的区域：首次退避 60 秒，随后指数增长。</summary>
+    private const int InitialRegionPenaltyMs = 60 * 1000;
+
+    /// <summary>区域退避上限：保证"被拉黑的区域"最终一定会被重试。</summary>
+    private const int MaxRegionPenaltyMs = 30 * 60 * 1000;
+
+    /// <summary>某个区域的退避状态。</summary>
+    private sealed class RegionPenalty
+    {
+        public int Count;
+        public long NextRetryTimestamp;
+    }
+
     /// <summary>
-    /// Wine 下 ReadProcessMemory 永久阻塞过的区域起始地址，重试时跳过。
+    /// ReadProcessMemory 长时间不返回过的区域（Wine 上确实存在）：按指数退避延后重试，
+    /// 而不是永久跳过。永久拉黑会造成"该区域恰好含有 editor 对象时，本进程内永远无法重新绑定"，
+    /// 用户只能不断重启 viewer —— 这正是 issue 中"重启 3 次以上 / 永久卡住"的来源之一。
     /// </summary>
-    private static readonly HashSet<long> blockedRegionAddresses = new();
+    private readonly Dictionary<long, RegionPenalty> penalizedRegions = new();
+    private readonly object penalizedRegionsLock = new();
+
+    /// <summary>上次成功找到 editor 的区域起始地址：重绑时优先扫描它（快路径）。</summary>
+    private long lastFoundRegionBase;
+
+    /// <summary>上次扫描超时后继续扫描的起点，避免每次重试都从头开始。</summary>
+    private int scanCursorIndex;
+
+    /// <summary>
+    /// 仍在运行的扫描线程数（含超时被放弃、但可能还阻塞在 ReadProcessMemory 里的线程）。
+    /// 超时的线程无法被中断，这里限制并发数，避免反复重试时线程无限堆积。
+    /// </summary>
+    private int liveScanThreads;
+    private const int MaxLiveScanThreads = 3;
 
     /// <summary>当前扫描线程正在读取的区域起始地址（供超时看门狗定位卡点）。</summary>
     private long scanningRegionAddress;
@@ -205,6 +271,54 @@ public class EditorReader
         }
     }
 
+    /// <summary>目标进程的页大小（读失败时按页对齐切分重试用）。</summary>
+    private const int TargetPageSize = 4096;
+
+    /// <summary>
+    /// 分段读取：先整块读，失败则按页边界切分后逐段读。
+    /// <para /><b>为什么需要它</b>：osu! 的物件结构体跨页时，后一页可能已被回收
+    /// （编辑器增删物件会让堆在页边界上增长/收缩，压在页尾的那个物件就会有一段读不到）。
+    /// 单次 RPM 只要有任何一页不可读就整体失败，于是那个物件永远读不出来 ——
+    /// 全量读取每 tick 都抛异常，客户端就永久卡在"重试中"。
+    /// 分段读取能把这些"大部分仍可读"的物件救回来：实测 0xB981FEF0 这个物件
+    /// 336 字节里只有前 256 字节可读，而普通物件真正用到的字段全在前 148 字节内。
+    /// </summary>
+    /// <returns>true 表示至少读到了前 <paramref name="minRequired"/> 字节。</returns>
+    private bool SafeReadSegmented(IntPtr address, byte[] buf, int size, int minRequired)
+    {
+        // 1) 常规情况：一次读成功
+        if (ReadProcessMemory(TargetHandle, address, buf, size, ref bytesRead))
+        {
+            return true;
+        }
+
+        // 2) 失败：按页边界切分，逐段读进临时缓冲再拼起来
+        EnsureBuffer(ref buf, size);
+        byte[] tmp = new byte[Math.Min(TargetPageSize, size)];
+        int offset = 0;
+
+        while (offset < size)
+        {
+            long here = address.ToInt64() + offset;
+            long pageEnd = ((here / TargetPageSize) + 1) * TargetPageSize;
+            int chunk = (int)Math.Min(pageEnd - here, size - offset);
+            if (chunk <= 0) break;
+
+            if (!ReadProcessMemory(TargetHandle, IntPtr.Add(address, offset), tmp, chunk, ref bytesRead))
+            {
+                if (offset >= minRequired) break;   // 需要的字段已经读到了，后面的字节用不上
+                Log.ConsoleLog("SafeReadSegmented: unreadable at " + (address.ToInt64() + offset) +
+                               " (need " + minRequired + " bytes, got " + offset + ")", Log.LogType.EditorReader, Log.LogLevel.Error);
+                throw new Exception("ReadProcessMemory Error. Cancelled reading.");
+            }
+
+            Buffer.BlockCopy(tmp, 0, buf, offset, chunk);
+            offset += chunk;
+        }
+
+        return offset >= minRequired;
+    }
+
     private string ReadString(IntPtr pString)
     {
         if (pString == IntPtr.Zero)
@@ -212,10 +326,10 @@ public class EditorReader
             return null;
         }
 
-        SafeReadProcessMemory(process.Handle, pString + 4, buffer4, 4, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pString + 4, buffer4, 4, ref bytesRead);
         int num = SafeBitConverterToInt32(buffer4, 0, "ReadString num");
         byte[] array = new byte[2 * num];
-        SafeReadProcessMemory(process.Handle, pString + 8, array, 2 * num, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pString + 8, array, 2 * num, ref bytesRead);
         char[] array2 = new char[num];
         Buffer.BlockCopy(array, 0, array2, 0, 2 * num);
         return new string(array2);
@@ -255,54 +369,85 @@ public class EditorReader
         Log.ConsoleLog("FindEditorAddress: start enumerating memory regions.", Log.LogType.EditorReader, Log.LogLevel.Info);
 
         Internals internals = new Internals();
-        internals.MemInfo(process.Handle);
-        Log.ConsoleLog("FindEditorAddress: " + internals.MemReg.Count + " region(s) to scan.", Log.LogType.EditorReader, Log.LogLevel.Info);
+        internals.MemInfo(TargetHandle);
+        int regionCount = internals.MemReg.Count;
+        Log.ConsoleLog("FindEditorAddress: " + regionCount + " region(s) to scan.", Log.LogType.EditorReader, Log.LogLevel.Info);
 
         // 把扫描放到独立线程：若某个 ReadProcessMemory 在 Wine 下永久阻塞，
-        // Join 超时后放弃该线程、记录阻塞区域并在下次重试时跳过，而不是让整个程序卡死。
-        IntPtr result = IntPtr.Zero;
+        // Join 超时后放弃该线程，把该区域延后重试（而不是永久跳过），而不是让整个程序卡死。
+        // 扫描线程自带缓冲区（见 ScanForEditorAddress），超时被放弃后继续运行也不会与主线程抢共享字段。
+        if (Interlocked.Increment(ref liveScanThreads) > MaxLiveScanThreads)
+        {
+            Interlocked.Decrement(ref liveScanThreads);
+            throw new InvalidOperationException("Too many memory scans are still running; skipping this attempt.");
+        }
+
+        (IntPtr Address, long RegionBase, int RegionIndex) scanResult = (IntPtr.Zero, 0, -1);
         Exception? scanError = null;
         Thread scanThread = new Thread(() =>
         {
-            try { result = ScanForEditorAddress(internals); }
+            try { scanResult = ScanForEditorAddress(internals); }
             catch (Exception ex) { scanError = ex; }
+            finally { Interlocked.Decrement(ref liveScanThreads); }
         });
         scanThread.Start();
 
         if (!scanThread.Join(ScanTimeoutMs))
         {
-            long blocked = Interlocked.Read(ref scanningRegionAddress);
-            int blockedIndex = scanningRegionIndex;
-            if (blocked != 0)
-            {
-                lock (blockedRegionAddresses) blockedRegionAddresses.Add(blocked);
-            }
-            Log.ConsoleLog("FindEditorAddress: scan aborted after " + ScanTimeoutMs + " ms, blocked at region " + blockedIndex + "/" + internals.MemReg.Count + " (address " + blocked + "). Will skip it on the next attempt.", Log.LogType.EditorReader, Log.LogLevel.Warning);
+            long stalled = Interlocked.Read(ref scanningRegionAddress);
+            int stalledIndex = scanningRegionIndex;
+            if (stalled != 0) PenalizeRegion(stalled);
+            // 下一次从卡住区域之后继续扫（环形），保证多次重试能向前推进、最终覆盖整个地址空间
+            if (regionCount > 0) scanCursorIndex = (stalledIndex + 1) % regionCount;
+            Log.ConsoleLog("FindEditorAddress: scan aborted after " + ScanTimeoutMs + " ms, stalled at region " + stalledIndex + "/" + regionCount + " (address " + stalled + "). It will be retried with backoff.", Log.LogType.EditorReader, Log.LogLevel.Warning);
             throw new InvalidOperationException("Memory scan aborted: ReadProcessMemory did not return in time.");
         }
 
         if (scanError != null) throw scanError;
-        return result;
+
+        if (scanResult.Address != IntPtr.Zero)
+        {
+            lastFoundRegionBase = scanResult.RegionBase;
+            scanCursorIndex = scanResult.RegionIndex;
+            ClearRegionPenalties();
+        }
+        else
+        {
+            // 完整扫过一遍没有结果：下次重新从 0 开始
+            scanCursorIndex = 0;
+        }
+
+        return scanResult.Address;
     }
 
-    private IntPtr ScanForEditorAddress(Internals internals)
+    /// <summary>
+    /// 在目标进程里扫描编辑器签名。
+    /// <para />扫描线程不共享任何实例缓冲区：超时被放弃的线程可能仍在读内存，
+    /// 若与主线程共用 buffer/bytesRead 会读到互相覆盖的数据。
+    /// </summary>
+    private (IntPtr Address, long RegionBase, int RegionIndex) ScanForEditorAddress(Internals internals)
     {
+        const int ReadChunkSize = 8 * 1024 * 1024;
+
         byte[] array = ToByteArray("230000001400000019000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0C000000eeeeeeeeeeeeeeeeeeeeeeeeee00");
         int overlap = array.Length - 1;
+        byte[] scanBuffer = null;
+        byte[] probe16 = new byte[16];
+        byte[] probe4 = new byte[4];
+        IntPtr read = IntPtr.Zero;
+        int skippedPenalized = 0;
 
-        for (int i = 0; i < internals.MemReg.Count; i++)
+        foreach (int i in GetScanOrder(internals))
         {
             Internals.MEMORY_BASIC_INFORMATION mEMORY_BASIC_INFORMATION = internals.MemReg[i];
             long regionBase = mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64();
             long regionSize = mEMORY_BASIC_INFORMATION.RegionSize.ToInt64();
 
-            lock (blockedRegionAddresses)
+            if (IsRegionPenalized(regionBase))
             {
-                if (blockedRegionAddresses.Contains(regionBase))
-                {
-                    Log.ConsoleLog("FindEditorAddress: skip blocked region " + i + "/" + internals.MemReg.Count + " (address " + regionBase + ").", Log.LogType.EditorReader, Log.LogLevel.Info);
-                    continue;
-                }
+                skippedPenalized++;
+                Log.ConsoleLog("FindEditorAddress: region " + i + "/" + internals.MemReg.Count + " (address " + regionBase + ") is in backoff, skipped for now.", Log.LogType.EditorReader, Log.LogLevel.Info);
+                continue;
             }
 
             if (regionSize > MaxScanRegionSize)
@@ -324,38 +469,149 @@ public class EditorReader
                 int readSize = chunkSize;
                 if (offset + chunkSize < regionSize) readSize += overlap;
 
-                EnsureBuffer(ref buffer, readSize);
-                if (!ReadProcessMemory(process.Handle, IntPtr.Add(mEMORY_BASIC_INFORMATION.BaseAddress, (int)offset), buffer, readSize, ref bytesRead))
+                EnsureBuffer(ref scanBuffer, readSize);
+                if (!ReadProcessMemory(TargetHandle, IntPtr.Add(mEMORY_BASIC_INFORMATION.BaseAddress, (int)offset), scanBuffer, readSize, ref read))
                 {
                     offset += chunkSize;
                     continue;
                 }
 
-                int bytesToScan = (int)bytesRead;
+                int bytesToScan = (int)read;
                 for (int j = 0; j <= bytesToScan - array.Length; j += 4)
                 {
-                    if (PatternCheck(buffer, array, j) && !EditorMissingObjects(new IntPtr(mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64() + offset + j - 160)))
-                    {
-                        IntPtr editorAddress = new IntPtr(mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64() + offset + j - 160);
-                        Log.ConsoleLog("FindEditorAddress: found at " + editorAddress, Log.LogType.EditorReader, Log.LogLevel.Debug);
-                        return editorAddress;
-                    }
+                    if (!PatternCheck(scanBuffer, array, j)) continue;
+
+                    IntPtr candidate = new IntPtr(mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64() + offset + j - 160);
+                    if (!IsPlausibleEditor(candidate, probe16, probe4)) continue;
+
+                    Log.ConsoleLog("FindEditorAddress: found at " + candidate, Log.LogType.EditorReader, Log.LogLevel.Debug);
+                    return (candidate, regionBase, i);
                 }
 
                 offset += chunkSize;
-                if ((long)bytesRead < readSize) break; // 区域剩余部分不可读，停止该区域
+                if ((long)read < readSize) break; // 区域剩余部分不可读，停止该区域
             }
+        }
+
+        if (skippedPenalized > 0)
+        {
+            Log.ConsoleLog("FindEditorAddress: " + skippedPenalized + " region(s) skipped due to backoff.", Log.LogType.EditorReader, Log.LogLevel.Warning);
         }
 
         Log.ConsoleLog("FindEditorAddress: no active editor found.", Log.LogType.EditorReader, Log.LogLevel.Warning);
         throw new InvalidOperationException("No active editor found.");
     }
 
+    /// <summary>
+    /// 扫描顺序：先试上次命中 editor 的区域（通常直接命中，省掉整轮全堆扫描），
+    /// 再从上次超时点按环形顺序扫完整个列表，避免每次重试都从头扫、反复卡在同一个区域。
+    /// </summary>
+    private IEnumerable<int> GetScanOrder(Internals internals)
+    {
+        int regionCount = internals.MemReg.Count;
+        int fastPathIndex = -1;
+
+        if (lastFoundRegionBase != 0)
+        {
+            for (int i = 0; i < regionCount; i++)
+            {
+                if (internals.MemReg[i].BaseAddress.ToInt64() == lastFoundRegionBase)
+                {
+                    fastPathIndex = i;
+                    yield return i;
+                    break;
+                }
+            }
+        }
+
+        int start = (scanCursorIndex >= 0 && scanCursorIndex < regionCount) ? scanCursorIndex : 0;
+        for (int k = 0; k < regionCount; k++)
+        {
+            int i = (start + k) % regionCount;
+            if (i == fastPathIndex) continue;
+            yield return i;
+        }
+    }
+
+    private bool IsRegionPenalized(long regionBase)
+    {
+        lock (penalizedRegionsLock)
+        {
+            return penalizedRegions.TryGetValue(regionBase, out RegionPenalty? penalty) &&
+                   Stopwatch.GetTimestamp() < penalty.NextRetryTimestamp;
+        }
+    }
+
+    /// <summary>
+    /// 把"读取超时"的区域延后重试（60 秒起，逐次翻倍，上限 30 分钟），而不是永久跳过。
+    /// </summary>
+    private void PenalizeRegion(long regionBase)
+    {
+        lock (penalizedRegionsLock)
+        {
+            if (!penalizedRegions.TryGetValue(regionBase, out RegionPenalty? penalty))
+            {
+                penalty = new RegionPenalty();
+                penalizedRegions[regionBase] = penalty;
+            }
+
+            penalty.Count++;
+            long delayMs = Math.Min((long)InitialRegionPenaltyMs << Math.Min(penalty.Count - 1, 10), MaxRegionPenaltyMs);
+            penalty.NextRetryTimestamp = Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * (delayMs / 1000.0));
+        }
+    }
+
+    private void ClearRegionPenalties()
+    {
+        lock (penalizedRegionsLock)
+        {
+            penalizedRegions.Clear();
+        }
+    }
+
+    /// <summary>
+    /// 候选编辑器的可信度校验：签名命中只说明内存里有这段字节。
+    /// osu! 退出 test mode 后会重建编辑器对象，堆里可能残留同样能通过签名的死副本，
+    /// 选错副本会造成之后持续读取失败。这里额外校验编辑器状态、HOM 与物件列表。
+    /// <para />失败返回 false（不抛异常），让扫描继续找下一个候选。
+    /// </summary>
+    private bool IsPlausibleEditor(IntPtr pE, byte[] probe16, byte[] probe4)
+    {
+        if (pE == IntPtr.Zero) return false;
+
+        IntPtr read = IntPtr.Zero;
+
+        // 编辑器状态字段（与 EditorNeedsReload 的判定一致）
+        if (!ReadProcessMemory(TargetHandle, pE + 160, probe16, 16, ref read)) return false;
+        if (BitConverter.ToInt32(probe16, 0) != 35 || BitConverter.ToInt32(probe16, 4) != 20 || BitConverter.ToInt32(probe16, 8) != 25) return false;
+
+        // HOM 与物件列表：死副本通常指向已释放/清零的内存
+        if (!ReadProcessMemory(TargetHandle, pE + 28, probe4, 4, ref read)) return false;
+        IntPtr pHom = ToIntPtr(probe4, 0);
+        if (pHom == IntPtr.Zero) return false;
+
+        if (!ReadProcessMemory(TargetHandle, pHom + 72, probe4, 4, ref read)) return false;
+        IntPtr pObjectsList = ToIntPtr(probe4, 0);
+        if (pObjectsList == IntPtr.Zero) return false;
+
+        if (!ReadProcessMemory(TargetHandle, pObjectsList, probe16, 16, ref read)) return false;
+        IntPtr pObjectsArray = ToIntPtr(probe16, 4);
+        int count = BitConverter.ToInt32(probe16, 12);
+        if (pObjectsArray == IntPtr.Zero || count < 0 || count > 1000000) return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// 绑定 osu! 进程。切换到新进程时清空扫描状态：地址空间已完全不同，
+    /// 旧的退避表/命中区域/扫描游标都失去意义。
+    /// </summary>
     public void SetProcess(Process forceProcess = null)
     {
         if (forceProcess != null)
         {
             this.process = forceProcess;
+            ResetScanState();
             return;
         }
 
@@ -365,11 +621,20 @@ public class EditorReader
             if (process.MainModule.ModuleName == "osu!.exe" && process.MainModule.FileVersionInfo.ProductName == "osu!")
             {
                 this.process = process;
+                ResetScanState();
                 return;
             }
         }
 
         throw new InvalidOperationException("No process for osu!.exe found.");
+    }
+
+    private void ResetScanState()
+    {
+        ClearRegionPenalties();
+        lastFoundRegionBase = 0;
+        scanCursorIndex = 0;
+        Interlocked.Exchange(ref scanningRegionAddress, 0);
     }
 
     public bool ProcessNeedsReload()
@@ -400,12 +665,17 @@ public class EditorReader
 
     private IntPtr ToIntPtr(byte[] value, int startIndex)
     {
-        if (IntPtr.Size > 4)
+        // 目标进程（osu!）是 32 位：必须按 4 字节读取，不能跟随 viewer 自身的 IntPtr.Size。
+        // <para /><b>必须按无符号读</b>：指针最高位为 1（地址 >= 0x80000000，编辑器堆长大后会用到）
+        // 时，ToInt32 得到负数，在 x64 宿主上转 IntPtr 会符号扩展成 0xFFFFFFFF8xxxxxxx，
+        // ReadProcessMemory 立刻失败 —— 表现就是"编辑一会儿之后某个物件开始永久读不到，
+        // 整个全量读取每 tick 抛异常，客户端卡在重试中"。ToUInt32 零扩展，得到正确的 0x8xxxxxxx。
+        if (TargetPointerSize > 4)
         {
-            return (IntPtr)BitConverter.ToUInt32(value, startIndex);
+            return (IntPtr)(long)BitConverter.ToUInt64(value, startIndex);
         }
 
-        return (IntPtr)BitConverter.ToInt32(value, startIndex);
+        return (IntPtr)(long)BitConverter.ToUInt32(value, startIndex);
     }
 
     public void SetEditor()
@@ -415,10 +685,12 @@ public class EditorReader
 
     /// <summary>
     /// 清空已缓存的编辑器地址，强制下一次检查时重新扫描内存。
+    /// 同时清掉扫描退避表/命中区域/游标：手动重绑时应当从干净状态重新开始。
     /// </summary>
     public void ResetEditor()
     {
         pEditor = IntPtr.Zero;
+        ResetScanState();
     }
 
     public bool EditorNeedsReload()
@@ -434,8 +706,8 @@ public class EditorReader
 
         // 读取失败时必须视为需要重载，不能依赖上次成功读取残留的 buffer 值做判断
         // （osu! 从 test mode 退出重建 editor 后，旧 pEditor 可能已失效，ReadProcessMemory 失败但 buffer 仍是旧签名）
-        if (!ReadProcessMemory(process.Handle, pEditor + 160, buffer16, 16, ref bytesRead) ||
-            !ReadProcessMemory(process.Handle, pEditor + 208, buffer4, 4, ref bytesRead))
+        if (!ReadProcessMemory(TargetHandle, pEditor + 160, buffer16, 16, ref bytesRead) ||
+            !ReadProcessMemory(TargetHandle, pEditor + 208, buffer4, 4, ref bytesRead))
         {
             return true;
         }
@@ -452,13 +724,13 @@ public class EditorReader
     {
         try
         {
-            SafeReadProcessMemory(process.Handle, pE + 28, buffer4, 4, ref bytesRead);
+            SafeReadProcessMemory(TargetHandle, pE + 28, buffer4, 4, ref bytesRead);
             IntPtr intPtr = ToIntPtr(buffer4, 0);
             if (intPtr == IntPtr.Zero)
             {
                 return true;
             }
-            SafeReadProcessMemory(process.Handle, intPtr + 72, buffer4, 4, ref bytesRead);
+            SafeReadProcessMemory(TargetHandle, intPtr + 72, buffer4, 4, ref bytesRead);
             IntPtr intPtr2 = ToIntPtr(buffer4, 0);
             return intPtr2 == IntPtr.Zero;
         }
@@ -472,40 +744,40 @@ public class EditorReader
 
     public int EditorTime()
     {
-        SafeReadProcessMemory(process.Handle, pEditor + 176, buffer16, 16, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pEditor + 176, buffer16, 16, ref bytesRead);
         return (BitConverter.ToInt32(buffer16, 8) + BitConverter.ToInt32(buffer16, 12)) / 2;
     }
 
     public void SetHOM()
     {
-        SafeReadProcessMemory(process.Handle, pEditor + 28, buffer4, 4, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pEditor + 28, buffer4, 4, ref bytesRead);
         pHOM = ToIntPtr(buffer4, 0);
-        SafeReadProcessMemory(process.Handle, pEditor + 112, buffer4, 4, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pEditor + 112, buffer4, 4, ref bytesRead);
         pCompose = ToIntPtr(buffer4, 0);
     }
 
     public void ReadHOM()
     {
         EnsureBuffer(ref buffer, 80);
-        SafeReadProcessMemory(process.Handle, pHOM, buffer, 80, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pHOM, buffer, 80, ref bytesRead);
         objectRadius = BitConverter.ToSingle(buffer, 24);
         stackOffset = BitConverter.ToSingle(buffer, 44);
         pBookmarksL = ToIntPtr(buffer, 56);
         pObjectsL = ToIntPtr(buffer, 72);
         EnsureBuffer(ref buffer, 256);
-        SafeReadProcessMemory(process.Handle, pCompose, buffer, 256, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pCompose, buffer, 256, ref bytesRead);
         pClipboardL = ToIntPtr(buffer, 48);
         pSelectedL = ToIntPtr(buffer, 72);
     }
 
     public void FetchBookmarks()
     {
-        SafeReadProcessMemory(process.Handle, pBookmarksL, buffer16, 16, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pBookmarksL, buffer16, 16, ref bytesRead);
         pBookmarksA = ToIntPtr(buffer16, 4);
         numBookmarks = SafeBitConverterToInt32(buffer16, 12, "numBookmarks");
         EnsureBuffer(ref buffer, 4 * numBookmarks);
         bookmarks = new int[numBookmarks];
-        SafeReadProcessMemory(process.Handle, pBookmarksA + 8, buffer, 4 * numBookmarks, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pBookmarksA + 8, buffer, 4 * numBookmarks, ref bytesRead);
         Buffer.BlockCopy(buffer, 0, bookmarks, 0, 4 * numBookmarks);
     }
 
@@ -541,7 +813,7 @@ public class EditorReader
             return false;
         }
 
-        if (!ReadProcessMemory(process.Handle, pSelectedL, buffer16, 16, ref bytesRead))
+        if (!ReadProcessMemory(TargetHandle, pSelectedL, buffer16, 16, ref bytesRead))
         {
             return false;
         }
@@ -564,7 +836,7 @@ public class EditorReader
         }
 
         EnsureBuffer(ref pSelected, 4 * selCount);
-        if (!ReadProcessMemory(process.Handle, pSelA + 8, pSelected, 4 * selCount, ref bytesRead))
+        if (!ReadProcessMemory(TargetHandle, pSelA + 8, pSelected, 4 * selCount, ref bytesRead))
         {
             return false;
         }
@@ -592,7 +864,7 @@ public class EditorReader
     private bool ReadListCount(IntPtr pList, out int count)
     {
         count = -1;
-        if (!ReadProcessMemory(process.Handle, pList, buffer16, 16, ref bytesRead))
+        if (!ReadProcessMemory(TargetHandle, pList, buffer16, 16, ref bytesRead))
         {
             return false;
         }
@@ -609,14 +881,14 @@ public class EditorReader
 
     public void SetBeatmap()
     {
-        SafeReadProcessMemory(process.Handle, pHOM + 48, buffer4, 4, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pHOM + 48, buffer4, 4, ref bytesRead);
         pBeatmap = ToIntPtr(buffer4, 0);
     }
 
     public void ReadBeatmap()
     {
         EnsureBuffer(ref buffer, 320);
-        SafeReadProcessMemory(process.Handle, pBeatmap, buffer, 320, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pBeatmap, buffer, 320, ref bytesRead);
         SliderMultiplier = BitConverter.ToDouble(buffer, 8);
         SliderTickRate = BitConverter.ToDouble(buffer, 16);
         ApproachRate = BitConverter.ToSingle(buffer, 44);
@@ -634,13 +906,13 @@ public class EditorReader
     public void SetControlPoints()
     {
         EnsureBuffer(ref buffer, 192);
-        SafeReadProcessMemory(process.Handle, pBeatmap, buffer, 192, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pBeatmap, buffer, 192, ref bytesRead);
         pControlPointsL = ToIntPtr(buffer, 176);
-        SafeReadProcessMemory(process.Handle, pControlPointsL, buffer16, 16, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pControlPointsL, buffer16, 16, ref bytesRead);
         pControlPointsA = ToIntPtr(buffer16, 4);
         numControlPoints = SafeBitConverterToInt32(buffer16, 12, "numControlPoints");
         EnsureBuffer(ref pControlPoints, 4 * numControlPoints);
-        SafeReadProcessMemory(process.Handle, pControlPointsA + 8, pControlPoints, 4 * numControlPoints, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pControlPointsA + 8, pControlPoints, 4 * numControlPoints, ref bytesRead);
     }
 
     public void ReadControlPoints()
@@ -654,7 +926,7 @@ public class EditorReader
 
     private ControlPoint ReadControlPoint(IntPtr pControlPoint)
     {
-        SafeReadProcessMemory(process.Handle, pControlPoint, bufferCp, 48, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pControlPoint, bufferCp, 48, ref bytesRead);
         return new ControlPoint
         {
             BeatLength = BitConverter.ToDouble(bufferCp, 4),
@@ -670,11 +942,11 @@ public class EditorReader
 
     public void SetObjects()
     {
-        SafeReadProcessMemory(process.Handle, pObjectsL, buffer16, 16, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pObjectsL, buffer16, 16, ref bytesRead);
         pObjectsA = ToIntPtr(buffer16, 4);
         numObjects = SafeBitConverterToInt32(buffer16, 12, "numObjects");
         EnsureBuffer(ref pObjects, 4 * numObjects);
-        SafeReadProcessMemory(process.Handle, pObjectsA + 8, pObjects, 4 * numObjects, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pObjectsA + 8, pObjects, 4 * numObjects, ref bytesRead);
 
         // 建立指针 -> 主物件下标映射，供高频选中读取使用
         if (masterIndexByPointer == null || masterIndexByPointer.Count != numObjects)
@@ -693,16 +965,111 @@ public class EditorReader
 
     public void ReadObjects(bool fetchHitSound = true)
     {
-        hitObjects = new List<HitObject>();
+        var hitObjects = new List<HitObject>();
+        DiagReadObjectFailure = null;
         for (int i = 0; i < numObjects; i++)
         {
-            hitObjects.Add(ReadObject(ToIntPtr(pObjects, 4 * i), fetchHitSound));
+            IntPtr pObject = ToIntPtr(pObjects, 4 * i);
+            try
+            {
+                hitObjects.Add(ReadObject(pObject, fetchHitSound));
+            }
+            catch (Exception ex)
+            {
+                // 把"读到第几个物件、地址是多少"记下来：否则只剩一句笼统的 RPM 错误无从定位
+                DiagReadObjectFailure = $"index={i} ptr=0x{pObject.ToInt64():X} numObjects={numObjects} : {ex.Message}";
+                Log.ConsoleLog("ReadObjects failed: " + DiagReadObjectFailure, Log.LogType.EditorReader, Log.LogLevel.Error);
+                throw;
+            }
         }
+
+        // 诊断：统计哪些字段越界（EditorReaderHarness 使用，正常运行时开销为 0）
+        for (int i = 0; i < hitObjects.Count; i++)
+        {
+            int reason = RejectReason(hitObjects[i]);
+            if (reason >= 0)
+            {
+                DiagObjectRejectReasons[reason]++;
+                DiagLastInvalidObjectIndex = i;
+                DiagLastRejectSample = "reason=" + reason + " index=" + i + " ptr=" + ToIntPtr(pObjects, 4 * i) + " " + hitObjects[i];
+            }
+        }
+
+        this.hitObjects = hitObjects;
     }
+
+    /// <summary>
+    /// 与 <c>BeatmapInfoCollection</c> 的合法性校验保持一致的分类：
+    /// 0=序号,1=X,2=Y,3=SegmentCount,4=Type,5=SampleSet,6=SampleSetAdditions,7=SampleVolume；-1 表示合法。
+    /// </summary>
+    private static int RejectReason(HitObject ho)
+    {
+        if (ho.X > 1000 || ho.X < -1000) return 1;
+        if (ho.Y > 1000 || ho.Y < -1000) return 2;
+        if (ho.SegmentCount > 9000) return 3;
+        if (ho.Type == 0) return 4;
+        if (ho.SampleSet > 1000) return 5;
+        if (ho.SampleSetAdditions > 1000) return 6;
+        if (ho.SampleVolume > 1000) return 7;
+        return -1;
+    }
+
+    /// <summary>
+    /// 诊断用：物件列表的三个关键指针，用于在 harness 里复现/对比读取路径。
+    /// </summary>
+    public (IntPtr ListHeader, IntPtr DataArray, int Count, int PointerSize) GetObjectPointers()
+        => (pObjectsL, pObjectsA, numObjects, TargetPointerSize);
+
+    /// <summary>诊断用：当前缓存的编辑器对象地址（不触发重新扫描）。</summary>
+    public IntPtr EditorAddress => pEditor;
+
+    /// <summary>诊断用：当前缓存的 HOM 地址。</summary>
+    public IntPtr HomAddress => pHOM;
+
+    /// <summary>诊断用：当前缓存的 Beatmap 地址。</summary>
+    public IntPtr BeatmapAddress => pBeatmap;
+
+    /// <summary>
+    /// 读取物件结构体时"至少要读到多少字节"。
+    /// <para />普通物件（圆/滑条头）解析用到的最大偏移是 144（BaseY）+4 = 148；
+    /// 滑条额外用到 286（unifiedSoundAddition）+1 = 287，以及 196/224/228/232 处的子列表指针。
+    /// <para />为什么必须区分：编辑器增删物件会让堆在页边界上收缩，压在页尾的物件
+    /// 可能只有前 256 字节可读（实测 0xB981FEF0 就是这种）。若一律要求 287 字节，
+    /// 这类物件会永久读取失败，一个物件就能让整个全量读取每 tick 抛异常、客户端卡死。
+    /// </summary>
+    private const int ObjectRequiredBytesBase = 148;
+    private const int ObjectRequiredBytesSlider = 287;
+
+    /// <summary>先用它把 Type（偏移 24）读出来，据此决定这个物件要读到多少字节。</summary>
+    private const int ObjectTypeProbeBytes = 32;
 
     private HitObject ReadObject(IntPtr pObject, bool fetchHitSound)
     {
-        SafeReadProcessMemory(process.Handle, pObject, bufferOb, 336, ref bytesRead);
+        int required;
+
+        // 快路径：整块读成功就说明 336 字节全可读，直接判类型，省掉一次探测读取
+        //（每秒约 1.6 万次物件读取，多一次 RPM 就是多 1.6ms/帧）。
+        if (ReadProcessMemory(TargetHandle, pObject, bufferOb, 336, ref bytesRead))
+        {
+            required = (BitConverter.ToInt32(bufferOb, 24) & 2) > 0 ? ObjectRequiredBytesSlider : ObjectRequiredBytesBase;
+        }
+        else
+        {
+            // 慢路径：物件跨页且后一页被回收。先读结构体头部拿 Type，据此决定需要多少字节。
+            byte[] head = new byte[ObjectTypeProbeBytes];
+            if (!SafeReadSegmented(pObject, head, ObjectTypeProbeBytes, sizeof(int)))
+            {
+                throw new Exception("ReadProcessMemory Error. Cancelled reading.");
+            }
+
+            required = (BitConverter.ToInt32(head, 24) & 2) > 0 ? ObjectRequiredBytesSlider : ObjectRequiredBytesBase;
+            if (!SafeReadSegmented(pObject, bufferOb, 336, required))
+            {
+                throw new Exception("ReadProcessMemory Error. Cancelled reading.");
+            }
+        }
+
+        bool isSlider = required == ObjectRequiredBytesSlider;
         HitObject hitObject = new HitObject();
         hitObject.SpatialLength = BitConverter.ToDouble(bufferOb, 8);
         hitObject.StartTime = BitConverter.ToInt32(bufferOb, 16);
@@ -721,7 +1088,7 @@ public class EditorReader
         hitObject.IsSelected = BitConverter.ToBoolean(bufferOb, 133);
         hitObject.BaseX = BitConverter.ToSingle(bufferOb, 140);
         hitObject.BaseY = BitConverter.ToSingle(bufferOb, 144);
-        if (hitObject.IsSlider())
+        if (isSlider)
         {
             hitObject.curveLength = BitConverter.ToDouble(bufferOb, 148);
             hitObject.CurveType = BitConverter.ToInt32(bufferOb, 248);
@@ -730,34 +1097,34 @@ public class EditorReader
             pSTL = ToIntPtr(bufferOb, 224);
             pSSL = ToIntPtr(bufferOb, 228);
             pSSAL = ToIntPtr(bufferOb, 232);
-            SafeReadProcessMemory(process.Handle, pPointsL, buffer16, 16, ref bytesRead);
+            SafeReadProcessMemory(TargetHandle, pPointsL, buffer16, 16, ref bytesRead);
             pTempA = ToIntPtr(buffer16, 4);
             numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
             EnsureBuffer(ref bTemp, 8 * numTemp);
-            SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 8 * numTemp, ref bytesRead);
+            SafeReadProcessMemory(TargetHandle, pTempA + 8, bTemp, 8 * numTemp, ref bytesRead);
             hitObject.sliderCurvePoints = new float[2 * numTemp];
             Buffer.BlockCopy(bTemp, 0, hitObject.sliderCurvePoints, 0, 8 * numTemp);
             if (!hitObject.unifiedSoundAddition)
             {
-                SafeReadProcessMemory(process.Handle, pSTL, buffer16, 16, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pSTL, buffer16, 16, ref bytesRead);
                 pTempA = ToIntPtr(buffer16, 4);
                 numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
                 EnsureBuffer(ref bTemp, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
                 hitObject.SoundTypeList = new int[numTemp];
                 Buffer.BlockCopy(bTemp, 0, hitObject.SoundTypeList, 0, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pSSL, buffer16, 16, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pSSL, buffer16, 16, ref bytesRead);
                 pTempA = ToIntPtr(buffer16, 4);
                 numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
                 EnsureBuffer(ref bTemp, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
                 hitObject.SampleSetList = new int[numTemp];
                 Buffer.BlockCopy(bTemp, 0, hitObject.SampleSetList, 0, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pSSAL, buffer16, 16, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pSSAL, buffer16, 16, ref bytesRead);
                 pTempA = ToIntPtr(buffer16, 4);
                 numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
                 EnsureBuffer(ref bTemp, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
                 hitObject.SampleSetAdditionsList = new int[numTemp];
                 Buffer.BlockCopy(bTemp, 0, hitObject.SampleSetAdditionsList, 0, 4 * numTemp);
             }

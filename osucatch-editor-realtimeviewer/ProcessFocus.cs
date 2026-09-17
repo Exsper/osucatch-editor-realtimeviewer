@@ -46,7 +46,8 @@ namespace osucatch_editor_realtimeviewer
 
         /// <summary>
         /// 鼠标是否正在移动（通过轮询光标位置变化判断）。
-        /// 编辑器操作通常是"悬停到目标位置再点击"，鼠标移动期间需要实时刷新预览。
+        /// 编辑器操作通常是"悬停到目标位置再点击"，鼠标移动期间需要按 FullRead_Interval
+        /// 保持预览的高刷新率（默认 20ms，接近 60fps 的跟随手感）。
         /// </summary>
         public static bool IsMouseMoving()
         {

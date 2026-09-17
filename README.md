@@ -25,6 +25,8 @@ These guides explain how to add the self-contained 32-bit build to the osu-winel
 - Reads hit objects, timeline position and selection directly from the editor
 - Configurable refresh intervals with foreground/mouse-move aware updates
 - Template and bookmark tools, including an optional global hotkey for bookmarks
+- Quick toggle bar under the menu bar: docked by default, or dragged out into a floating window for instant switches while editing
+- "Freeze preview" switch: pins the preview at the current editor time while the editor keeps running (the distance helper still follows the editor)
 - Unified user settings and crash logs under a fixed `%LocalAppData%` path
 
 ## Requirements

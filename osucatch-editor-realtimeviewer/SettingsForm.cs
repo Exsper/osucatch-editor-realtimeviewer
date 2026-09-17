@@ -264,6 +264,8 @@
 
         private void button_FullReadInterval_reset_Click(object sender, EventArgs e)
         {
+            // 与 app.settings 的默认值保持一致：20ms 对应约 50fps 的跟随手感，
+            // 调大会让作图时对象数据（拖拽/编辑结果）的反映明显变慢
             numericUpDown_FullReadInterval.Value = 20;
         }
     }

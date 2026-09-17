@@ -40,9 +40,24 @@ namespace osucatch_editor_realtimeviewer
     public class DrawingHelper
     {
         /// <summary>
-        /// Editor's current time of beatmap (ms).
+        /// 预览时刻（ms）：画布按这个时刻绘制。默认跟随编辑器当前时刻，
+        /// 打开“固定预览时刻”快捷开关后会被钉在某一刻不再跟随。
         /// </summary>
         public float CurrentTime { get; set; }
+
+        /// <summary>
+        /// 编辑器当前时刻（ms）：始终跟随编辑器，不受“固定预览时刻”影响。
+        /// 距离辅助线（光锥）等表示“当前编辑位置”的提示必须用这个时刻，
+        /// 否则固定预览后就看不到当前放置物件相对上个物件的可达距离了。
+        /// </summary>
+        public float EditorTime { get; set; }
+
+        /// <summary>
+        /// 是否处于“固定预览时刻”模式：为 true 时 <see cref="CurrentTime"/> 被钉住不再跟随编辑器，
+        /// 判定线改画在 <see cref="EditorTime"/> 对应的画面位置上（见 Canvas.DrawJudgementLine）。
+        /// </summary>
+        public bool FixedPreviewTime { get; set; }
+
         public ControlPointInfo? ControlPointInfo { get; set; }
         List<BarLine> BarLines { get; set; }
         public List<PalpableCatchHitObject> CatchHitObjects { get; set; }
@@ -103,6 +118,7 @@ namespace osucatch_editor_realtimeviewer
         {
             ScreensContain = 4;
             CurrentTime = 0;
+            EditorTime = 0;
             LabelType = HitObjectLabelType.None;
             CatchHitObjects = new List<PalpableCatchHitObject> { };
             NearbyHitObjects = new List<PalpableCatchHitObject> { };
@@ -150,6 +166,41 @@ namespace osucatch_editor_realtimeviewer
             CircleDiameter = staged.CircleDiameter;
             CustomComboColours = staged.CustomComboColours;
             LabelType = staged.LabelType;
+        }
+
+        /// <summary>
+        /// 当前时刻（deltaTime = 0）在画面上的 Y 坐标，也就是判定线的基准高度。
+        /// </summary>
+        public double JudgeLineBaseY => (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
+
+        /// <summary>
+        /// 整页翻页后判定线与画面边缘保留的距离（占可视高度的比例）。
+        /// <para />留余量有两个作用：翻页后判定线不贴边（看得清），
+        /// 并且翻页落点与触发边界之间留出足够间隔——否则落点正好压在边缘上时，
+        /// 浮点换算的零点几像素误差会让它在“刚好越界/刚好没越界”之间来回翻页，肉眼看到不停闪烁。
+        /// </summary>
+        private const double PageMarginRatio = 0.06;
+
+        /// <summary>
+        /// 固定预览模式下按“整页”跟随 editor：画面本身不连续滚动，但 editor 的位置始终留在画面内。
+        /// <para />editor 时刻在画面上的位置（判定线）越过画面上边缘 <paramref name="visibleTopY"/> 时，
+        /// 预览时刻整页向前翻，使判定线落到画面下边缘内侧；
+        /// 越过下边缘时反向翻页，使判定线落到上边缘内侧（内侧距离见 <see cref="PageMarginRatio"/>）。
+        /// 翻页后的时刻由 editor 时刻直接反推，所以 editor 一次跳很远（拖动进度条）也只需一页即可到位。
+        /// </summary>
+        /// <returns>是否发生了翻页。未处于固定预览模式或时刻数据无效时不做事。</returns>
+        public bool PageToKeepEditorVisible(double visibleTopY, double visibleBottomY)
+        {
+            if (!FixedPreviewTime || !(TimePerPixels > 0)) return false;
+
+            double baseY = JudgeLineBaseY;
+            double lineY = baseY - (EditorTime - CurrentTime) / TimePerPixels;
+            if (lineY >= visibleTopY && lineY <= visibleBottomY) return false;
+
+            double margin = Math.Max((visibleBottomY - visibleTopY) * PageMarginRatio, 1);
+            double targetY = (lineY < visibleTopY) ? visibleBottomY - margin : visibleTopY + margin;
+            CurrentTime = (float)(EditorTime - (baseY - targetY) * TimePerPixels);
+            return true;
         }
 
         public void Draw()
@@ -435,17 +486,21 @@ namespace osucatch_editor_realtimeviewer
         }
 
         /// <summary>
-        /// 距离辅助线（光锥）：当当前时间点上有 Fruit 时，
+        /// 距离辅助线（光锥）：当编辑器当前时刻点上有 Fruit 时，
         /// 从“上个物件”中心向左上/右上画两条放射线。
         /// 白线默认 1x、红线默认 2x（SameWithEditor 速度倍率，可在设置中修改），
         /// 用于判断当前放置物件相对上个物件的可达距离。
+        /// <para />画哪个物件由编辑器当前时刻（<see cref="EditorTime"/>）决定，
+        /// 这样固定预览时刻后辅助线仍然指示当前编辑位置的可达距离；
+        /// 而锚点在画面上的位置要按预览时刻（<see cref="CurrentTime"/>）换算——画面就是按预览时刻画的，
+        /// 用 editor 时刻会让锚点脱离画面上那个物件，并随 editor 时刻前进一起向下漂移。
         /// </summary>
         private void DrawDistanceHelper()
         {
             if (!app.Default.Show_Distance_Helper) return;
             if (CatchHitObjects == null || CatchHitObjects.Count <= 0) return;
 
-            int currentIndex = FindFruitIndexAtTime(CurrentTime);
+            int currentIndex = FindFruitIndexAtTime(EditorTime);
             if (currentIndex < 0) return;
 
             PalpableCatchHitObject? previous = ((Fruit)CatchHitObjects[currentIndex]).lastObject;
@@ -458,7 +513,7 @@ namespace osucatch_editor_realtimeviewer
             if (topY >= baseY) return;
 
             double anchorX = 64 + previous.EffectiveX;
-            double anchorY = baseY - (previous.StartTime - CurrentTime) / TimePerPixels;
+            double anchorY = DistanceHelperAnchorY(previous.StartTime, baseY);
 
             // SameWithEditor 速度换算（参考 BeatmapConverter.CalDistanceToNext）：
             // 水平速度 = 倍率 × (SliderMultiplier × 100 × SliderVelocity) / BeatLength
@@ -470,17 +525,25 @@ namespace osucatch_editor_realtimeviewer
         }
 
         /// <summary>
+        /// 距离辅助线锚点（上个物件）在画面上的 Y 坐标。
+        /// 基准时间是预览时刻 <see cref="CurrentTime"/>：画面上物件的位置就是按这个时刻算的，
+        /// 换成 editor 时刻会让锚点落到画面上另一个位置（固定预览后还会随 editor 前进而向下漂移）。
+        /// </summary>
+        private double DistanceHelperAnchorY(double previousStartTime, double baseY)
+            => baseY - (previousStartTime - CurrentTime) / TimePerPixels;
+
+        /// <summary>
         /// 按 SameWithEditor 语义换算水平速度（px/ms）：
         /// speed = 倍率 × (SliderMultiplier × 100 × SliderVelocity) / BeatLength。
         /// 与 <see cref="BeatmapConverter.CalDistanceToNext"/> 的 XDistToNext_SameWithEditor 一致，
-        /// 参数取当前播放头处的拍长与滑条速度。数据无效时返回 0（对应射线不画）。
+        /// 参数取编辑器当前时刻（<see cref="EditorTime"/>）处的拍长与滑条速度。数据无效时返回 0（对应射线不画）。
         /// </summary>
         private double CalcSameWithEditorSpeed(double multiplier)
         {
             if (!(multiplier > 0) || ControlPointInfo == null || !(SliderMultiplier > 0)) return 0;
 
-            TimingControlPoint timing = ControlPointInfo.TimingPointAt(CurrentTime);
-            DifficultyControlPoint difficulty = (ControlPointInfo as LegacyControlPointInfo)?.DifficultyPointAt(CurrentTime) ?? DifficultyControlPoint.DEFAULT;
+            TimingControlPoint timing = ControlPointInfo.TimingPointAt(EditorTime);
+            DifficultyControlPoint difficulty = (ControlPointInfo as LegacyControlPointInfo)?.DifficultyPointAt(EditorTime) ?? DifficultyControlPoint.DEFAULT;
 
             double beatLength = timing.BeatLength;
             double sliderVelocity = difficulty.SliderVelocity;

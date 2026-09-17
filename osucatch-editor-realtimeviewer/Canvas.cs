@@ -64,8 +64,23 @@ namespace osucatch_editor_realtimeviewer
         /// </summary>
         public static bool UseBatchRendering = false;
 
-        private readonly float Border_Height = 32;
-        private readonly float Border_Width = 32;
+        /// <summary>
+        /// playfield 四周额外留出的边框（世界坐标），与 <see cref="Init"/> 里 GL.Ortho 的投影范围一致；
+        /// 单屏模式（ScreensContain == 1）不留边框。
+        /// </summary>
+        private const float Border_Height = 32;
+        private const float Border_Width = 32;
+
+        /// <summary>
+        /// 画面可视区域的世界 Y 上边缘（与 <see cref="Init"/> 的投影范围一致）。
+        /// 时间轴向上，所以上边缘对应最晚的时刻。
+        /// </summary>
+        public static float VisibleTopY => (screensContain > 1) ? -Border_Height : 0f;
+
+        /// <summary>
+        /// 画面可视区域的世界 Y 下边缘（时间轴向上，所以下边缘对应最早的时刻）。
+        /// </summary>
+        public static float VisibleBottomY => (screensContain > 1) ? 480f * screensContain + Border_Height : 480f;
 
         public Canvas()
             : base()
@@ -605,18 +620,26 @@ namespace osucatch_editor_realtimeviewer
 
         private static void DrawJudgementLine()
         {
-            if (screensContain > 1)
-            {
-                Vector2 rp0 = new Vector2(64, (float)(240.0 * screensContain));
-                Vector2 rp1 = new Vector2(576, (float)(240.0 * screensContain));
-                DrawLine(rp0, rp1, Color.White, 1f, LineType.Solid, true);
-            }
-            else
-            {
-                Vector2 rp0 = new Vector2(64, 408);
-                Vector2 rp1 = new Vector2(576, 408);
-                DrawLine(rp0, rp1, Color.White, 1f, LineType.Solid, true);
-            }
+            double baseY = (screensContain > 1) ? 240.0 * screensContain : 408;
+            DrawingHelper drawing = Form1.drawingHelper;
+            double y = JudgementLineY(baseY, drawing.FixedPreviewTime, drawing.EditorTime, drawing.CurrentTime, drawing.TimePerPixels);
+
+            Vector2 rp0 = new Vector2(64, (float)y);
+            Vector2 rp1 = new Vector2(576, (float)y);
+            DrawLine(rp0, rp1, Color.White, 1f, LineType.Solid, true);
+        }
+
+        /// <summary>
+        /// 判定线（当前时刻线）在画面上的 Y 坐标。
+        /// 正常模式：画在判定线本身的位置（当前时刻所在高度）。
+        /// 固定预览时刻：画面停在预览时刻，判定线改为按 editor 时刻在画面上的位置绘制
+        /// （换算方式与绘制物件完全一致：<c>baseY - (time - CurrentTime) / TimePerPixels</c>），
+        /// 这样固定预览时也能一眼看出当前编辑位置在画面的哪里。
+        /// </summary>
+        private static double JudgementLineY(double baseY, bool fixedPreviewTime, double editorTime, double currentTime, double timePerPixels)
+        {
+            if (!fixedPreviewTime || !(timePerPixels > 0)) return baseY;
+            return baseY - (editorTime - currentTime) / timePerPixels;
         }
     }
 }
