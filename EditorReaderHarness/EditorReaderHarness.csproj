@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    临时诊断工程：只用于测量 EditorReader 的真实开销与失败原因。
+    不引用主工程，而是直接链接主工程的 EditorReader 源码（同一份实现，不含 UI/设置依赖），
+    这样测出来的数字就是主程序跑出来的数字。测试结束后整个目录可以删除。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <RootNamespace>EditorReaderHarness</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>EditorReaderHarness</AssemblyName>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\osucatch-editor-realtimeviewer\EditorReader\*.cs" LinkBase="EditorReader" />
+  </ItemGroup>
+
+</Project>

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Karoo13. Licensed under https://github.com/Karoo13/EditorReader/blob/master/LICENSE
+// Copyright (c) 2019 Karoo13. Licensed under https://github.com/Karoo13/EditorReader/blob/master/LICENSE
 // See the LICENCE file in the EditorReader folder for full licence text.
 // https://github.com/Karoo13/EditorReader
 // Decompiled with ICSharpCode.Decompiler 8.1.1.7464
@@ -28,6 +28,25 @@ public class EditorReader
     private IntPtr bytesRead;
 
     private Process process;
+
+    /// <summary>
+    /// 目标进程句柄。默认走 <see cref="Process.Handle"/>；
+    /// 若宿主已用 <c>OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_LIMITED_INFORMATION)</c> 打开句柄，
+    /// 可写入 <see cref="ForceHandle"/> 以避免 .NET 默认权限不足（osu! 以管理员身份运行时会出现）。
+    /// </summary>
+    private IntPtr TargetHandle => forceHandle != IntPtr.Zero ? forceHandle : process.Handle;
+
+    private IntPtr forceHandle;
+
+    /// <summary>
+    /// 由宿主提供的目标进程句柄（例如只有 VM_READ 权限的句柄）。
+    /// 设为非 0 后所有读取都使用它；宿主负责在换绑进程时替换/关闭句柄。
+    /// </summary>
+    public IntPtr ForceHandle
+    {
+        get => forceHandle;
+        set => forceHandle = value;
+    }
 
     private IntPtr pEditor;
 
@@ -98,6 +117,27 @@ public class EditorReader
     private Dictionary<IntPtr, int>? masterIndexByPointer;
 
     public List<HitObject> hitObjects;
+
+    /// <summary>
+    /// 目标进程的指针宽度。绝不能再用 <see cref="IntPtr.Size"/>：
+    /// 那是 viewer 自己的位数，而 osu! 是 32 位进程。viewer 汇编成 AnyCPU/x64 时
+    /// <c>IntPtr.Size == 8</c>，会把每 8 字节才读一次指针，从第二个物件起全部错位
+    /// ——表现为"物件读出来全是垃圾值 / 数量为 0"，而不是报错。
+    /// 因此 32 位目标必须按 4 字节指针读取。
+    /// </summary>
+    private const int TargetPointerSize = 4;
+
+    /// <summary>
+    /// 诊断用：最近一次 <see cref="ReadObjects"/> 的失败分类计数。
+    /// 仅用于性能/稳定性测量（EditorReaderHarness），不参与正常读取逻辑。
+    /// </summary>
+    public readonly long[] DiagObjectRejectReasons = new long[8];
+
+    /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 读取的对象数。</summary>
+    public int DiagLastInvalidObjectIndex = -1;
+
+    /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 中被拒绝的对象样本（物件字符串 + 原因）。</summary>
+    public string? DiagLastRejectSample;
 
     private IntPtr pClipboardL;
 
@@ -235,10 +275,10 @@ public class EditorReader
             return null;
         }
 
-        SafeReadProcessMemory(process.Handle, pString + 4, buffer4, 4, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pString + 4, buffer4, 4, ref bytesRead);
         int num = SafeBitConverterToInt32(buffer4, 0, "ReadString num");
         byte[] array = new byte[2 * num];
-        SafeReadProcessMemory(process.Handle, pString + 8, array, 2 * num, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pString + 8, array, 2 * num, ref bytesRead);
         char[] array2 = new char[num];
         Buffer.BlockCopy(array, 0, array2, 0, 2 * num);
         return new string(array2);
@@ -278,7 +318,7 @@ public class EditorReader
         Log.ConsoleLog("FindEditorAddress: start enumerating memory regions.", Log.LogType.EditorReader, Log.LogLevel.Info);
 
         Internals internals = new Internals();
-        internals.MemInfo(process.Handle);
+        internals.MemInfo(TargetHandle);
         int regionCount = internals.MemReg.Count;
         Log.ConsoleLog("FindEditorAddress: " + regionCount + " region(s) to scan.", Log.LogType.EditorReader, Log.LogLevel.Info);
 
@@ -379,7 +419,7 @@ public class EditorReader
                 if (offset + chunkSize < regionSize) readSize += overlap;
 
                 EnsureBuffer(ref scanBuffer, readSize);
-                if (!ReadProcessMemory(process.Handle, IntPtr.Add(mEMORY_BASIC_INFORMATION.BaseAddress, (int)offset), scanBuffer, readSize, ref read))
+                if (!ReadProcessMemory(TargetHandle, IntPtr.Add(mEMORY_BASIC_INFORMATION.BaseAddress, (int)offset), scanBuffer, readSize, ref read))
                 {
                     offset += chunkSize;
                     continue;
@@ -491,19 +531,19 @@ public class EditorReader
         IntPtr read = IntPtr.Zero;
 
         // 编辑器状态字段（与 EditorNeedsReload 的判定一致）
-        if (!ReadProcessMemory(process.Handle, pE + 160, probe16, 16, ref read)) return false;
+        if (!ReadProcessMemory(TargetHandle, pE + 160, probe16, 16, ref read)) return false;
         if (BitConverter.ToInt32(probe16, 0) != 35 || BitConverter.ToInt32(probe16, 4) != 20 || BitConverter.ToInt32(probe16, 8) != 25) return false;
 
         // HOM 与物件列表：死副本通常指向已释放/清零的内存
-        if (!ReadProcessMemory(process.Handle, pE + 28, probe4, 4, ref read)) return false;
+        if (!ReadProcessMemory(TargetHandle, pE + 28, probe4, 4, ref read)) return false;
         IntPtr pHom = ToIntPtr(probe4, 0);
         if (pHom == IntPtr.Zero) return false;
 
-        if (!ReadProcessMemory(process.Handle, pHom + 72, probe4, 4, ref read)) return false;
+        if (!ReadProcessMemory(TargetHandle, pHom + 72, probe4, 4, ref read)) return false;
         IntPtr pObjectsList = ToIntPtr(probe4, 0);
         if (pObjectsList == IntPtr.Zero) return false;
 
-        if (!ReadProcessMemory(process.Handle, pObjectsList, probe16, 16, ref read)) return false;
+        if (!ReadProcessMemory(TargetHandle, pObjectsList, probe16, 16, ref read)) return false;
         IntPtr pObjectsArray = ToIntPtr(probe16, 4);
         int count = BitConverter.ToInt32(probe16, 12);
         if (pObjectsArray == IntPtr.Zero || count < 0 || count > 1000000) return false;
@@ -574,7 +614,8 @@ public class EditorReader
 
     private IntPtr ToIntPtr(byte[] value, int startIndex)
     {
-        if (IntPtr.Size > 4)
+        // 目标进程（osu!）是 32 位：必须按 4 字节读取，不能跟随 viewer 自身的 IntPtr.Size
+        if (TargetPointerSize > 4)
         {
             return (IntPtr)BitConverter.ToUInt32(value, startIndex);
         }
@@ -610,8 +651,8 @@ public class EditorReader
 
         // 读取失败时必须视为需要重载，不能依赖上次成功读取残留的 buffer 值做判断
         // （osu! 从 test mode 退出重建 editor 后，旧 pEditor 可能已失效，ReadProcessMemory 失败但 buffer 仍是旧签名）
-        if (!ReadProcessMemory(process.Handle, pEditor + 160, buffer16, 16, ref bytesRead) ||
-            !ReadProcessMemory(process.Handle, pEditor + 208, buffer4, 4, ref bytesRead))
+        if (!ReadProcessMemory(TargetHandle, pEditor + 160, buffer16, 16, ref bytesRead) ||
+            !ReadProcessMemory(TargetHandle, pEditor + 208, buffer4, 4, ref bytesRead))
         {
             return true;
         }
@@ -628,13 +669,13 @@ public class EditorReader
     {
         try
         {
-            SafeReadProcessMemory(process.Handle, pE + 28, buffer4, 4, ref bytesRead);
+            SafeReadProcessMemory(TargetHandle, pE + 28, buffer4, 4, ref bytesRead);
             IntPtr intPtr = ToIntPtr(buffer4, 0);
             if (intPtr == IntPtr.Zero)
             {
                 return true;
             }
-            SafeReadProcessMemory(process.Handle, intPtr + 72, buffer4, 4, ref bytesRead);
+            SafeReadProcessMemory(TargetHandle, intPtr + 72, buffer4, 4, ref bytesRead);
             IntPtr intPtr2 = ToIntPtr(buffer4, 0);
             return intPtr2 == IntPtr.Zero;
         }
@@ -648,40 +689,40 @@ public class EditorReader
 
     public int EditorTime()
     {
-        SafeReadProcessMemory(process.Handle, pEditor + 176, buffer16, 16, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pEditor + 176, buffer16, 16, ref bytesRead);
         return (BitConverter.ToInt32(buffer16, 8) + BitConverter.ToInt32(buffer16, 12)) / 2;
     }
 
     public void SetHOM()
     {
-        SafeReadProcessMemory(process.Handle, pEditor + 28, buffer4, 4, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pEditor + 28, buffer4, 4, ref bytesRead);
         pHOM = ToIntPtr(buffer4, 0);
-        SafeReadProcessMemory(process.Handle, pEditor + 112, buffer4, 4, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pEditor + 112, buffer4, 4, ref bytesRead);
         pCompose = ToIntPtr(buffer4, 0);
     }
 
     public void ReadHOM()
     {
         EnsureBuffer(ref buffer, 80);
-        SafeReadProcessMemory(process.Handle, pHOM, buffer, 80, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pHOM, buffer, 80, ref bytesRead);
         objectRadius = BitConverter.ToSingle(buffer, 24);
         stackOffset = BitConverter.ToSingle(buffer, 44);
         pBookmarksL = ToIntPtr(buffer, 56);
         pObjectsL = ToIntPtr(buffer, 72);
         EnsureBuffer(ref buffer, 256);
-        SafeReadProcessMemory(process.Handle, pCompose, buffer, 256, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pCompose, buffer, 256, ref bytesRead);
         pClipboardL = ToIntPtr(buffer, 48);
         pSelectedL = ToIntPtr(buffer, 72);
     }
 
     public void FetchBookmarks()
     {
-        SafeReadProcessMemory(process.Handle, pBookmarksL, buffer16, 16, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pBookmarksL, buffer16, 16, ref bytesRead);
         pBookmarksA = ToIntPtr(buffer16, 4);
         numBookmarks = SafeBitConverterToInt32(buffer16, 12, "numBookmarks");
         EnsureBuffer(ref buffer, 4 * numBookmarks);
         bookmarks = new int[numBookmarks];
-        SafeReadProcessMemory(process.Handle, pBookmarksA + 8, buffer, 4 * numBookmarks, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pBookmarksA + 8, buffer, 4 * numBookmarks, ref bytesRead);
         Buffer.BlockCopy(buffer, 0, bookmarks, 0, 4 * numBookmarks);
     }
 
@@ -717,7 +758,7 @@ public class EditorReader
             return false;
         }
 
-        if (!ReadProcessMemory(process.Handle, pSelectedL, buffer16, 16, ref bytesRead))
+        if (!ReadProcessMemory(TargetHandle, pSelectedL, buffer16, 16, ref bytesRead))
         {
             return false;
         }
@@ -740,7 +781,7 @@ public class EditorReader
         }
 
         EnsureBuffer(ref pSelected, 4 * selCount);
-        if (!ReadProcessMemory(process.Handle, pSelA + 8, pSelected, 4 * selCount, ref bytesRead))
+        if (!ReadProcessMemory(TargetHandle, pSelA + 8, pSelected, 4 * selCount, ref bytesRead))
         {
             return false;
         }
@@ -768,7 +809,7 @@ public class EditorReader
     private bool ReadListCount(IntPtr pList, out int count)
     {
         count = -1;
-        if (!ReadProcessMemory(process.Handle, pList, buffer16, 16, ref bytesRead))
+        if (!ReadProcessMemory(TargetHandle, pList, buffer16, 16, ref bytesRead))
         {
             return false;
         }
@@ -785,14 +826,14 @@ public class EditorReader
 
     public void SetBeatmap()
     {
-        SafeReadProcessMemory(process.Handle, pHOM + 48, buffer4, 4, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pHOM + 48, buffer4, 4, ref bytesRead);
         pBeatmap = ToIntPtr(buffer4, 0);
     }
 
     public void ReadBeatmap()
     {
         EnsureBuffer(ref buffer, 320);
-        SafeReadProcessMemory(process.Handle, pBeatmap, buffer, 320, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pBeatmap, buffer, 320, ref bytesRead);
         SliderMultiplier = BitConverter.ToDouble(buffer, 8);
         SliderTickRate = BitConverter.ToDouble(buffer, 16);
         ApproachRate = BitConverter.ToSingle(buffer, 44);
@@ -810,13 +851,13 @@ public class EditorReader
     public void SetControlPoints()
     {
         EnsureBuffer(ref buffer, 192);
-        SafeReadProcessMemory(process.Handle, pBeatmap, buffer, 192, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pBeatmap, buffer, 192, ref bytesRead);
         pControlPointsL = ToIntPtr(buffer, 176);
-        SafeReadProcessMemory(process.Handle, pControlPointsL, buffer16, 16, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pControlPointsL, buffer16, 16, ref bytesRead);
         pControlPointsA = ToIntPtr(buffer16, 4);
         numControlPoints = SafeBitConverterToInt32(buffer16, 12, "numControlPoints");
         EnsureBuffer(ref pControlPoints, 4 * numControlPoints);
-        SafeReadProcessMemory(process.Handle, pControlPointsA + 8, pControlPoints, 4 * numControlPoints, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pControlPointsA + 8, pControlPoints, 4 * numControlPoints, ref bytesRead);
     }
 
     public void ReadControlPoints()
@@ -830,7 +871,7 @@ public class EditorReader
 
     private ControlPoint ReadControlPoint(IntPtr pControlPoint)
     {
-        SafeReadProcessMemory(process.Handle, pControlPoint, bufferCp, 48, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pControlPoint, bufferCp, 48, ref bytesRead);
         return new ControlPoint
         {
             BeatLength = BitConverter.ToDouble(bufferCp, 4),
@@ -846,11 +887,11 @@ public class EditorReader
 
     public void SetObjects()
     {
-        SafeReadProcessMemory(process.Handle, pObjectsL, buffer16, 16, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pObjectsL, buffer16, 16, ref bytesRead);
         pObjectsA = ToIntPtr(buffer16, 4);
         numObjects = SafeBitConverterToInt32(buffer16, 12, "numObjects");
         EnsureBuffer(ref pObjects, 4 * numObjects);
-        SafeReadProcessMemory(process.Handle, pObjectsA + 8, pObjects, 4 * numObjects, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pObjectsA + 8, pObjects, 4 * numObjects, ref bytesRead);
 
         // 建立指针 -> 主物件下标映射，供高频选中读取使用
         if (masterIndexByPointer == null || masterIndexByPointer.Count != numObjects)
@@ -869,16 +910,61 @@ public class EditorReader
 
     public void ReadObjects(bool fetchHitSound = true)
     {
-        hitObjects = new List<HitObject>();
+        var hitObjects = new List<HitObject>();
         for (int i = 0; i < numObjects; i++)
         {
             hitObjects.Add(ReadObject(ToIntPtr(pObjects, 4 * i), fetchHitSound));
         }
+
+        // 诊断：统计哪些字段越界（EditorReaderHarness 使用，正常运行时开销为 0）
+        for (int i = 0; i < hitObjects.Count; i++)
+        {
+            int reason = RejectReason(hitObjects[i]);
+            if (reason >= 0)
+            {
+                DiagObjectRejectReasons[reason]++;
+                DiagLastInvalidObjectIndex = i;
+                DiagLastRejectSample = "reason=" + reason + " index=" + i + " ptr=" + ToIntPtr(pObjects, 4 * i) + " " + hitObjects[i];
+            }
+        }
+
+        this.hitObjects = hitObjects;
     }
+
+    /// <summary>
+    /// 与 <c>BeatmapInfoCollection</c> 的合法性校验保持一致的分类：
+    /// 0=序号,1=X,2=Y,3=SegmentCount,4=Type,5=SampleSet,6=SampleSetAdditions,7=SampleVolume；-1 表示合法。
+    /// </summary>
+    private static int RejectReason(HitObject ho)
+    {
+        if (ho.X > 1000 || ho.X < -1000) return 1;
+        if (ho.Y > 1000 || ho.Y < -1000) return 2;
+        if (ho.SegmentCount > 9000) return 3;
+        if (ho.Type == 0) return 4;
+        if (ho.SampleSet > 1000) return 5;
+        if (ho.SampleSetAdditions > 1000) return 6;
+        if (ho.SampleVolume > 1000) return 7;
+        return -1;
+    }
+
+    /// <summary>
+    /// 诊断用：物件列表的三个关键指针，用于在 harness 里复现/对比读取路径。
+    /// </summary>
+    public (IntPtr ListHeader, IntPtr DataArray, int Count, int PointerSize) GetObjectPointers()
+        => (pObjectsL, pObjectsA, numObjects, TargetPointerSize);
+
+    /// <summary>诊断用：当前缓存的编辑器对象地址（不触发重新扫描）。</summary>
+    public IntPtr EditorAddress => pEditor;
+
+    /// <summary>诊断用：当前缓存的 HOM 地址。</summary>
+    public IntPtr HomAddress => pHOM;
+
+    /// <summary>诊断用：当前缓存的 Beatmap 地址。</summary>
+    public IntPtr BeatmapAddress => pBeatmap;
 
     private HitObject ReadObject(IntPtr pObject, bool fetchHitSound)
     {
-        SafeReadProcessMemory(process.Handle, pObject, bufferOb, 336, ref bytesRead);
+        SafeReadProcessMemory(TargetHandle, pObject, bufferOb, 336, ref bytesRead);
         HitObject hitObject = new HitObject();
         hitObject.SpatialLength = BitConverter.ToDouble(bufferOb, 8);
         hitObject.StartTime = BitConverter.ToInt32(bufferOb, 16);
@@ -906,34 +992,34 @@ public class EditorReader
             pSTL = ToIntPtr(bufferOb, 224);
             pSSL = ToIntPtr(bufferOb, 228);
             pSSAL = ToIntPtr(bufferOb, 232);
-            SafeReadProcessMemory(process.Handle, pPointsL, buffer16, 16, ref bytesRead);
+            SafeReadProcessMemory(TargetHandle, pPointsL, buffer16, 16, ref bytesRead);
             pTempA = ToIntPtr(buffer16, 4);
             numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
             EnsureBuffer(ref bTemp, 8 * numTemp);
-            SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 8 * numTemp, ref bytesRead);
+            SafeReadProcessMemory(TargetHandle, pTempA + 8, bTemp, 8 * numTemp, ref bytesRead);
             hitObject.sliderCurvePoints = new float[2 * numTemp];
             Buffer.BlockCopy(bTemp, 0, hitObject.sliderCurvePoints, 0, 8 * numTemp);
             if (!hitObject.unifiedSoundAddition)
             {
-                SafeReadProcessMemory(process.Handle, pSTL, buffer16, 16, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pSTL, buffer16, 16, ref bytesRead);
                 pTempA = ToIntPtr(buffer16, 4);
                 numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
                 EnsureBuffer(ref bTemp, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
                 hitObject.SoundTypeList = new int[numTemp];
                 Buffer.BlockCopy(bTemp, 0, hitObject.SoundTypeList, 0, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pSSL, buffer16, 16, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pSSL, buffer16, 16, ref bytesRead);
                 pTempA = ToIntPtr(buffer16, 4);
                 numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
                 EnsureBuffer(ref bTemp, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
                 hitObject.SampleSetList = new int[numTemp];
                 Buffer.BlockCopy(bTemp, 0, hitObject.SampleSetList, 0, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pSSAL, buffer16, 16, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pSSAL, buffer16, 16, ref bytesRead);
                 pTempA = ToIntPtr(buffer16, 4);
                 numTemp = SafeBitConverterToInt32(buffer16, 12, "numTemp");
                 EnsureBuffer(ref bTemp, 4 * numTemp);
-                SafeReadProcessMemory(process.Handle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
+                SafeReadProcessMemory(TargetHandle, pTempA + 8, bTemp, 4 * numTemp, ref bytesRead);
                 hitObject.SampleSetAdditionsList = new int[numTemp];
                 Buffer.BlockCopy(bTemp, 0, hitObject.SampleSetAdditionsList, 0, 4 * numTemp);
             }

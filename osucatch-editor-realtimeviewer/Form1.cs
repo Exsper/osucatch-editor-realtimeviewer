@@ -770,7 +770,7 @@ namespace osucatch_editor_realtimeviewer
                     // 高频路径：数据与上次全量读取完全相同，无需逐物件比较
                     differenceType = DifferenceType.None;
                 }
-                drawingHelper.SelectionLines = thisReader.HitObjectLines;
+                drawingHelper.SelectionLines = thisReader.SelectionLines;
 
                 // Step5. Build osu file Path
                 string filepath = "";
@@ -797,6 +797,10 @@ namespace osucatch_editor_realtimeviewer
 
                 if (needRebuild && _rebuildTask == null && DateTime.Now.Ticks - _rebuildRetryTicks > TimeSpan.FromMilliseconds(500).Ticks)
                 {
+                    // 重建才需要每行 .osu 文本（16000 物件约 33ms）：在这里一次性生成，
+                    // 而不是每次全量读取都生成。生成后的表归 thisReader 所有，读取循环不再碰它。
+                    thisReader.EnsureHitObjectLines();
+
                     int generation = _rebuildGeneration;
                     CommittedState committedSnapshot = _committed;
                     _rebuildTask = Task.Run(() => BuildNewState(thisReader, committedSnapshot, filepath, mods, labelType, converterIsStable, differenceType), cancellationToken);

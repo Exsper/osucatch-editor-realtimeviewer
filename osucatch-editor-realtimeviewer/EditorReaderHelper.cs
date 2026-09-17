@@ -1,4 +1,4 @@
-﻿using Editor_Reader;
+using Editor_Reader;
 
 namespace osucatch_editor_realtimeviewer
 {
@@ -497,7 +497,7 @@ namespace osucatch_editor_realtimeviewer
                 }
             }
 
-            foreach (ReaderHitObjectWithSelect line in collection.HitObjectLines)
+            foreach (ReaderHitObjectWithSelect line in collection.SelectionLines)
             {
                 line.IsSelect = line.MasterIndex >= 0 && line.MasterIndex < selectionScratch.Length && selectionScratch[line.MasterIndex];
             }
@@ -551,7 +551,63 @@ namespace osucatch_editor_realtimeviewer
         public int BeatmapVersion;
         public int[] Bookmarks;
         public List<string> ControlPointLines;
-        public List<ReaderHitObjectWithSelect> HitObjectLines;
+        private List<ReaderHitObjectWithSelect>? hitObjectLines;
+
+        /// <summary>
+        /// 每个物件一行 .osu 文本 + 选中标志。
+        /// <para /><b>惰性构建</b>：这些字符串只在"重建谱面"（<see cref="BeatmapBuilder.BuildNewBeatmapWithColorString"/>）
+        /// 与备份时才被消费；绘制路径只用 <see cref="ReaderHitObjectWithSelect.IsSelect"/>。
+        /// 而 <c>ho.ToString()</c> 在 16000 物件的谱面上要 ~33ms —— 每次全量读取都构建它就是白白花掉的时间，
+        /// 所以这里改成首次访问时才生成（并缓存）。
+        /// <para />注意：访问前请确认 <c>thisReader=</c> 已赋值，且不要再往 <see cref="HitObjects"/> 里追加物件。
+        /// </summary>
+        public List<ReaderHitObjectWithSelect> HitObjectLines
+        {
+            get
+            {
+                if (hitObjectLines == null)
+                {
+                    var lines = new List<ReaderHitObjectWithSelect>(HitObjects.Count);
+                    for (int i = 0; i < HitObjects.Count; i++)
+                    {
+                        Editor_Reader.HitObject ho = HitObjects[i];
+                        lines.Add(new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected, i));
+                    }
+                    hitObjectLines = lines;
+                }
+                return hitObjectLines;
+            }
+            set => hitObjectLines = value;
+        }
+
+        /// <summary>
+        /// 显式生成每行 .osu 文本（等价于访问 <see cref="HitObjectLines"/>）。
+        /// 在"决定要重建谱面"的那一刻调用：既不拖慢每次全量读取，又保证后台重建线程
+        /// 拿到的是已经固定下来的表（此时读取循环已经不会再修改这个 collection）。
+        /// </summary>
+        public void EnsureHitObjectLines() => _ = HitObjectLines;
+
+        /// <summary>
+        /// 只建"每行对象"但不拼字符串：绘制高亮需要的 IsSelect 标志走这条路径，
+        /// 避免在每次全量读取时付出 ToString() 的代价（16000 物件约 33ms/次）。
+        /// <para />顺序与 <see cref="HitObjects"/> 一一对应，因此 MasterIndex 就是列表下标。
+        /// </summary>
+        public static List<ReaderHitObjectWithSelect> BuildSelectionLines(List<Editor_Reader.HitObject> hitObjects)
+        {
+            var lines = new List<ReaderHitObjectWithSelect>(hitObjects.Count);
+            for (int i = 0; i < hitObjects.Count; i++)
+            {
+                lines.Add(new ReaderHitObjectWithSelect(null!, hitObjects[i].IsSelected, i));
+            }
+            return lines;
+        }
+
+        /// <summary>
+        /// 绘制用（高频刷新选中态）的行表：只携带 IsSelect，不带 .osu 文本。
+        /// <see cref="HitObjectLines"/> 仅在重建谱面/备份时才需要。
+        /// </summary>
+        public List<ReaderHitObjectWithSelect> SelectionLines = new();
+
         public List<Editor_Reader.ControlPoint> ControlPoints;
         public List<Editor_Reader.HitObject> HitObjects;
 
@@ -561,7 +617,6 @@ namespace osucatch_editor_realtimeviewer
             Filename = "";
             Bookmarks = [];
             ControlPointLines = new();
-            HitObjectLines = new();
             ControlPoints = new();
             HitObjects = new();
             IsFull = false;
@@ -625,9 +680,10 @@ namespace osucatch_editor_realtimeviewer
             BeatmapVersion = reader.BeatmapVersion;
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
-            HitObjectLines = reader.hitObjects.Select((ho, i) => new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected, i)).ToList();
             ControlPoints = reader.controlPoints;
             HitObjects = reader.hitObjects;
+            // HitObjectLines（.osu 文本）改为惰性构建：只有重建谱面/备份才需要，见属性注释
+            SelectionLines = BuildSelectionLines(HitObjects);
 
             // We don't need breaks because editor force a new combo after every break.
         }
@@ -685,9 +741,10 @@ namespace osucatch_editor_realtimeviewer
             BeatmapVersion = reader.BeatmapVersion;
             Bookmarks = reader.bookmarks;
             ControlPointLines = reader.controlPoints.Select((cp) => cp.ToString()).ToList();
-            HitObjectLines = NearbyHitObjects.Select((pair) => new ReaderHitObjectWithSelect(pair.Object.ToString(), pair.Object.IsSelected, pair.Index)).ToList();
-            ControlPoints = reader.controlPoints;
             HitObjects = NearbyHitObjects.Select((pair) => pair.Object).ToList();
+            // 过滤模式下不能走惰性：惰性表用列表下标当 MasterIndex，会丢掉 pair.Index 这个主列表下标
+            SelectionLines = NearbyHitObjects.Select((pair) => new ReaderHitObjectWithSelect(pair.Object.ToString(), pair.Object.IsSelected, pair.Index)).ToList();
+            ControlPoints = reader.controlPoints;
 
             // We don't need breaks because editor force a new combo after every break.
         }
