@@ -142,6 +142,9 @@ public class EditorReader
     /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 抛异常时的物件下标与地址。</summary>
     public string? DiagReadObjectFailure;
 
+    /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 跳过的空指针条数（编辑器重建列表的瞬间）。</summary>
+    public int DiagNullObjectPointers;
+
     private IntPtr pClipboardL;
 
     private IntPtr pClipboardA;
@@ -599,7 +602,48 @@ public class EditorReader
         int count = BitConverter.ToInt32(probe16, 12);
         if (pObjectsArray == IntPtr.Zero || count < 0 || count > 1000000) return false;
 
-        return true;
+        // 上面几步只证明了"指针链结构上说得通"。死副本的堆块在被复用前内容不会被清零，
+        // 所以一整条指针链都可能仍然自洽 —— 必须再实际跟着指针读一次物件才算数。
+        return ObjectsReadableFromChain(pHom, probe16, probe4);
+    }
+
+    /// <summary>
+    /// 从 HOM 出发跟着指针链检查"物件列表里的物件真的能读"。
+    /// <para />这是区分"活着的编辑器"与"堆里残留的死副本"的关键一步：
+    /// 死副本的指针链能通过结构校验，但它指向的物件已经被释放，
+    /// 于是候选校验/重载判断都会误判，之后每次全量读取都抛异常 ——
+    /// 表现就是"退出再进入编辑器后长时间一直读取失败、重绑也救不回来"。
+    /// </summary>
+    /// <returns>true 表示物件列表可读且至少有一个物件能读出来。</returns>
+    private bool ObjectsReadableFromChain(IntPtr pHom, byte[] probe16, byte[] probe4)
+    {
+        IntPtr read = IntPtr.Zero;
+
+        if (!ReadProcessMemory(TargetHandle, pHom + 72, probe4, 4, ref read)) return false;
+        IntPtr pObjectsList = ToIntPtr(probe4, 0);
+        if (pObjectsList == IntPtr.Zero) return false;
+
+        if (!ReadProcessMemory(TargetHandle, pObjectsList, probe16, 16, ref read)) return false;
+        IntPtr pObjectsArray = ToIntPtr(probe16, 4);
+        int count = BitConverter.ToInt32(probe16, 12);
+        if (pObjectsArray == IntPtr.Zero || count < 0 || count > 1000000) return false;
+
+        // 编辑器里总有物件可读；numObjects==0 只可能出现在"列表正在被重建"的瞬间，
+        // 不作为判定依据（那种瞬态由上层重试覆盖）。
+        if (count == 0) return true;
+
+        // 采样首、中、尾三个物件：跟着指针读 4 字节即可确认整条链没被复用
+        int[] samples = { 0, count / 2, count - 1 };
+        int readable = 0;
+        foreach (int index in samples)
+        {
+            if (!ReadProcessMemory(TargetHandle, pObjectsArray + 8 + TargetPointerSize * index, probe4, 4, ref read)) continue;
+            IntPtr pObject = ToIntPtr(probe4, 0);
+            if (pObject == IntPtr.Zero) continue;
+            if (ReadProcessMemory(TargetHandle, pObject, probe4, 4, ref read)) readable++;
+        }
+
+        return readable > 0;
     }
 
     /// <summary>
@@ -725,14 +769,21 @@ public class EditorReader
         try
         {
             SafeReadProcessMemory(TargetHandle, pE + 28, buffer4, 4, ref bytesRead);
-            IntPtr intPtr = ToIntPtr(buffer4, 0);
-            if (intPtr == IntPtr.Zero)
+            IntPtr pHom = ToIntPtr(buffer4, 0);
+            if (pHom == IntPtr.Zero)
             {
                 return true;
             }
-            SafeReadProcessMemory(TargetHandle, intPtr + 72, buffer4, 4, ref bytesRead);
-            IntPtr intPtr2 = ToIntPtr(buffer4, 0);
-            return intPtr2 == IntPtr.Zero;
+
+            SafeReadProcessMemory(TargetHandle, pHom + 72, buffer4, 4, ref bytesRead);
+            if (ToIntPtr(buffer4, 0) == IntPtr.Zero)
+            {
+                return true;
+            }
+
+            // 光看指针非空不够：退出/重进编辑器后，旧编辑器对象常常整条指针链都还自洽，
+            // 但链上的物件已经被释放。实际跟指针读一次物件，才能识别出这种死副本。
+            return !ObjectsReadableFromChain(pHom, buffer16, buffer4);
         }
         catch
         {
@@ -967,9 +1018,19 @@ public class EditorReader
     {
         var hitObjects = new List<HitObject>();
         DiagReadObjectFailure = null;
+        int nullPointers = 0;
         for (int i = 0; i < numObjects; i++)
         {
             IntPtr pObject = ToIntPtr(pObjects, 4 * i);
+            if (pObject == IntPtr.Zero)
+            {
+                // 编辑器重建物件列表的瞬间，指针数组里会出现空槽（实测 index=0 ptr=0x0）。
+                // 那不是"读到垃圾"，只是这一条还没写进去，跳过即可；
+                // 若当成错误抛出，整个全量读取就会失败，客户端开始退避/重绑。
+                nullPointers++;
+                continue;
+            }
+
             try
             {
                 hitObjects.Add(ReadObject(pObject, fetchHitSound));
@@ -981,6 +1042,13 @@ public class EditorReader
                 Log.ConsoleLog("ReadObjects failed: " + DiagReadObjectFailure, Log.LogType.EditorReader, Log.LogLevel.Error);
                 throw;
             }
+        }
+
+        DiagNullObjectPointers = nullPointers;
+        if (nullPointers > 0)
+        {
+            Log.ConsoleLog($"ReadObjects: skipped {nullPointers} null pointer(s) out of {numObjects}.",
+                Log.LogType.EditorReader, Log.LogLevel.Warning);
         }
 
         // 诊断：统计哪些字段越界（EditorReaderHarness 使用，正常运行时开销为 0）

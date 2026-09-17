@@ -702,7 +702,7 @@ namespace osucatch_editor_realtimeviewer
             // Under MIT Licnece https://github.com/OliBomby/Mapping_Tools/blob/master/LICENCE
             if (!(reader.numControlPoints > 0 &&
                 reader.controlPoints != null && reader.hitObjects != null &&
-                reader.numControlPoints == reader.controlPoints.Count && reader.numObjects == reader.hitObjects.Count))
+                reader.controlPoints.Count <= reader.numControlPoints && reader.hitObjects.Count <= reader.numObjects))
             {
                 throw new Exception("Fetched data is invalid.");
             }
@@ -759,7 +759,7 @@ namespace osucatch_editor_realtimeviewer
             // Under MIT Licnece https://github.com/OliBomby/Mapping_Tools/blob/master/LICENCE
             if (!(reader.numControlPoints > 0 &&
                 reader.controlPoints != null && reader.hitObjects != null &&
-                reader.numControlPoints == reader.controlPoints.Count && reader.numObjects == reader.hitObjects.Count))
+                reader.controlPoints.Count <= reader.numControlPoints && reader.hitObjects.Count <= reader.numObjects))
             {
                 throw new Exception("Fetched data is invalid.");
             }

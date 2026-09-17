@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Editor_Reader;
 using osucatch_editor_realtimeviewer;
@@ -76,6 +76,8 @@ internal static class Program
             case "q2": SnapshotConsistency(); break;
             case "L": LoadWindowStress(); break;
             case "T": ProbeReadThreshold(); break;
+            case "M": ErrorMonitor(); break;
+            case "C": CompareCandidateChecks(); break;
             case "e": EagerVsLazyLines(); break;
             case "k": ReadCostBreakdown(); break;
             case "x": RetryHealTest(); break;
@@ -2247,6 +2249,250 @@ internal static class Program
             bool ok = Mem.Rpm(_hProcess, (IntPtr)(addr + off), b, 16);
             WriteLine($"  +{off,4} (0x{addr + off:X8}): {(ok ? "ok" : "失败")}");
         }
+    }
+
+    // ------------------------------------------------------------------ 长时间错误监控
+
+    /// <summary>
+    /// 长时间错误监控：每 50ms 走一次完整的"编辑器校验 + 全量读取"链路，
+    /// 复刻生产里的重试策略（快照级失败原地重试 1 次，重试仍失败才计入），
+    /// 每 10 秒打印一次汇总，所有失败明细写入日志文件。
+    /// 用于"用户实际操作（进退编辑器/切难度/改谱/新建/保存）时有没有错误"。
+    /// </summary>
+    private static void ErrorMonitor()
+    {
+        WriteLine("长时间错误监控。输入持续秒数（回车=1800）：");
+        string? s = Console.ReadLine();
+        int seconds = int.TryParse(s, out int v) && v > 0 ? v : 1800;
+
+        WriteLine($"开始监控 {seconds} 秒。请现在开始你的操作序列…\n");
+
+        long ticks = 0, fullReads = 0, transient = 0, hardFailures = 0;
+        long editorChecks = 0, editorNotReady = 0, rebinds = 0;
+        long lastObjects = -1;
+        string lastFile = "";
+        long mapSwitches = 0;
+        var reasonCounts = new Dictionary<string, long>();
+
+        var sw = Stopwatch.StartNew();
+        long nextReportAt = 10_000;
+        string logPath = Path.Combine(Path.GetTempPath(), "editorreader-monitor.log");
+        try { File.WriteAllText(logPath, "EditorReader 监控日志 " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\r\n"); } catch { }
+        void Log(string line)
+        {
+            try { File.AppendAllText(logPath, line + "\r\n"); } catch { }
+        }
+
+        while (sw.ElapsedMilliseconds < seconds * 1000L)
+        {
+            ticks++;
+
+            // ---- 编辑器校验（等价于 FetchEditor 的廉价路径）
+            try
+            {
+                editorChecks++;
+                if (_reader.EditorNeedsReload())
+                {
+                    rebinds++;
+                    Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] 需要重绑（退出编辑器 / 换谱面 / 地址失效）");
+                    try
+                    {
+                        _reader.ResetEditor();
+                        _reader.FetchEditor();
+                    }
+                    catch (Exception ex)
+                    {
+                        editorNotReady++;
+                        Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] 重绑失败(可能不在编辑器): {ex.Message}");
+                        Thread.Sleep(50);
+                        continue;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                editorNotReady++;
+                Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] 编辑器校验异常: {ex.Message}");
+                Thread.Sleep(50);
+                continue;
+            }
+
+            // ---- 全量读取（含生产策略：快照级失败重试 1 次）
+            try
+            {
+                fullReads++;
+                try
+                {
+                    _reader.FetchAll(false);
+                }
+                catch (Exception first)
+                {
+                    try
+                    {
+                        _reader.FetchAll(false);
+                        transient++;
+                        Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] 瞬时失败(重试恢复): {_reader.DiagReadObjectFailure ?? first.Message}");
+                    }
+                    catch (Exception second)
+                    {
+                        hardFailures++;
+                        string detail = _reader.DiagReadObjectFailure ?? second.Message;
+                        reasonCounts[detail] = reasonCounts.GetValueOrDefault(detail) + 1;
+                        Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] !! 硬失败(重试仍失败): {detail}");
+                    }
+                }
+
+                if (_reader.numObjects != lastObjects || _reader.Filename != lastFile)
+                {
+                    mapSwitches++;
+                    Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] 谱面变化: {lastObjects} -> {_reader.numObjects}  {_reader.Filename}  控制点={_reader.numControlPoints}");
+                    lastObjects = _reader.numObjects;
+                    lastFile = _reader.Filename;
+                }
+            }
+            catch (Exception ex)
+            {
+                hardFailures++;
+                reasonCounts["外层: " + ex.Message] = reasonCounts.GetValueOrDefault("外层: " + ex.Message) + 1;
+                Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] !! 外层异常: {ex}");
+            }
+
+            // ---- 周期汇总
+            if (sw.ElapsedMilliseconds >= nextReportAt)
+            {
+                nextReportAt += 10_000;
+                string line = $"[{sw.ElapsedMilliseconds / 1000.0,6:F0}s] tick={ticks} 全量={fullReads} 瞬时={transient} 硬失败={hardFailures} " +
+                              $"重绑={rebinds} 未就绪={editorNotReady} 谱面变化={mapSwitches} 当前物件={_reader.numObjects}";
+                WriteLine(line);
+                Log(line);
+            }
+
+            Thread.Sleep(50);
+        }
+
+        WriteLine("\n===== 监控结束 =====");
+        WriteLine($"tick={ticks}  全量读取={fullReads}  编辑器校验={editorChecks}");
+        WriteLine($"瞬时失败(重试即恢复)={transient}");
+        WriteLine($"硬失败(重试仍失败)  ={hardFailures}");
+        WriteLine($"编辑器重绑={rebinds}  绑定未就绪={editorNotReady}  谱面变化={mapSwitches}");
+        if (reasonCounts.Count > 0)
+        {
+            WriteLine("硬失败原因:");
+            foreach (var kv in reasonCounts.OrderByDescending(k => k.Value).Take(20)) WriteLine($"  ×{kv.Value}  {kv.Key}");
+        }
+        else
+        {
+            WriteLine("没有硬失败。");
+        }
+        WriteLine($"完整日志: {logPath}");
+    }
+
+    // ------------------------------------------------------------------ 候选判据对照（旧 vs 新）
+
+    /// <summary>
+    /// 对每个编辑器候选分别用"旧判据"和"新判据"跑一遍，看谁能通过。
+    /// 旧判据 = 签名 + 状态字段 + HOM/物件列表指针非空（原 IsPlausibleEditor / EditorMissingObjects）。
+    /// 新判据 = 再跟着指针实际采样读一次物件（ObjectsReadableFromChain）。
+    /// 死副本应当表现为"旧判据通过、新判据拒绝"。
+    /// </summary>
+    private static void CompareCandidateChecks()
+    {
+        if (_hProcess == IntPtr.Zero) { WriteLine("先 a 绑定"); return; }
+
+        byte[] pattern = new byte[]
+        {
+            0x23,0,0,0, 0x14,0,0,0, 0x19,0,0,0,
+            0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,
+            0xEE,0xEE,0xEE,0xEE,
+            0x0C,0,0,0,
+            0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,0xEE,
+            0x00
+        };
+
+        WriteLine("扫描全部编辑器候选…");
+        var regions = Mem.Regions(_hProcess);
+        var candidates = new List<long>();
+        foreach (var r in regions)
+        {
+            long size = r.RegionSize.ToInt64();
+            if (size <= 0 || size > 256L * 1024 * 1024) continue;
+            byte[] buffer = new byte[size];
+            if (!Mem.Rpm(_hProcess, r.BaseAddress, buffer, (int)size)) continue;
+            for (int j = 0; j + pattern.Length <= buffer.Length; j += 4)
+            {
+                if (buffer[j] != 0x23 || buffer[j + 4] != 0x14 || buffer[j + 8] != 0x19 || buffer[j + 32] != 0x0C) continue;
+                if (!PatternMatch(buffer, pattern, j)) continue;
+                candidates.Add(r.BaseAddress.ToInt64() + j - 160);
+            }
+        }
+
+        WriteLine($"命中 {candidates.Count} 个候选。判据对照：\n");
+        WriteLine($"{"候选地址",-14}{"状态字段",-14}{"旧判据",-8}{"新判据",-8}{"物件数",-8}{"采样可读",-10}说明");
+        WriteLine(new string('-', 104));
+
+        byte[] b16 = new byte[16];
+        byte[] b4 = new byte[4];
+
+        foreach (long c in candidates)
+        {
+            IntPtr pE = (IntPtr)c;
+
+            string fields = "读取失败";
+            if (Mem.Rpm(_hProcess, pE + 160, b16, 16))
+            {
+                fields = $"({BitConverter.ToInt32(b16, 0)},{BitConverter.ToInt32(b16, 4)},{BitConverter.ToInt32(b16, 8)})";
+            }
+
+            // 旧判据：HOM 非空 且 物件列表指针非空
+            bool oldOk = false;
+            IntPtr pHom = IntPtr.Zero;
+            if (Mem.Rpm(_hProcess, pE + 28, b4, 4))
+            {
+                pHom = (IntPtr)(long)BitConverter.ToUInt32(b4, 0);
+                if (pHom != IntPtr.Zero && Mem.Rpm(_hProcess, (IntPtr)(pHom.ToInt64() + 72), b4, 4))
+                {
+                    oldOk = BitConverter.ToUInt32(b4, 0) != 0;
+                }
+            }
+
+            // 新判据：再跟着指针采样读物件
+            int count = -1, readable = 0;
+            bool newOk = false;
+            if (oldOk)
+            {
+                Mem.Rpm(_hProcess, (IntPtr)(pHom.ToInt64() + 72), b4, 4);
+                IntPtr pList = (IntPtr)(long)BitConverter.ToUInt32(b4, 0);
+                if (Mem.Rpm(_hProcess, pList, b16, 16))
+                {
+                    IntPtr pArr = (IntPtr)(long)BitConverter.ToUInt32(b16, 4);
+                    count = BitConverter.ToInt32(b16, 12);
+                    if (count > 0 && pArr != IntPtr.Zero)
+                    {
+                        foreach (int idx in new[] { 0, count / 2, count - 1 })
+                        {
+                            if (!Mem.Rpm(_hProcess, (IntPtr)(pArr.ToInt64() + 8 + 4 * idx), b4, 4)) continue;
+                            IntPtr pObj = (IntPtr)(long)BitConverter.ToUInt32(b4, 0);
+                            if (pObj == IntPtr.Zero) continue;
+                            if (Mem.Rpm(_hProcess, pObj, b4, 4)) readable++;
+                        }
+                    }
+                    else if (count == 0)
+                    {
+                        readable = -2;   // 空列表
+                    }
+                }
+                newOk = count == 0 || readable > 0;
+            }
+
+            bool isCurrent = c == _reader.EditorAddress.ToInt64();
+            string note = isCurrent ? "[当前绑定] " : "";
+            if (oldOk && !newOk) note += "<== 死副本：旧判据放过、新判据拒绝";
+            else if (!oldOk) note += "（旧判据就拒绝了）";
+
+            WriteLine($"{("0x" + c.ToString("X8")),-16}{fields,-14}{(oldOk ? "通过" : "拒绝"),-8}{(newOk ? "通过" : "拒绝"),-8}{count,-8}{readable,-10}{note}");
+        }
+
+        WriteLine("\n旧判据只要求 HOM 与物件列表指针非空；新判据还要求采样到的物件真能读出来。");
     }
 
     // ------------------------------------------------------------------ 8. 重试修复测试
