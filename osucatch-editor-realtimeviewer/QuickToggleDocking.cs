@@ -205,7 +205,7 @@ namespace osucatch_editor_realtimeviewer
             bar.DockSideRequested += Bar_DockSideRequested;
             bar.ContentChanged += Bar_ContentChanged;
             bar.ToggleChanged += Bar_ToggleChanged;
-            bar.GroupsVisibilityChanged += Bar_GroupsVisibilityChanged;
+            bar.VisibilityChanged += Bar_VisibilityChanged;
 
             dockRow.Controls.Add(bar);
         }
@@ -684,9 +684,9 @@ namespace osucatch_editor_realtimeviewer
             SaveAndFlush();
         }
 
-        private void Bar_GroupsVisibilityChanged(object? sender, EventArgs e)
+        private void Bar_VisibilityChanged(object? sender, EventArgs e)
         {
-            // 右键菜单隐藏/显示功能区：立即写入设置，下次启动保持
+            // 右键菜单隐藏 / 显示功能区或独立开关：立即写入设置，下次启动保持
             SaveAndFlush();
         }
 
@@ -741,7 +741,7 @@ namespace osucatch_editor_realtimeviewer
             bar.DockSideRequested -= Bar_DockSideRequested;
             bar.ContentChanged -= Bar_ContentChanged;
             bar.ToggleChanged -= Bar_ToggleChanged;
-            bar.GroupsVisibilityChanged -= Bar_GroupsVisibilityChanged;
+            bar.VisibilityChanged -= Bar_VisibilityChanged;
 
             if (hintForm.Visible) hintForm.Hide();
             hintForm.Dispose();

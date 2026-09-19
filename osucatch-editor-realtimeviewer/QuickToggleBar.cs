@@ -60,6 +60,12 @@ namespace osucatch_editor_realtimeviewer
         private readonly ToolStripMenuItem hideMenuItem = new();
         private readonly ToolStripSeparator contextMenuSeparator = new();
 
+        /// <summary>右键菜单里独立开关的勾选项（勾选 = 在条上显示），键为开关标识。</summary>
+        private readonly Dictionary<string, ToolStripMenuItem> standaloneMenuItems = new(StringComparer.Ordinal);
+
+        /// <summary>被用户在右键菜单里取消勾选、因而不显示在条上的独立开关标识。</summary>
+        private readonly HashSet<string> hiddenStandaloneKeys = new(StringComparer.Ordinal);
+
         private readonly System.Windows.Forms.Timer dragTimer = new() { Interval = DragPollIntervalMs };
 
         private Point dragStartCursor;
@@ -122,6 +128,7 @@ namespace osucatch_editor_realtimeviewer
             barContextMenu.Items.Add(floatMenuItem);
             barContextMenu.Items.Add(dockSideMenuItem);
             barContextMenu.Items.Add(hideMenuItem);
+            // 分隔线之后是各个勾选项：独立开关与功能区的“是否显示”都排在这里
             barContextMenu.Items.Add(contextMenuSeparator);
             ContextMenuStrip = barContextMenu;
 
@@ -175,13 +182,13 @@ namespace osucatch_editor_realtimeviewer
             groups[key] = group;
             groupOrder.Add(group);
             RebuildItems();
-            UpdateGroupMenuChecks();
+            UpdateVisibilityMenuChecks();
             ContentChanged?.Invoke(this, EventArgs.Empty);
             return group;
         }
 
-        /// <summary>功能区的显示状态发生变化（右键菜单勾选）时触发。</summary>
-        internal event EventHandler? GroupsVisibilityChanged;
+        /// <summary>条上项的显示状态发生变化（右键菜单勾选功能区或独立开关）时触发，宿主据此立即落盘。</summary>
+        internal event EventHandler? VisibilityChanged;
 
         /// <summary>功能区是否存在。</summary>
         internal bool HasGroup(string key) => groups.ContainsKey(key);
@@ -197,24 +204,38 @@ namespace osucatch_editor_realtimeviewer
 
             group.Visible = visible;
             RebuildItems();
-            UpdateGroupMenuChecks();
+            UpdateVisibilityMenuChecks();
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        /// <summary>把所有功能区显示状态序列化成可写入设置的字符串（只写被隐藏的功能区）。</summary>
+        /// <summary>
+        /// 把功能区与独立开关的显示状态序列化成可写入设置的字符串（只写被隐藏的那些标识）。
+        /// <para />独立开关（如“固定预览时刻”）也记在这里：它们的键各不相同，不会与功能区标识冲突。
+        /// </para>
+        /// </summary>
         internal string GetHiddenGroups()
         {
             StringBuilder builder = new();
             foreach (QuickToggleGroup group in groupOrder)
             {
                 if (group.Visible) continue;
-                if (builder.Length > 0) builder.Append(';');
-                builder.Append(group.Key);
+                AppendKey(builder, group.Key);
+            }
+            foreach (ToolStripButton standalone in standaloneToggles)
+            {
+                if (standalone.Name is not string key || !IsStandaloneHidden(standalone)) continue;
+                AppendKey(builder, key);
             }
             return builder.ToString();
+
+            static void AppendKey(StringBuilder builder, string key)
+            {
+                if (builder.Length > 0) builder.Append(';');
+                builder.Append(key);
+            }
         }
 
-        /// <summary>从设置字符串恢复功能区显示状态（不触发 <see cref="GroupsVisibilityChanged"/>）。</summary>
+        /// <summary>从设置字符串恢复功能区与独立开关的显示状态（不触发 <see cref="VisibilityChanged"/>）。</summary>
         internal void ApplyHiddenGroups(string? hidden)
         {
             HashSet<string> hiddenKeys = new(StringComparer.Ordinal);
@@ -237,9 +258,16 @@ namespace osucatch_editor_realtimeviewer
                 changed = true;
             }
 
+            foreach (ToolStripButton standalone in standaloneToggles)
+            {
+                if (standalone.Name is not string key) continue;
+                bool visible = firstRun || !hiddenKeys.Contains(key);
+                if (visible ? hiddenStandaloneKeys.Remove(key) : hiddenStandaloneKeys.Add(key)) changed = true;
+            }
+
             if (!changed) return;
             RebuildItems();
-            UpdateGroupMenuChecks();
+            UpdateVisibilityMenuChecks();
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -260,16 +288,23 @@ namespace osucatch_editor_realtimeviewer
                     if (item is ToolStripSeparator separator) separator.Dispose();
                 }
 
-                // 最左边先放不归属任何功能区的固定开关，再按顺序排各功能区
-                foreach (ToolStripButton standalone in standaloneToggles) Items.Add(standalone);
+                // 最左边先放不归属任何功能区的固定开关，再按顺序排各功能区。
+                // 被用户隐藏的独立开关不加进来；独立开关与第一个功能区之间同样要有分隔线：
+                // 例如“固定预览时刻”按钮紧跟 MOD 的 NM / EZ / HR 时，没有线就会被当成同一组按钮。
+                bool needSeparator = false;
+                foreach (ToolStripButton standalone in standaloneToggles)
+                {
+                    if (IsStandaloneHidden(standalone)) continue;
+                    Items.Add(standalone);
+                    needSeparator = true;
+                }
 
-                bool anyVisible = false;
                 foreach (QuickToggleGroup group in groupOrder)
                 {
                     if (!group.Visible) continue;
-                    if (anyVisible) Items.Add(new ToolStripSeparator());
+                    if (needSeparator) Items.Add(new ToolStripSeparator());
                     group.InsertItems(Items);
-                    anyVisible = true;
+                    needSeparator = true;
                 }
             }
             finally
@@ -284,8 +319,8 @@ namespace osucatch_editor_realtimeviewer
 
         /// <summary>
         /// 添加一个不属于任何功能区、固定排在条最左边的即时开关（如“固定预览时刻”）。
-        /// <para />它没有功能区标题，也不会出现在右键菜单的功能区勾选里——功能区开关是用来
-        /// 按需收起的，而这种独立的模式切换按钮必须一直看得见。
+        /// <para />它没有功能区标题，但和功能区一样可以在右键菜单里按需收起——
+        /// 用 <see cref="AddStandaloneToggleToMenu"/> 给它挂一个“是否显示”的勾选项（默认显示）。
         /// </para>
         /// </summary>
         /// <param name="key">开关标识，用于读写状态与持久化，需保持稳定。</param>
@@ -353,10 +388,85 @@ namespace osucatch_editor_realtimeviewer
             if (!toggles.Remove(key, out ToolStripButton? item)) return;
             RemoveItemFromGroup(item);
             standaloneToggles.Remove(item);
+
+            // 右键菜单里的可见性勾选项一并撤掉，避免留下一个点了没反应的死项
+            if (standaloneMenuItems.Remove(key, out ToolStripMenuItem? menuItem))
+            {
+                hiddenStandaloneKeys.Remove(key);
+                barContextMenu.Items.Remove(menuItem);
+                menuItem.Dispose();
+                UpdateContextMenuSections();
+            }
+
             RebuildItems();
             item.Dispose();
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        #region 右键菜单：独立开关的显示 / 隐藏
+
+        /// <summary>
+        /// 给一个独立开关加一个右键菜单勾选项（勾选 = 在条上显示），和功能区的勾选项排在一起。
+        /// <para />菜单文字必须由调用方给：条上的按钮可能只显示图标（如“固定预览时刻”用 ⏸️ / ▶️），
+        /// 那种文本没法直接当菜单项用。
+        /// </para>
+        /// </summary>
+        /// <param name="key">开关标识（<see cref="AddStandaloneToggle"/> 里用过的那个）。</param>
+        /// <param name="menuText">菜单项文字（通常是这个开关的名字）。</param>
+        internal void AddStandaloneToggleToMenu(string key, string menuText)
+        {
+            if (standaloneMenuItems.ContainsKey(key)) return;
+            if (!toggles.ContainsKey(key)) return;
+
+            ToolStripMenuItem item = new()
+            {
+                Name = "quickToggleStandalone_" + key,
+                Text = menuText,
+                CheckOnClick = true,
+                Checked = !hiddenStandaloneKeys.Contains(key),
+            };
+            // CheckOnClick 已经翻转了勾选状态，这里只负责应用
+            item.Click += (sender, e) =>
+            {
+                SetStandaloneToggleVisible(key, item.Checked);
+                VisibilityChanged?.Invoke(this, EventArgs.Empty);
+            };
+            standaloneMenuItems[key] = item;
+
+            // 排在分隔线之后的勾选项里最前面（与条上独立开关靠左的位置一致），功能区勾选依次后移
+            int separatorIndex = barContextMenu.Items.IndexOf(contextMenuSeparator);
+            barContextMenu.Items.Insert(separatorIndex + standaloneMenuItems.Count, item);
+            UpdateContextMenuSections();
+        }
+
+        /// <summary>更新独立开关菜单项的文字（语言切换时调用）。</summary>
+        internal void SetStandaloneToggleMenuText(string key, string menuText)
+        {
+            if (standaloneMenuItems.TryGetValue(key, out ToolStripMenuItem? item)) item.Text = menuText;
+        }
+
+        /// <summary>显示 / 隐藏一个独立开关（右键菜单勾选，立即生效；下次启动按设置恢复）。</summary>
+        internal void SetStandaloneToggleVisible(string key, bool visible)
+        {
+            if (!toggles.ContainsKey(key)) return;
+
+            bool changed = visible ? hiddenStandaloneKeys.Remove(key) : hiddenStandaloneKeys.Add(key);
+            if (!changed) return;
+
+            RebuildItems();
+            UpdateVisibilityMenuChecks();
+            ContentChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>该独立开关是否被用户隐藏。</summary>
+        private bool IsStandaloneHidden(ToolStripButton toggle)
+            => toggle.Name is string key && hiddenStandaloneKeys.Contains(key);
+
+        /// <summary>按菜单里实际有哪些勾选项决定分隔线是否显示。</summary>
+        private void UpdateContextMenuSections()
+            => contextMenuSeparator.Visible = groupOrder.Count > 0 || standaloneMenuItems.Count > 0;
+
+        #endregion
 
         #region 按钮图标
 
@@ -726,7 +836,7 @@ namespace osucatch_editor_realtimeviewer
             dockRightMenuItem.Text = chinese ? "吸附在右侧（竖排）" : "Dock on right (vertical)";
             UpdateDockSideMenuChecks();
             hideMenuItem.Text = chinese ? "隐藏快捷开关栏" : "Hide quick toggle bar";
-            contextMenuSeparator.Visible = groupOrder.Count > 0;
+            UpdateContextMenuSections();
 
             for (int i = 0; i < groupOrder.Count; i++)
             {
@@ -751,11 +861,16 @@ namespace osucatch_editor_realtimeviewer
         }
 
         /// <summary>
-        /// 把功能区显示状态同步到右键菜单的勾选项。
-        /// 菜单项按功能区加入顺序排列，取消勾选即隐藏对应功能区。
+        /// 把功能区与独立开关的显示状态同步到右键菜单的勾选项（勾选 = 在条上显示）。
+        /// 功能区的菜单项按加入顺序创建，排在独立开关的勾选项之后。
         /// </summary>
-        private void UpdateGroupMenuChecks()
+        private void UpdateVisibilityMenuChecks()
         {
+            foreach (KeyValuePair<string, ToolStripMenuItem> pair in standaloneMenuItems)
+            {
+                pair.Value.Checked = !hiddenStandaloneKeys.Contains(pair.Key);
+            }
+
             foreach (QuickToggleGroup group in groupOrder)
             {
                 if (group.MenuItem == null)
@@ -770,7 +885,7 @@ namespace osucatch_editor_realtimeviewer
                     {
                         // CheckOnClick 已经翻转了勾选状态，这里只负责应用
                         SetGroupVisible(captured.Key, item.Checked);
-                        GroupsVisibilityChanged?.Invoke(this, EventArgs.Empty);
+                        VisibilityChanged?.Invoke(this, EventArgs.Empty);
                     };
                     group.MenuItem = item;
                     barContextMenu.Items.Add(item);
@@ -779,6 +894,8 @@ namespace osucatch_editor_realtimeviewer
                 group.MenuItem.Text = group.DisplayText;
                 group.MenuItem.Checked = group.Visible;
             }
+
+            UpdateContextMenuSections();
         }
 
         #endregion

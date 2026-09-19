@@ -1532,6 +1532,8 @@ namespace osucatch_editor_realtimeviewer
             (string freezeText, string freezeToolTip) = FreezePreviewTimeText(previewTimeFrozen);
             quickToggleBar.AddStandaloneToggle(FreezePreviewTimeKey, freezeText, false);
             quickToggleBar.SetToggleText(FreezePreviewTimeKey, freezeText, freezeToolTip);
+            // 条上这个按钮只显示图标，右键菜单里给它一个和功能区一样的“是否显示”勾选项
+            quickToggleBar.AddStandaloneToggleToMenu(FreezePreviewTimeKey, FreezePreviewTimeMenuText());
 
             // ---- MOD：三个按钮单选，当前 MOD 对应的按钮保持按下（NM/EZ/HR 一看便知，不加标题） ----
             QuickToggleBar.QuickToggleGroup modGroup = quickToggleBar.AddGroup(ModGroupKey, "");
@@ -1644,6 +1646,18 @@ namespace osucatch_editor_realtimeviewer
                     ? "固定预览时刻：预览停在当前 editor 时刻（距离辅助线仍跟随 editor 实时时刻）"
                     : "Freeze the preview at the current editor time (the distance helper still follows the editor)");
             return (text, toolTip);
+        }
+
+        /// <summary>
+        /// 右键菜单里“跟随模式”勾选项的文字：和 Mod / HitObjectLabel / 拍线 一样，
+        /// 勾选表示这个 ⏸️ / ▶️ 按钮在快捷开关栏上显示。
+        /// <para />文字必须单独给：条上这个按钮只显示图标，没法拿它的 Text 当菜单项。
+        /// </para>
+        /// </summary>
+        private static string FreezePreviewTimeMenuText()
+        {
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            return chinese ? "跟随模式" : "Follow mode";
         }
 
         /// <summary>MOD 快捷按钮在当前语言下的文本（三种 MOD 名称各语言都相同）。</summary>
@@ -1978,6 +1992,7 @@ namespace osucatch_editor_realtimeviewer
 
             (string text, string toolTip) = FreezePreviewTimeText(previewTimeFrozen);
             quickToggleBar.SetToggleText(FreezePreviewTimeKey, text, toolTip);
+            quickToggleBar.SetStandaloneToggleMenuText(FreezePreviewTimeKey, FreezePreviewTimeMenuText());
 
             // 功能区标题（AddGroup 对已存在的功能区只更新标题）
             quickToggleBar.AddGroup(ModGroupKey, "");
