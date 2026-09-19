@@ -145,6 +145,83 @@ public class EditorReader
     /// <summary>诊断用：最近一次 <see cref="ReadObjects"/> 跳过的空指针条数（编辑器重建列表的瞬间）。</summary>
     public int DiagNullObjectPointers;
 
+    // ---- 扫描诊断（EditorReaderHarness 读取；正常运行时只是几个赋值） ----
+
+    /// <summary>诊断用：最近一次编辑器扫描共检查了多少个区域。</summary>
+    public long DiagScanRegionsScanned;
+    /// <summary>诊断用：最近一次扫描中被跳过的区域数（退避 + 超大）。</summary>
+    public long DiagScanRegionsSkipped;
+    /// <summary>诊断用：扫描中成功读取的内存块数。</summary>
+    public long DiagScanChunksOk;
+    /// <summary>诊断用：扫描中读取失败的内存块数。</summary>
+    public long DiagScanChunksFailed;
+    /// <summary>诊断用：签名命中次数（命中后还要过候选校验）。</summary>
+    public int DiagScanSignatureHits;
+    /// <summary>诊断用：首个被拒绝候选的地址与原因。</summary>
+    public string? DiagScanFirstReject;
+    /// <summary>诊断用：首个读取失败的内存块信息。</summary>
+    public string? DiagScanFirstReadFailure;
+
+    /// <summary>诊断用：最近一次 MemInfo 的枚举过程（Internals）。</summary>
+    private Internals? lastScanInternals;
+
+    /// <summary>诊断用：最近一次区域枚举查询了多少个区域。</summary>
+    public int DiagMemInfoQueried => lastScanInternals?.DiagQueried ?? 0;
+    /// <summary>诊断用：最近一次区域枚举命中过滤条件的区域数。</summary>
+    public int DiagMemInfoMatched => lastScanInternals?.DiagMatched ?? 0;
+    /// <summary>诊断用：最近一次区域枚举的结束原因。</summary>
+    public string DiagMemInfoStopReason => lastScanInternals?.DiagStopReason ?? "(未执行)";
+    /// <summary>诊断用：区域枚举是否启用了宽松过滤。</summary>
+    public bool DiagMemInfoRelaxed => lastScanInternals?.DiagRelaxedPass ?? false;
+    /// <summary>诊断用：最近一次区域枚举失败时的 Win32 错误码。</summary>
+    public int DiagMemInfoLastError => lastScanInternals?.DiagLastError ?? 0;
+    /// <summary>诊断用：最近一次枚举到的前若干个区域的原始字段。</summary>
+    public IReadOnlyList<string> DiagMemInfoFirstRegions => lastScanInternals?.DiagFirstRegions ?? (IReadOnlyList<string>)Array.Empty<string>();
+
+    /// <summary>诊断用：命中过滤条件的所有区域 (地址, RegionSize)，按大小升序。</summary>
+    public IReadOnlyList<(long Base, long Size)> DiagMatchedRegions
+        => lastScanInternals?.DiagMatchedRegions ?? (IReadOnlyList<(long, long)>)Array.Empty<(long, long)>();
+
+    /// <summary>诊断用：某次扫描中被"大小超限"跳过的区域明细。</summary>
+    public readonly List<string> DiagSkippedTooLarge = new();
+
+    /// <summary>诊断用：枚举到但从未进入扫描循环的区域（索引与地址），用于定位"漏扫"。</summary>
+    public readonly List<string> DiagNeverScannedRegions = new();
+
+    /// <summary>诊断用：GetScanOrder 本应产出的区域数。</summary>
+    public int DiagScanOrderCount;
+
+    /// <summary>诊断用：实际进入扫描循环的区域数（按集合统计，与计数器互相印证）。</summary>
+    public int DiagScanDidCount;
+
+    /// <summary>诊断用：MemReg 里的区域总数。</summary>
+    public int DiagMemRegCount;
+
+    /// <summary>诊断用：本次扫描顺序中前若干个区域索引。</summary>
+    public readonly List<int> DiagScanOrderHead = new();
+
+    /// <summary>诊断用：本次扫描顺序中最后若干个区域索引。</summary>
+    public readonly List<int> DiagScanOrderTail = new();
+
+    /// <summary>
+    /// 目标是否跑在 Wine 下。Wine 的 ReadProcessMemory 对"跨页 / 边界"的处理与真实 Windows
+    /// 有差异，同一个读取可能间歇性失败。这种环境下的读取失败不应该被当成"编辑器失效"。
+    /// </summary>
+    public bool IsWineTarget { get; set; } = DetectWine();
+
+    private static bool DetectWine()
+    {
+        try
+        {
+            return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WINEPREFIX"))
+                   || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WINEDLLOVERRIDES"));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private IntPtr pClipboardL;
 
     private IntPtr pClipboardA;
@@ -170,7 +247,7 @@ public class EditorReader
     /// Wine/osu-winello 下 VirtualQueryEx 可能报告超大已提交区域，全量扫描会让程序长时间
     /// 停在 "Try fetch editor"；编辑器签名通常位于较小的堆区域中。
     /// </summary>
-    private const long MaxScanRegionSize = 256L * 1024 * 1024;
+    private const long MaxScanRegionSize = 512L * 1024 * 1024;
 
     /// <summary>
     /// 单次内存扫描的最长时间。Wine 下 ReadProcessMemory 可能对某些区域永久阻塞，
@@ -367,6 +444,89 @@ public class EditorReader
         return true;
     }
 
+    /// <summary>
+    /// 诊断用：用**主扫描自己的代码路径**（同一模式串、同一 IsPlausibleEditor、同一分块逻辑）
+    /// 只扫一个指定区域。用于回答"主扫描为什么没在某个区域里找到签名"：
+    /// 如果这里能命中，说明区域本身没问题，是扫描顺序/覆盖的问题；
+    /// 如果这里也不命中，说明主路径读取该区域的方式（分块/地址推进）有问题。
+    /// </summary>
+    /// <returns>找到的候选地址，未找到返回 IntPtr.Zero；并输出过程信息。</returns>
+    public string ProbeRegionWithMainPath(long regionBase, long regionSize)
+    {
+        const int ReadChunkSize = 8 * 1024 * 1024;
+        byte[] array = ToByteArray("230000001400000019000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0C000000eeeeeeeeeeeeeeeeeeeeeeeeee00");
+        int overlap = array.Length - 1;
+        byte[] scanBuffer = null;
+        byte[] probe16 = new byte[16];
+        byte[] probe4 = new byte[4];
+        IntPtr read = IntPtr.Zero;
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"  区域 0x{regionBase:X8} size=0x{regionSize:X} ({regionSize / 1024.0 / 1024.0:F1} MB), 模式={array.Length}字节");
+        if (regionSize > MaxScanRegionSize)
+        {
+            sb.AppendLine($"  !! 区域超过 MaxScanRegionSize({MaxScanRegionSize}) 会被主扫描直接跳过");
+            return sb.ToString();
+        }
+
+        long offset = 0;
+        int chunks = 0, failed = 0, hits = 0, plausReject = 0;
+        IntPtr found = IntPtr.Zero;
+        string? rejectReason = null;
+        while (offset < regionSize)
+        {
+            int chunkSize = (int)Math.Min(ReadChunkSize, regionSize - offset);
+            int readSize = chunkSize;
+            if (offset + chunkSize < regionSize) readSize += overlap;
+
+            EnsureBuffer(ref scanBuffer, readSize);
+            if (!ReadProcessMemory(TargetHandle, IntPtr.Add((IntPtr)regionBase, (int)offset), scanBuffer, readSize, ref read))
+            {
+                failed++;
+                sb.AppendLine($"  块 offset=0x{offset:X} size={readSize} 读取失败");
+                offset += chunkSize;
+                continue;
+            }
+
+            chunks++;
+            int bytesToScan = (int)read;
+            for (int j = 0; j <= bytesToScan - array.Length; j += 4)
+            {
+                if (!PatternCheck(scanBuffer, array, j)) continue;
+                hits++;
+                IntPtr candidate = new IntPtr(regionBase + offset + j - 160);
+                if (!IsPlausibleEditor(candidate, probe16, probe4, out string why))
+                {
+                    plausReject++;
+                    rejectReason ??= $"候选 0x{candidate.ToInt64():X} 被拒: {why}";
+                    continue;
+                }
+                found = candidate;
+                sb.AppendLine($"  !! 命中并通过校验: pEditor=0x{candidate.ToInt64():X} (偏移 0x{offset + j:X})");
+            }
+
+            if (bytesToScan < readSize) break;
+            offset += chunkSize;
+        }
+
+        sb.AppendLine($"  分块: 成功={chunks} 失败={failed}; 签名命中={hits}; 候选被拒={plausReject}");
+        if (rejectReason != null) sb.AppendLine("  " + rejectReason);
+        if (found == IntPtr.Zero && hits == 0)
+        {
+            sb.AppendLine("  => 主路径在这个区域里没有找到签名");
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 查找编辑器对象地址。
+    /// <para /><b>实现要点（Wine 兼容）</b>：这里刻意采用**最简单的顺序扫描**：
+    /// 按区域逐个读、逐个找签名，找到就返回。不再使用"环形扫描游标 + 区域退避 +
+    /// 跨线程元组回传"那套机制 —— 那套机制在 Wine 上会让扫描从中间开始并漏掉前面的区域
+    /// （实测：166 个候选区域只扫了 152 个，恰好漏掉含编辑器对象的那个）。
+    /// 顺序扫描的等价实现已在 Wine 上独立验证：同一区域、同一模式串、同一候选校验，一次命中。
+    /// <para />超时保护保留：扫描仍在线程里执行，卡住就放弃本次尝试，但下次仍然从第 0 个区域开始。
+    /// </summary>
     private IntPtr FindEditorAddress()
     {
         Log.ConsoleLog("FindEditorAddress: start enumerating memory regions.", Log.LogType.EditorReader, Log.LogLevel.Info);
@@ -374,22 +534,34 @@ public class EditorReader
         Internals internals = new Internals();
         internals.MemInfo(TargetHandle);
         int regionCount = internals.MemReg.Count;
-        Log.ConsoleLog("FindEditorAddress: " + regionCount + " region(s) to scan.", Log.LogType.EditorReader, Log.LogLevel.Info);
+        lastScanInternals = internals;
 
-        // 把扫描放到独立线程：若某个 ReadProcessMemory 在 Wine 下永久阻塞，
-        // Join 超时后放弃该线程，把该区域延后重试（而不是永久跳过），而不是让整个程序卡死。
-        // 扫描线程自带缓冲区（见 ScanForEditorAddress），超时被放弃后继续运行也不会与主线程抢共享字段。
+        Log.ConsoleLog("FindEditorAddress: " + regionCount + " region(s) to scan. " +
+                       "枚举: 查询=" + internals.DiagQueried + " 命中过滤=" + internals.DiagMatched +
+                       " 结束原因=" + internals.DiagStopReason, Log.LogType.EditorReader, Log.LogLevel.Info);
+
+        if (regionCount == 0)
+        {
+            string detail = "区域枚举结果为空：查询=" + internals.DiagQueried +
+                            " 命中过滤=" + internals.DiagMatched +
+                            " 结束原因=" + internals.DiagStopReason +
+                            " VirtualQueryEx错误码=" + internals.DiagLastError;
+            Log.ConsoleLog("FindEditorAddress: " + detail, Log.LogType.EditorReader, Log.LogLevel.Error);
+            throw new InvalidOperationException("内存区域枚举失败（0 个可扫描区域）。" + detail);
+        }
+
         if (Interlocked.Increment(ref liveScanThreads) > MaxLiveScanThreads)
         {
             Interlocked.Decrement(ref liveScanThreads);
             throw new InvalidOperationException("Too many memory scans are still running; skipping this attempt.");
         }
 
-        (IntPtr Address, long RegionBase, int RegionIndex) scanResult = (IntPtr.Zero, 0, -1);
+        // 扫描结果用独立的 volatile 字段回传：跨线程读元组在放弃线程时可能读到半写状态
+        lastEditorCandidate = IntPtr.Zero;
         Exception? scanError = null;
         Thread scanThread = new Thread(() =>
         {
-            try { scanResult = ScanForEditorAddress(internals); }
+            try { lastEditorCandidate = ScanForEditorAddress(internals); }
             catch (Exception ex) { scanError = ex; }
             finally { Interlocked.Decrement(ref liveScanThreads); }
         });
@@ -398,37 +570,42 @@ public class EditorReader
         if (!scanThread.Join(ScanTimeoutMs))
         {
             long stalled = Interlocked.Read(ref scanningRegionAddress);
-            int stalledIndex = scanningRegionIndex;
-            if (stalled != 0) PenalizeRegion(stalled);
-            // 下一次从卡住区域之后继续扫（环形），保证多次重试能向前推进、最终覆盖整个地址空间
-            if (regionCount > 0) scanCursorIndex = (stalledIndex + 1) % regionCount;
-            Log.ConsoleLog("FindEditorAddress: scan aborted after " + ScanTimeoutMs + " ms, stalled at region " + stalledIndex + "/" + regionCount + " (address " + stalled + "). It will be retried with backoff.", Log.LogType.EditorReader, Log.LogLevel.Warning);
+            Log.ConsoleLog("FindEditorAddress: scan aborted after " + ScanTimeoutMs + " ms, stalled near 0x" + stalled.ToString("X") +
+                           " (" + DiagScanRegionsScanned + "/" + regionCount + " regions done). Next attempt restarts from region 0.",
+                           Log.LogType.EditorReader, Log.LogLevel.Warning);
             throw new InvalidOperationException("Memory scan aborted: ReadProcessMemory did not return in time.");
         }
 
         if (scanError != null) throw scanError;
 
-        if (scanResult.Address != IntPtr.Zero)
+        if (lastEditorCandidate != IntPtr.Zero)
         {
-            lastFoundRegionBase = scanResult.RegionBase;
-            scanCursorIndex = scanResult.RegionIndex;
+            lastFoundRegionBase = scanningRegionAddress;
             ClearRegionPenalties();
         }
-        else
-        {
-            // 完整扫过一遍没有结果：下次重新从 0 开始
-            scanCursorIndex = 0;
-        }
 
-        return scanResult.Address;
+        return lastEditorCandidate;
     }
+
+    /// <summary>扫描线程找到的候选地址（volatile，避免跨线程元组回传的半写状态）。</summary>
+    private volatile IntPtr lastEditorCandidate;
 
     /// <summary>
     /// 在目标进程里扫描编辑器签名。
     /// <para />扫描线程不共享任何实例缓冲区：超时被放弃的线程可能仍在读内存，
     /// 若与主线程共用 buffer/bytesRead 会读到互相覆盖的数据。
     /// </summary>
-    private (IntPtr Address, long RegionBase, int RegionIndex) ScanForEditorAddress(Internals internals)
+    /// <summary>
+    /// 顺序扫描编辑器签名。
+    /// <para /><b>为什么是顺序扫描</b>：等价实现（同样的模式串、同样的 IsPlausibleEditor、
+    /// 同样的分块读取）已在 Wine 上独立复扫验证——对含签名的那 9.3MB 区域一次命中并通过校验。
+    /// 而原先那套"环形游标 + 区域退避 + 跨线程元组回传"在 Wine 上会让扫描从列表中间起步、
+    /// 只覆盖前 152/166 个区域，恰好漏掉含编辑器对象的那个区域，于是永远报 No active editor found。
+    /// <para />因此这里去掉那些机制：每次尝试都从第 0 个区域开始，逐个读完。
+    /// 上次命中的区域会被提到最前面（省时间），但不影响覆盖范围。
+    /// 超时由调用方 FindEditorAddress 控制。
+    /// </summary>
+    private IntPtr ScanForEditorAddress(Internals internals)
     {
         const int ReadChunkSize = 8 * 1024 * 1024;
 
@@ -438,33 +615,59 @@ public class EditorReader
         byte[] probe16 = new byte[16];
         byte[] probe4 = new byte[4];
         IntPtr read = IntPtr.Zero;
-        int skippedPenalized = 0;
+        int total = internals.MemReg.Count;
 
-        foreach (int i in GetScanOrder(internals))
+        // 诊断：全部从同一处开始计数
+        DiagScanRegionsScanned = 0;
+        DiagScanRegionsSkipped = 0;
+        DiagScanChunksOk = 0;
+        DiagScanChunksFailed = 0;
+        DiagScanSignatureHits = 0;
+        DiagScanFirstReject = null;
+        DiagScanFirstReadFailure = null;
+        DiagSkippedTooLarge.Clear();
+        DiagNeverScannedRegions.Clear();
+        DiagScanOrderCount = total;
+        DiagScanDidCount = 0;
+        DiagMemRegCount = total;
+
+        // 扫描顺序：上次命中的区域优先，其余按原顺序（不改变覆盖范围）
+        var order = new List<int>(total);
+        long preferBase = lastFoundRegionBase;
+        int preferIndex = -1;
+        if (preferBase != 0)
         {
-            Internals.MEMORY_BASIC_INFORMATION mEMORY_BASIC_INFORMATION = internals.MemReg[i];
-            long regionBase = mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64();
-            long regionSize = mEMORY_BASIC_INFORMATION.RegionSize.ToInt64();
-
-            if (IsRegionPenalized(regionBase))
+            for (int i = 0; i < total; i++)
             {
-                skippedPenalized++;
-                Log.ConsoleLog("FindEditorAddress: region " + i + "/" + internals.MemReg.Count + " (address " + regionBase + ") is in backoff, skipped for now.", Log.LogType.EditorReader, Log.LogLevel.Info);
-                continue;
+                if (internals.MemReg[i].BaseAddress.ToInt64() == preferBase) { preferIndex = i; break; }
             }
+        }
+        if (preferIndex >= 0) order.Add(preferIndex);
+        for (int i = 0; i < total; i++)
+        {
+            if (i != preferIndex) order.Add(i);
+        }
+
+        List<int> skippedIndices = new();
+
+        foreach (int i in order)
+        {
+            Internals.MEMORY_BASIC_INFORMATION mbi = internals.MemReg[i];
+            long regionBase = mbi.BaseAddress.ToInt64();
+            long regionSize = mbi.RegionSize.ToInt64();
 
             if (regionSize > MaxScanRegionSize)
             {
-                Log.ConsoleLog("FindEditorAddress: skip region at " + mEMORY_BASIC_INFORMATION.BaseAddress + " (size " + regionSize + " bytes, > " + MaxScanRegionSize + ")", Log.LogType.EditorReader, Log.LogLevel.Warning);
+                DiagScanRegionsSkipped++;
+                DiagSkippedTooLarge.Add($"0x{regionBase:X8} size=0x{regionSize:X} ({regionSize / 1024 / 1024} MB)");
+                Log.ConsoleLog("FindEditorAddress: skip region 0x" + regionBase.ToString("X") + " (size " + regionSize + " > " + MaxScanRegionSize + ")", Log.LogType.EditorReader, Log.LogLevel.Warning);
                 continue;
             }
 
-            Log.ConsoleLog("FindEditorAddress: scanning region " + i + "/" + internals.MemReg.Count + " (size " + regionSize + " bytes) at " + mEMORY_BASIC_INFORMATION.BaseAddress, Log.LogType.EditorReader, Log.LogLevel.Debug);
+            DiagScanRegionsScanned++;
+            DiagScanDidCount = (int)DiagScanRegionsScanned;
             Interlocked.Exchange(ref scanningRegionAddress, regionBase);
-            scanningRegionIndex = i;
 
-            // 分块读取并扫描，避免一次性分配超大缓冲区；
-            // 相邻块重叠 overlap 字节，防止签名跨块时漏检。
             long offset = 0;
             while (offset < regionSize)
             {
@@ -473,22 +676,36 @@ public class EditorReader
                 if (offset + chunkSize < regionSize) readSize += overlap;
 
                 EnsureBuffer(ref scanBuffer, readSize);
-                if (!ReadProcessMemory(TargetHandle, IntPtr.Add(mEMORY_BASIC_INFORMATION.BaseAddress, (int)offset), scanBuffer, readSize, ref read))
+                if (!ReadProcessMemory(TargetHandle, IntPtr.Add(mbi.BaseAddress, (int)offset), scanBuffer, readSize, ref read))
                 {
+                    DiagScanChunksFailed++;
+                    if (DiagScanFirstReadFailure == null)
+                    {
+                        DiagScanFirstReadFailure = $"region=0x{regionBase:X} offset={offset} size={readSize} (regionSize={regionSize})";
+                    }
                     offset += chunkSize;
                     continue;
                 }
 
+                DiagScanChunksOk++;
                 int bytesToScan = (int)read;
                 for (int j = 0; j <= bytesToScan - array.Length; j += 4)
                 {
                     if (!PatternCheck(scanBuffer, array, j)) continue;
 
-                    IntPtr candidate = new IntPtr(mEMORY_BASIC_INFORMATION.BaseAddress.ToInt64() + offset + j - 160);
-                    if (!IsPlausibleEditor(candidate, probe16, probe4)) continue;
+                    DiagScanSignatureHits++;
+                    IntPtr candidate = new IntPtr(regionBase + offset + j - 160);
+                    string reject;
+                    if (!IsPlausibleEditor(candidate, probe16, probe4, out reject))
+                    {
+                        DiagScanFirstReject ??= $"candidate=0x{candidate.ToInt64():X} {reject}";
+                        continue;
+                    }
 
-                    Log.ConsoleLog("FindEditorAddress: found at " + candidate, Log.LogType.EditorReader, Log.LogLevel.Debug);
-                    return (candidate, regionBase, i);
+                    scanningRegionIndex = i;
+                    Log.ConsoleLog("FindEditorAddress: found at 0x" + candidate.ToInt64().ToString("X") +
+                                   " (region " + i + "/" + total + ")", Log.LogType.EditorReader, Log.LogLevel.Info);
+                    return candidate;
                 }
 
                 offset += chunkSize;
@@ -496,10 +713,12 @@ public class EditorReader
             }
         }
 
-        if (skippedPenalized > 0)
-        {
-            Log.ConsoleLog("FindEditorAddress: " + skippedPenalized + " region(s) skipped due to backoff.", Log.LogType.EditorReader, Log.LogLevel.Warning);
-        }
+        Log.ConsoleLog("FindEditorAddress: 扫描统计: 区域=" + DiagScanRegionsScanned + "/" + total +
+                       " 超大跳过=" + DiagScanRegionsSkipped +
+                       " 块成功=" + DiagScanChunksOk + " 块失败=" + DiagScanChunksFailed +
+                       " 签名命中=" + DiagScanSignatureHits +
+                       " 首个候选被拒=" + (DiagScanFirstReject ?? "无") +
+                       " 首个读失败=" + (DiagScanFirstReadFailure ?? "无"), Log.LogType.EditorReader, Log.LogLevel.Warning);
 
         Log.ConsoleLog("FindEditorAddress: no active editor found.", Log.LogType.EditorReader, Log.LogLevel.Warning);
         throw new InvalidOperationException("No active editor found.");
@@ -579,32 +798,48 @@ public class EditorReader
     /// <para />失败返回 false（不抛异常），让扫描继续找下一个候选。
     /// </summary>
     private bool IsPlausibleEditor(IntPtr pE, byte[] probe16, byte[] probe4)
+        => IsPlausibleEditor(pE, probe16, probe4, out _);
+
+    /// <summary>带原因输出的版本：扫描失败时能说清"候选为什么被拒"。</summary>
+    private bool IsPlausibleEditor(IntPtr pE, byte[] probe16, byte[] probe4, out string reject)
     {
-        if (pE == IntPtr.Zero) return false;
+        reject = "";
+        if (pE == IntPtr.Zero) { reject = "候选地址为 0"; return false; }
 
         IntPtr read = IntPtr.Zero;
 
         // 编辑器状态字段（与 EditorNeedsReload 的判定一致）
-        if (!ReadProcessMemory(TargetHandle, pE + 160, probe16, 16, ref read)) return false;
-        if (BitConverter.ToInt32(probe16, 0) != 35 || BitConverter.ToInt32(probe16, 4) != 20 || BitConverter.ToInt32(probe16, 8) != 25) return false;
+        if (!ReadProcessMemory(TargetHandle, pE + 160, probe16, 16, ref read)) { reject = "pE+160 读取失败"; return false; }
+        int f0 = BitConverter.ToInt32(probe16, 0), f4 = BitConverter.ToInt32(probe16, 4), f8 = BitConverter.ToInt32(probe16, 8);
+        if (f0 != 35 || f4 != 20 || f8 != 25) { reject = $"状态字段不符 ({f0},{f4},{f8})"; return false; }
 
         // HOM 与物件列表：死副本通常指向已释放/清零的内存
-        if (!ReadProcessMemory(TargetHandle, pE + 28, probe4, 4, ref read)) return false;
+        if (!ReadProcessMemory(TargetHandle, pE + 28, probe4, 4, ref read)) { reject = "pE+28 读取失败"; return false; }
         IntPtr pHom = ToIntPtr(probe4, 0);
-        if (pHom == IntPtr.Zero) return false;
+        if (pHom == IntPtr.Zero) { reject = "HOM 为空"; return false; }
 
-        if (!ReadProcessMemory(TargetHandle, pHom + 72, probe4, 4, ref read)) return false;
+        if (!ReadProcessMemory(TargetHandle, pHom + 72, probe4, 4, ref read)) { reject = $"HOM(0x{pHom.ToInt64():X})+72 读取失败"; return false; }
         IntPtr pObjectsList = ToIntPtr(probe4, 0);
-        if (pObjectsList == IntPtr.Zero) return false;
+        if (pObjectsList == IntPtr.Zero) { reject = "物件列表为空"; return false; }
 
-        if (!ReadProcessMemory(TargetHandle, pObjectsList, probe16, 16, ref read)) return false;
+        if (!ReadProcessMemory(TargetHandle, pObjectsList, probe16, 16, ref read)) { reject = $"物件列表(0x{pObjectsList.ToInt64():X})头读取失败"; return false; }
         IntPtr pObjectsArray = ToIntPtr(probe16, 4);
         int count = BitConverter.ToInt32(probe16, 12);
-        if (pObjectsArray == IntPtr.Zero || count < 0 || count > 1000000) return false;
+        if (pObjectsArray == IntPtr.Zero || count < 0 || count > 1000000)
+        {
+            reject = $"物件表非法 items=0x{pObjectsArray.ToInt64():X} count={count}";
+            return false;
+        }
 
         // 上面几步只证明了"指针链结构上说得通"。死副本的堆块在被复用前内容不会被清零，
         // 所以一整条指针链都可能仍然自洽 —— 必须再实际跟着指针读一次物件才算数。
-        return ObjectsReadableFromChain(pHom, probe16, probe4);
+        if (!ObjectsReadableFromChain(pHom, probe16, probe4))
+        {
+            reject = $"指针链可读性检查未通过 (count={count})";
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -776,13 +1011,40 @@ public class EditorReader
             }
 
             SafeReadProcessMemory(TargetHandle, pHom + 72, buffer4, 4, ref bytesRead);
-            if (ToIntPtr(buffer4, 0) == IntPtr.Zero)
+            IntPtr pObjectsList = ToIntPtr(buffer4, 0);
+            if (pObjectsList == IntPtr.Zero)
             {
                 return true;
             }
 
+            // 列表为空是合法状态（新建难度 / 清空谱面后列表会有若干秒是空的），
+            // 此时 List<T> 的 _items 可能是 null，绝不能据此判定"需要重载"。
+            // 否则每 tick 都会触发一次后台重扫 + 重新绑定，日志刷满
+            // "Editor needs Reload."，而内存读取始终停摆 —— 新建谱面后的死循环就是这么来的。
+            if (!ReadProcessMemory(TargetHandle, pObjectsList, buffer16, 16, ref bytesRead))
+            {
+                return true;
+            }
+            int count = BitConverter.ToInt32(buffer16, 12);
+            if (count < 0 || count > 1000000)
+            {
+                return true;
+            }
+            if (count == 0)
+            {
+                return false;
+            }
+
             // 光看指针非空不够：退出/重进编辑器后，旧编辑器对象常常整条指针链都还自洽，
             // 但链上的物件已经被释放。实际跟指针读一次物件，才能识别出这种死副本。
+            // Wine 下不这么做：那里 ReadProcessMemory 会间歇性失败，一旦据此判定"需要重载"，
+            // 就会每 tick 触发一次后台重扫 + 重新绑定，日志刷满 "Editor needs Reload."，
+            // 而读取始终起不来（读取层面的偶发失败由上层重试/退避负责）。
+            if (IsWineTarget)
+            {
+                return false;
+            }
+
             return !ObjectsReadableFromChain(pHom, buffer16, buffer4);
         }
         catch
@@ -809,14 +1071,19 @@ public class EditorReader
 
     public void ReadHOM()
     {
+        // HOM：一次读 80 字节（objectRadius/stackOffset/书签列表/物件列表都在前 76 字节内）
         EnsureBuffer(ref buffer, 80);
         SafeReadProcessMemory(TargetHandle, pHOM, buffer, 80, ref bytesRead);
         objectRadius = BitConverter.ToSingle(buffer, 24);
         stackOffset = BitConverter.ToSingle(buffer, 44);
         pBookmarksL = ToIntPtr(buffer, 56);
         pObjectsL = ToIntPtr(buffer, 72);
-        EnsureBuffer(ref buffer, 256);
-        SafeReadProcessMemory(TargetHandle, pCompose, buffer, 256, ref bytesRead);
+
+        // Compose：一次读 80 字节覆盖两个列表指针（原实现分两次读 80 + 256）。
+        // 同一次调用里少发几次 RPM，在 Wine 下更稳（Wine 的 ReadProcessMemory 行为与真实
+        // Windows 有差异，多段读取更容易踩到边界）。
+        EnsureBuffer(ref buffer, 80);
+        SafeReadProcessMemory(TargetHandle, pCompose, buffer, 80, ref bytesRead);
         pClipboardL = ToIntPtr(buffer, 48);
         pSelectedL = ToIntPtr(buffer, 72);
     }

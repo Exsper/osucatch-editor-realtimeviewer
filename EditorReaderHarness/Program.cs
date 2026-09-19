@@ -25,18 +25,32 @@ internal static class Program
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         WriteLine("EditorReader 诊断 harness —— 只读，不会写入 osu! 进程");
-        WriteLine("命令: a=附加osu并绑定editor  i=阶段级耗时  f=全量路径构成  s=压力测试  m=监控(模拟生产tick)");
-        WriteLine("      v=读取原语对比  g=散列聚合对比  r=失效指针缓存  d=dump  x=重试修复测试  q=退出");
+        WriteLine();
+        WriteLine("【推荐流程】");
+        WriteLine("  1. 先在同一个终端 / 同一个 Wine prefix 里启动本程序（不附加任何进程，直接进交互）");
+        WriteLine("  2. 再启动 osu!，并手动点进 editor 界面");
+        WriteLine("  3. 回到本窗口输入 y  ← 此时才附加并输出诊断报告");
+        WriteLine();
+        WriteLine("命令: y=附加osu!+诊断报告(推荐)  a=仅附加并绑定editor  W=仅诊断报告");
+        WriteLine("      i=阶段级耗时  f=全量路径构成  s=压力测试  m=监控(模拟生产tick)");
+        WriteLine("      v=读取原语对比  g=散列聚合对比  r=失效指针缓存  d=dump  x=重试修复测试");
+        WriteLine("      c=枚举编辑器候选  C=候选判据对照(旧vs新)  u=卡住诊断  T=读取长度阈值  q=退出");
+        WriteLine();
+        WriteLine("提示: y / a / W 都会先等待 osu! 出现（Wine 下一直等，原生 Windows 最多 60 秒），");
+        WriteLine("      已在 editor 里再按 y 效果最好。");
         WriteLine();
 
-        Attach();
-
-        // 支持 `EditorReaderHarness.exe a d f` 这种一次性执行，便于在后台任务里驱动
+        // 启动时**不**自动附加：osu! 可能还没启动、或启动了但还没进 editor。
+        // 绑定是懒加载的 —— 输入 y / a / W 时才会去等待并绑定，那时你已经在 editor 里了。
         if (args.Length > 0)
         {
+            // 命令行参数模式（EditorReaderHarness.exe y / a d f）用于脚本化，
+            // 由各命令自己负责等待+附加。
             foreach (string arg in args) RunCommand(arg);
             return;
         }
+
+        WriteLine("已就绪。等 osu! 进入 editor 后输入 y 开始诊断。");
 
         while (true)
         {
@@ -70,7 +84,7 @@ internal static class Program
             case "c": ListEditorCandidates(); break;
             case "u": DiagnoseStuck(); break;
             case "w": ReplayFetchAll(); break;
-            case "y": PointerSignCheck(); break;
+            case "P": PointerSignCheck(); break;
             case "j": DiagnoseSegmentRead(); break;
             case "n": SwitchStress(); break;
             case "q2": SnapshotConsistency(); break;
@@ -78,6 +92,15 @@ internal static class Program
             case "T": ProbeReadThreshold(); break;
             case "M": ErrorMonitor(); break;
             case "C": CompareCandidateChecks(); break;
+            case "Z": ForceScanCheck(); break;
+            case "W":
+            case "y":
+                // 手动触发：等待/附加 osu! + 输出诊断报告。
+                // 用法：先启动 harness，再启动 osu! 并手动点进 editor，
+                // 然后在 harness 里按 y，此时才去绑定并出报告。
+                Attach();
+                WineReport();
+                break;
             case "e": EagerVsLazyLines(); break;
             case "k": ReadCostBreakdown(); break;
             case "x": RetryHealTest(); break;
@@ -87,9 +110,55 @@ internal static class Program
 
     // ------------------------------------------------------------------ 绑定
 
+    /// <summary>
+    /// 等待 osu! 进程出现。
+    /// <para />Wine 下必须让 osu! 与 harness 在**同一个 prefix** 里启动，
+    /// 而"先启动 harness、再启动 osu!"是很自然的操作顺序，所以这里不能一发现没有就退出。
+    /// Wine 环境（有 WINEPREFIX）下无限等待，原生 Windows 下最多等 60 秒。
+    /// </summary>
+    private static Process? WaitForOsu(int timeoutSeconds = 0)
+    {
+        bool wine = IsWine();
+        if (timeoutSeconds <= 0) timeoutSeconds = wine ? int.MaxValue : 60;
+
+        var sw = Stopwatch.StartNew();
+        bool first = true;
+        while (true)
+        {
+            var p = Mem.FindOsu();
+            if (p != null)
+            {
+                if (!first) WriteLine($"\n找到 osu! (pid={p.Id})");
+                return p;
+            }
+
+            if (first)
+            {
+                WriteLine(wine
+                    ? "还没找到 osu!.exe，将持续等待…（Wine 下请确保 osu! 与 harness 在同一个 prefix 里）"
+                    : "还没找到 osu!.exe，最多等待 60 秒…");
+                first = false;
+            }
+
+            if (!wine && sw.Elapsed.TotalSeconds >= timeoutSeconds)
+            {
+                WriteLine($"等待 {timeoutSeconds} 秒仍未找到 osu!.exe");
+                ListProcesses();
+                return null;
+            }
+
+            if ((int)sw.Elapsed.TotalSeconds % 10 == 0)
+            {
+                Console.Write($"\r等待 osu! … {sw.Elapsed.TotalSeconds:F0}s");
+            }
+
+            Thread.Sleep(1000);
+        }
+    }
+
     private static bool Attach()
     {
-        _osu = Mem.FindOsu();
+        _osu = WaitForOsu();
         if (_osu == null)
         {
             WriteLine("!! 没找到 osu!.exe");
@@ -112,7 +181,10 @@ internal static class Program
         }
 
         WriteLine($"osu! pid={_osu.Id} 目标位数={(Mem.IsTargetWow64FromHandle(_hProcess) ? "32 (WOW64)" : "64")}  标题={_osu.MainWindowTitle}");
+#if !LEGACY_EDITOR_READER
+        // 新版：把 harness 自己开的 VM_READ 句柄直接交给 reader（旧版没有 ForceHandle，读取时走 process.Handle）
         _reader.ForceHandle = _hProcess;
+#endif
         _reader.SetProcess(_osu);
         try
         {
@@ -143,10 +215,25 @@ internal static class Program
 
     private static void NativeClose(IntPtr h) => CloseHandle(h);
 
+    // ------------------------------------------------------------------ 旧版构建兼容说明
+    // 旧版 EditorReader（-p:UseLegacyEditorReader=true，从 1564fdc 提取的原版实现）只提供
+    // 主工程用得到的那部分公开 API；新版额外暴露了一批**仅供 harness 诊断用**的成员：
+    //   ForceHandle / IsWineTarget / EditorAddress / HomAddress / BeatmapAddress /
+    //   GetObjectPointers / ProbeRegionWithMainPath / 全部 Diag* 计数与样本。
+    // 旧版完全没有这些成员，因此本文件里对它们的每一处引用都被
+    //   #if !LEGACY_EDITOR_READER ... #else ... #endif
+    // 包好：新版分支原样保留（新版构建的编译产物与改动前逐字节一致），
+    // 旧版分支要么用等价占位值（例如不打印该行、用 ex.Message 顶替诊断样本），
+    // 要么整个方法只打印"旧版无此诊断能力"后 return。
+
     // ------------------------------------------------------------------ 1. 阶段级耗时
 
     private static void ItemizedTiming()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         int n = _reader.numObjects;
         if (n <= 0) { WriteLine("没有物件数据，先绑定并确认在编辑器里"); return; }
 
@@ -199,6 +286,7 @@ internal static class Program
         WriteLine();
         WriteLine($"推算: 逐物件路径 syscall ≈ {count} (结构体) + {count}×slider(控制点列表) + {count}(字符串长度) + …");
         WriteLine($"      仅结构体一项就约 {Mem.Fmt(r3.AvgUs * count)}；真实全量请用 f 命令测量。");
+#endif
     }
 
     // ------------------------------------------------------------------ 2. 全量路径构成
@@ -574,6 +662,10 @@ internal static class Program
 
     private static void ReadPrimitiveBench()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         if (_osu == null) return;
         var h = _hProcess;
         var (_, dataArray, count, ptrSize) = _reader.GetObjectPointers();
@@ -598,12 +690,17 @@ internal static class Program
             WriteLine($"{"NtReadVirtualMemory",-22}{size + "B",-10}{Mem.Fmt(b.AvgUs),-11}{Mem.Fmt(b.P99Us),-11}{failNt,-8}");
             WriteLine();
         }
+#endif
     }
 
     // ------------------------------------------------------------------ 6. 散列聚合对比
 
     private static void ScatterBench()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         if (_osu == null) return;
         var h = _hProcess;
         var (_, dataArray, count, ptrSize) = _reader.GetObjectPointers();
@@ -643,12 +740,17 @@ internal static class Program
         }
 
         WriteLine("\n注：聚合读取需要解析同一块缓冲里的多个物件，读到的字节数可能增加（gap 越大越浪费）。");
+#endif
     }
 
     // ------------------------------------------------------------------ 7. 失效指针缓存
 
     private static void PointerCacheBench()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         if (_osu == null) return;
         var h = _hProcess;
         var (_, dataArray, count, ptrSize) = _reader.GetObjectPointers();
@@ -684,6 +786,7 @@ internal static class Program
             Mem.Rpm(h, (IntPtr)(dataArray.ToInt64() + 8 + 4L * (len - 1)), b, 4);
         });
         WriteLine($"{"长度+首尾指针校验",-34} 平均 {Mem.Fmt(r4.AvgUs),-10} (24 B, 3 次 RPM)");
+#endif
     }
 
     // ------------------------------------------------------------------ 偏移探测
@@ -695,6 +798,10 @@ internal static class Program
     /// </summary>
     private static void ProbeOffsets()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         if (_hProcess == IntPtr.Zero || _reader.HomAddress == IntPtr.Zero)
         {
             WriteLine("先执行 a 绑定 editor");
@@ -800,6 +907,7 @@ internal static class Program
         {
             WriteLine("（若物件的 Start/X/Y 全为 0，可能该谱面确实没有物件，或编辑器未加载完）");
         }
+#endif
     }
 
     // ------------------------------------------------------------------ 指针宽度对照
@@ -810,6 +918,10 @@ internal static class Program
     /// </summary>
     private static void PointerSizeRepro()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         var (listHeader, dataArray, count, ptrSize) = _reader.GetObjectPointers();
         if (count <= 0) { WriteLine("没有物件，先 a 绑定"); return; }
 
@@ -849,6 +961,7 @@ internal static class Program
 
             WriteLine($"{label,-34} 合法={ok,-5} 非法={rejected,-5} 读取失败={fail,-5}  {(firstBad.Length > 0 ? "首个问题: " + firstBad : "")}");
         }
+#endif
     }
 
     /// <summary>
@@ -857,6 +970,10 @@ internal static class Program
     /// </summary>
     private static void BatchReadBench()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         var (_, dataArray, count, _) = _reader.GetObjectPointers();
         if (count <= 0) { WriteLine("没有物件，先 a 绑定"); return; }
         if (count < 3) { WriteLine($"只有 {count} 个物件，不足以对比聚合读取，换张图"); return; }
@@ -915,6 +1032,7 @@ internal static class Program
         }
 
         WriteLine("\n注：'字段不一致' 应始终为 0，否则聚合方案不可用。");
+#endif
     }
 
     private static HitObject Parse(byte[] b) => new()
@@ -1098,6 +1216,10 @@ internal static class Program
     /// </summary>
     private static void FastPathBench()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         var (_, dataArray, count, _) = _reader.GetObjectPointers();
         if (count <= 0) { WriteLine("没有物件，先 a 绑定"); return; }
 
@@ -1148,6 +1270,7 @@ internal static class Program
 
         WriteLine("\n结论参考：若 B/C 足够便宜，就能在'物件没变'的 tick 上只花 B/C 的成本；");
         WriteLine("只有真的增删/移动了物件，才需要 fall back 到 E。");
+#endif
     }
 
     // ------------------------------------------------------------------ 字符串行的真实用途
@@ -1203,6 +1326,10 @@ internal static class Program
     /// </summary>
     private static void ReadCostBreakdown()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         var (_, dataArray, count, _) = _reader.GetObjectPointers();
         if (count <= 0) { WriteLine("没有物件，先 a 绑定"); return; }
 
@@ -1247,6 +1374,7 @@ internal static class Program
 
         var t5 = Mem.Time(15, () => _reader.EditorTime());
         WriteLine($"{"reader.EditorTime（高频路径）",-32} {Mem.Fmt(t5.AvgUs),10}   1 次 RPM");
+#endif
     }
 
     // ------------------------------------------------------------------ 编辑器候选枚举
@@ -1273,6 +1401,9 @@ internal static class Program
         WriteLine($"模式长度自检: {pattern.Length} 字节 (应为 50)");
 
         // 先验证模式本身：在"已知能读到数据的编辑器地址 +160"处应该能匹配
+#if LEGACY_EDITOR_READER
+        WriteLine("模式自检：旧版无此诊断字段（EditorAddress），跳过。\n");
+#else
         {
             byte[] known = new byte[pattern.Length];
             if (Mem.Rpm(_hProcess, _reader.EditorAddress + 160, known, known.Length))
@@ -1296,6 +1427,7 @@ internal static class Program
                 WriteLine("模式自检：读取当前编辑器失败\n");
             }
         }
+#endif
 
         WriteLine("正在枚举内存区域并扫描 editor 签名（每个区域一次读取，稍等）…");
         var regions = Mem.Regions(_hProcess);
@@ -1336,7 +1468,12 @@ internal static class Program
         foreach (var (candidate, regionBase, regionSize, _) in found)
         {
             string verdict = DescribeEditorCandidate(candidate, probe16, probe4);
+#if LEGACY_EDITOR_READER
+            // 旧版没有 EditorAddress：无法标注"当前绑定"
+            bool isCurrent = false;
+#else
             bool isCurrent = candidate == _reader.EditorAddress.ToInt64();
+#endif
             WriteLine($"  0x{candidate:X8}  region=0x{regionBase:X8}({regionSize / 1024}KB)  {(isCurrent ? "[当前绑定] " : "")}{verdict}");
         }
 
@@ -1426,7 +1563,12 @@ internal static class Program
             v0 = BitConverter.ToInt32(probe16, 0); v4 = BitConverter.ToInt32(probe16, 4); v8 = BitConverter.ToInt32(probe16, 8);
         }
 
+#if LEGACY_EDITOR_READER
+        // 旧版没有 EditorAddress：无法标注"当前绑定"
+        bool isCurrent = false;
+#else
         bool isCurrent = candidate == _reader.EditorAddress.ToInt64();
+#endif
         WriteLine($"  0x{candidate:X8} {(isCurrent ? "[当前绑定]" : "          ")} 物件={objCount,-6} 控制点={cpCount,-4} 状态=({v0},{v4},{v8}) 文件={filename}");
     }
 
@@ -1450,6 +1592,10 @@ internal static class Program
     /// </summary>
     private static void DiagnoseStuck()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         if (_hProcess == IntPtr.Zero) { WriteLine("先 a 绑定"); return; }
         if (_osu == null) return;
 
@@ -1554,6 +1700,7 @@ internal static class Program
                 WriteLine($"  pE+{192 + i,-4} = 0x{asInt:X8}  int={asInt,-12} float={asFloat}");
             }
         }
+#endif
     }
 
     // ------------------------------------------------------------------ 复刻 FetchAll 读取序列
@@ -1565,6 +1712,10 @@ internal static class Program
     /// </summary>
     private static void ReplayFetchAll()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         if (_hProcess == IntPtr.Zero) { WriteLine("先 a 绑定"); return; }
 
         byte[] b4 = new byte[4];
@@ -1801,6 +1952,7 @@ internal static class Program
                 WriteLine($"  物件[{i,6}] ptr=0x{addr:X8}  {desc}");
             }
         }
+#endif
     }
 
     // ------------------------------------------------------------------ 指针符号扩展验证
@@ -1811,6 +1963,10 @@ internal static class Program
     /// </summary>
     private static void PointerSignCheck()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         var (_, dataArray, count, _) = _reader.GetObjectPointers();
         if (count <= 0) { WriteLine("没有物件，先 a 绑定"); return; }
 
@@ -1878,6 +2034,7 @@ internal static class Program
             bool b = Mem.Rpm(_hProcess, unsignedPtr, obj, 336);
             WriteLine($"  物件[{i,6}] raw=0x{raw:X8}  有符号读={a,-6} 无符号读={b}");
         }
+#endif
     }
 
     // ------------------------------------------------------------------ 分段读取诊断
@@ -1888,6 +2045,10 @@ internal static class Program
     /// </summary>
     private static void DiagnoseSegmentRead()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         var (_, dataArray, count, _) = _reader.GetObjectPointers();
         if (count <= 0) { WriteLine("没有物件，先 a 绑定"); return; }
         if (dataArray == IntPtr.Zero) { WriteLine("物件数组为空"); return; }
@@ -1941,6 +2102,7 @@ internal static class Program
         {
             WriteLine($"  已读到的字段: Start={BitConverter.ToInt32(p2.Data, 16)} Type={BitConverter.ToInt32(p2.Data, 24)} X={BitConverter.ToSingle(p2.Data, 56):F1} Y={BitConverter.ToSingle(p2.Data, 60):F1}");
         }
+#endif
     }
 
     // ------------------------------------------------------------------ 切难度压力测试
@@ -1981,7 +2143,12 @@ internal static class Program
             catch (Exception ex)
             {
                 failures++;
+#if LEGACY_EDITOR_READER
+                // 旧版没有 DiagReadObjectFailure：回落到异常消息
+                string detail = ex.Message;
+#else
                 string detail = _reader.DiagReadObjectFailure ?? ex.Message;
+#endif
                 failureReasons[detail] = failureReasons.GetValueOrDefault(detail) + 1;
                 WriteLine($"  [{(sw.ElapsedMilliseconds / 1000.0):F1}s] !! 读取失败: {detail}");
 
@@ -1998,6 +2165,10 @@ internal static class Program
                 if (!ok)
                 {
                     // 持续失败：把失败物件的映射状态、可读字节数都打出来
+#if LEGACY_EDITOR_READER
+                    // 旧版没有 GetObjectPointers / DiagReadObjectFailure，拿不到失败下标，跳过这一段
+                    WriteLine("      （旧版无 Diag* / GetObjectPointers，跳过持续失败详细诊断）");
+#else
                     WriteLine("      --- 持续失败详细诊断 ---");
                     var (_, dataArray, count, _) = _reader.GetObjectPointers();
                     int idx = -1;
@@ -2025,13 +2196,18 @@ internal static class Program
                             }
                         }
                     }
+#endif
 
                     // 三次重试分别失败在哪
                     WriteLine("      连续 3 次重试的失败位置:");
                     for (int r = 0; r < 3; r++)
                     {
                         try { _reader.FetchAll(false); WriteLine($"        第{r + 1}次: 成功"); }
+#if LEGACY_EDITOR_READER
+                        catch (Exception ex2) { WriteLine($"        第{r + 1}次: {ex2.Message}"); }
+#else
                         catch (Exception ex2) { WriteLine($"        第{r + 1}次: {(_reader.DiagReadObjectFailure ?? ex2.Message)}"); }
+#endif
                     }
                 }
             }
@@ -2062,6 +2238,10 @@ internal static class Program
     /// </summary>
     private static void SnapshotConsistency()
     {
+#if LEGACY_EDITOR_READER
+        WriteLine("当前构建为旧版 EditorReader，无此诊断能力（缺少 GetObjectPointers / Diag* / 地址访问器）。");
+        return;
+#else
         var (listHeader, _, _, _) = _reader.GetObjectPointers();
         if (listHeader == IntPtr.Zero) { WriteLine("先 a 绑定"); return; }
 
@@ -2118,6 +2298,7 @@ internal static class Program
         WriteLine($"  撕裂但恰好还能读  : {tornAndOk}");
         WriteLine("\n若撕裂比例明显高于实际失败率，说明'撕裂 → 抛异常 → 退避'是对的，");
         WriteLine("但可以通过'读前后各校验一次列表头'把撕裂的快照直接丢弃，而不是让它去撞异常。");
+#endif
     }
 
     // ------------------------------------------------------------------ 加载窗口自动压测
@@ -2161,7 +2342,12 @@ internal static class Program
                         catch (Exception ex)
                         {
                             fails++;
+#if LEGACY_EDITOR_READER
+                            // 旧版没有 DiagReadObjectFailure：回落到异常消息
+                            string detail = ex.Message;
+#else
                             string detail = _reader.DiagReadObjectFailure ?? ex.Message;
+#endif
                             // 判断是否瞬时：立刻重试
                             bool ok = false;
                             for (int r = 0; r < 3 && !ok; r++)
@@ -2180,7 +2366,9 @@ internal static class Program
                                 {
                                     persistent++;
                                     WriteLine($"      !! 真·持续失败: {detail}");
+#if !LEGACY_EDITOR_READER
                                     WriteLine($"         {Mem.DescribeRegion(_hProcess, _reader.EditorAddress)}");
+#endif
                                 }
                                 else
                                 {
@@ -2196,7 +2384,11 @@ internal static class Program
             }
             catch (Exception ex)
             {
+#if LEGACY_EDITOR_READER
+                WriteLine($"  [{(sw.ElapsedMilliseconds / 1000.0):F1}s] 常规读取失败: {ex.Message}");
+#else
                 WriteLine($"  [{(sw.ElapsedMilliseconds / 1000.0):F1}s] 常规读取失败: {_reader.DiagReadObjectFailure ?? ex.Message}");
+#endif
             }
 
             Thread.Sleep(200);
@@ -2331,12 +2523,22 @@ internal static class Program
                     {
                         _reader.FetchAll(false);
                         transient++;
+#if LEGACY_EDITOR_READER
+                        // 旧版没有 DiagReadObjectFailure：回落到异常消息
+                        Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] 瞬时失败(重试恢复): {first.Message}");
+#else
                         Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] 瞬时失败(重试恢复): {_reader.DiagReadObjectFailure ?? first.Message}");
+#endif
                     }
                     catch (Exception second)
                     {
                         hardFailures++;
+#if LEGACY_EDITOR_READER
+                        // 旧版没有 DiagReadObjectFailure：回落到异常消息
+                        string detail = second.Message;
+#else
                         string detail = _reader.DiagReadObjectFailure ?? second.Message;
+#endif
                         reasonCounts[detail] = reasonCounts.GetValueOrDefault(detail) + 1;
                         Log($"[{sw.ElapsedMilliseconds / 1000.0:F1}s] !! 硬失败(重试仍失败): {detail}");
                     }
@@ -2484,7 +2686,12 @@ internal static class Program
                 newOk = count == 0 || readable > 0;
             }
 
+#if LEGACY_EDITOR_READER
+            // 旧版没有 EditorAddress：无法标注"当前绑定"
+            bool isCurrent = false;
+#else
             bool isCurrent = c == _reader.EditorAddress.ToInt64();
+#endif
             string note = isCurrent ? "[当前绑定] " : "";
             if (oldOk && !newOk) note += "<== 死副本：旧判据放过、新判据拒绝";
             else if (!oldOk) note += "（旧判据就拒绝了）";
@@ -2493,6 +2700,444 @@ internal static class Program
         }
 
         WriteLine("\n旧判据只要求 HOM 与物件列表指针非空；新判据还要求采样到的物件真能读出来。");
+    }
+
+    // ------------------------------------------------------------------ Wine 环境诊断报告
+
+    /// <summary>
+    /// 一段式诊断报告：把"Wine 下读不到 osu! 内存"需要的证据全部打出来。
+    /// 在出问题的机器上执行 `EditorReaderHarness.exe a W`，把输出贴回来即可。
+    /// </summary>
+    private static void WineReport()
+    {
+        WriteLine("================ EditorReader Wine 诊断报告 ================");
+        WriteLine("时间: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        WriteLine("viewer 进程位数: " + (Environment.Is64BitProcess ? "64" : "32"));
+        WriteLine("OS: " + Environment.OSVersion);
+        WriteLine("是否 Wine: " + (IsWine() ? "是" : "否/未知"));
+        WriteLine();
+
+        if (_osu == null)
+        {
+            WriteLine("!! 没找到 osu!.exe");
+            ListProcesses();
+            return;
+        }
+
+        WriteLine($"osu! pid={_osu.Id}");
+        try { WriteLine($"  可执行路径: {_osu.MainModule?.FileName}"); } catch (Exception ex) { WriteLine("  MainModule 读取失败: " + ex.Message); }
+        try { WriteLine($"  窗口标题: {_osu.MainWindowTitle}"); } catch { }
+        try { WriteLine($"  Process.Handle 可用: {_osu.Handle != IntPtr.Zero}"); }
+        catch (Exception ex) { WriteLine("  !! Process.Handle 失败: " + ex.Message); }
+        WriteLine();
+
+        if (_hProcess == IntPtr.Zero)
+        {
+            WriteLine("!! OpenProcess(VM_READ|QUERY_LIMITED) 失败，无法继续");
+            return;
+        }
+
+        WriteLine($"目标进程 WOW64 标记: {Mem.IsTargetWow64FromHandle(_hProcess)}  （true=32 位进程，指针应为 4 字节）");
+        WriteLine("代码里使用的指针宽度: 4（TargetPointerSize）");
+        WriteLine();
+
+        WriteLine("--- VirtualQueryEx 区域枚举 ---");
+        var allRegions = Mem.EnumerateAllRegions(_hProcess, out var stats);
+        WriteLine($"  总区域数: {allRegions.Count}");
+        WriteLine($"  State: COMMIT={stats.Commit} RESERVE={stats.Reserve} FREE={stats.Free}");
+        WriteLine($"  可读页(READONLY/READWRITE/EXECUTE_READ/EXECUTE_READWRITE): {stats.Readable}");
+        WriteLine($"  当前过滤条件命中(COMMIT+PAGE_READWRITE+MEM_PRIVATE): {stats.Filtered}");
+        WriteLine();
+
+        WriteLine("--- 编辑器绑定 ---");
+#if LEGACY_EDITOR_READER
+        WriteLine("  当前缓存 pEditor = (旧版无此诊断字段)");
+#else
+        WriteLine($"  当前缓存 pEditor = 0x{_reader.EditorAddress.ToInt64():X}");
+#endif
+        try
+        {
+            bool need = _reader.EditorNeedsReload();
+            WriteLine($"  EditorNeedsReload() = {need}" + (need ? "   <== 每 tick 都是它就会刷 \"Editor needs Reload.\"" : ""));
+        }
+        catch (Exception ex)
+        {
+            WriteLine($"  !! EditorNeedsReload() 抛异常: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        // 没绑定成功时，主动扫一次并输出统计，回答"为什么找不到编辑器"
+#if LEGACY_EDITOR_READER
+        // 旧版没有 EditorAddress / 全部 Diag* 扫描计数，这一段诊断整体不可用。
+        WriteLine();
+        WriteLine("--- 编辑器地址扫描诊断 ---");
+        WriteLine("  当前构建为旧版 EditorReader，无此诊断能力（缺少 EditorAddress 与全部 Diag* 扫描计数）。");
+        WriteLine("  如需定位扫描问题，请用新版构建（不带 -p:UseLegacyEditorReader）重跑 y / W。");
+#else
+        if (_reader.EditorAddress == IntPtr.Zero)
+        {
+            WriteLine();
+            WriteLine("--- 编辑器地址扫描（诊断，最多 30 秒）---");
+            var scanWatch = Stopwatch.StartNew();
+            try
+            {
+                _reader.SetEditor();
+                WriteLine($"  扫描成功: pEditor = 0x{_reader.EditorAddress.ToInt64():X}");
+            }
+            catch (Exception ex)
+            {
+                WriteLine($"  扫描失败: {ex.Message}");
+            }
+            scanWatch.Stop();
+            WriteLine($"  扫描耗时            = {scanWatch.ElapsedMilliseconds} ms" +
+                      (scanWatch.ElapsedMilliseconds >= 29000 ? "  <== 疑似撞上 30 秒扫描超时（Wine 下 ReadProcessMemory 阻塞）" : ""));
+
+            WriteLine($"  扫描区域数          = {_reader.DiagScanRegionsScanned}");
+            WriteLine($"  跳过区域数          = {_reader.DiagScanRegionsSkipped}");
+            WriteLine($"  内存块读取 成功/失败 = {_reader.DiagScanChunksOk} / {_reader.DiagScanChunksFailed}");
+            WriteLine($"  签名命中次数        = {_reader.DiagScanSignatureHits}");
+            WriteLine($"  首个候选被拒原因    = {_reader.DiagScanFirstReject ?? "(无候选)"}");
+            WriteLine($"  首个读失败的内存块  = {_reader.DiagScanFirstReadFailure ?? "(无)"}");
+            WriteLine();
+            WriteLine("  --- 区域枚举过程（MemInfo）---");
+            WriteLine($"  查询成功区域数      = {_reader.DiagMemInfoQueried}");
+            WriteLine($"  命中过滤条件数      = {_reader.DiagMemInfoMatched}");
+            WriteLine($"  是否启用宽松过滤    = {_reader.DiagMemInfoRelaxed}");
+            WriteLine($"  结束原因            = {_reader.DiagMemInfoStopReason}");
+            WriteLine($"  VirtualQueryEx 错误 = {_reader.DiagMemInfoLastError}");
+            WriteLine("  枚举到的前几个区域（地址/大小/State/Protect/Type）:");
+            foreach (string line in _reader.DiagMemInfoFirstRegions) WriteLine("    " + line);
+
+            // 被"大小超限"跳过的区域
+            WriteLine();
+            WriteLine("  --- 被跳过（大小超限）的区域 ---");
+            if (_reader.DiagSkippedTooLarge.Count == 0)
+            {
+                WriteLine("    (无：没有一个命中区域因大小被跳过)");
+            }
+            else
+            {
+                foreach (string line in _reader.DiagSkippedTooLarge.Take(20)) WriteLine("    " + line);
+            }
+
+            // 枚举到但从未进入扫描循环的区域 —— 定位"漏扫"
+            WriteLine();
+            WriteLine("  --- 漏扫检查 ---");
+            WriteLine($"    GetScanOrder 本应产出 = {_reader.DiagScanOrderCount} 个区域");
+            WriteLine($"    实际进入扫描循环      = {_reader.DiagScanDidCount} 个区域（计数器 {_reader.DiagScanRegionsScanned}，MemReg 总数 {_reader.DiagMemRegCount}）");
+            int diff = _reader.DiagScanOrderCount - _reader.DiagScanDidCount;
+            if (diff == 0)
+            {
+                WriteLine("    (无：没有区域被漏掉)");
+            }
+            else
+            {
+                WriteLine($"    !! 漏掉 {diff} 个:");
+                foreach (string line in _reader.DiagNeverScannedRegions) WriteLine("      " + line);
+            }
+
+            // 命中区域的尺寸分布
+            WriteLine();
+            WriteLine("  --- 独立验证：直接在命中区域里找签名 ---");
+            var matched = _reader.DiagMatchedRegions;
+            byte[] sig = Mem.HexToBytes("230000001400000019000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0C000000eeeeeeeeeeeeeeeeeeeeeeeeee00");
+            WriteLine($"    命中区域总数 = {matched.Count}   模式长度 = {sig.Length} 字节 (应为 50)");
+            if (matched.Count > 0)
+            {
+                var sizes = matched.Select(m => m.Size).OrderBy(s => s).ToList();
+                WriteLine($"    区域大小: 最小={sizes[0]} 中位={sizes[sizes.Count / 2]} 最大={sizes[^1]}");
+                WriteLine($"    其中 >256MB 的有 {sizes.Count(s => s > 256L * 1024 * 1024)} 个, >512MB 的有 {sizes.Count(s => s > 512L * 1024 * 1024)} 个");
+            }
+
+            // 带索引逐区域扫描：直接给出签名所在区域的索引与偏移
+            WriteLine();
+            WriteLine("  --- 带索引的逐区域扫描 ---");
+            int hitRegionIndex = -1;
+            long hitRegionOffset = 0;
+            int readableRegions = 0, hits = 0;
+            long bytesRead = 0;
+            byte[] rbuf = new byte[8 * 1024 * 1024];
+            for (int ri = 0; ri < matched.Count; ri++)
+            {
+                long rbase = matched[ri].Base;
+                long rsize = matched[ri].Size;
+                if (rsize <= 0 || rsize > 512L * 1024 * 1024) continue;
+                long off = 0;
+                bool readAny = false;
+                while (off < rsize)
+                {
+                    int chunk = (int)Math.Min(rbuf.Length, rsize - off);
+                    if (!Mem.Rpm(_hProcess, (IntPtr)(rbase + off), rbuf, chunk)) break;
+                    readAny = true;
+                    bytesRead += chunk;
+                    for (int j = 0; j + sig.Length <= chunk; j += 4)
+                    {
+                        if (rbuf[j] != 0x23 || !Mem.PatternMatch(rbuf, sig, j)) continue;
+                        hits++;
+                        if (hitRegionIndex < 0) { hitRegionIndex = ri; hitRegionOffset = off + j; }
+                    }
+                    off += chunk;
+                }
+                if (readAny) readableRegions++;
+                if (ri < 3 || ri == hitRegionIndex || ri >= matched.Count - 3)
+                {
+                    WriteLine($"    idx={ri,-4} 0x{rbase:X8} size=0x{rsize:X8} 可读={readAny}" +
+                              (ri == hitRegionIndex ? $"   <<< 签名在此区域, 偏移 0x{hitRegionOffset:X}, 候选 pEditor=0x{rbase + hitRegionOffset - 160:X8}" : ""));
+                }
+            }
+            WriteLine($"    命中区域中可读的 = {readableRegions} / {matched.Count}");
+            WriteLine($"    独立扫描: {bytesRead / 1024.0 / 1024.0:F0} MB, 签名命中 {hits} 次, 签名所在区域索引 = {(hitRegionIndex < 0 ? "未命中" : hitRegionIndex.ToString())}");
+
+            // 用主扫描自己的代码路径扫那个含签名的区域
+            if (hitRegionIndex >= 0)
+            {
+                WriteLine();
+                WriteLine("  --- 用主工程扫描代码路径复扫签名所在区域 ---");
+                try
+                {
+                    WriteLine(_reader.ProbeRegionWithMainPath(matched[hitRegionIndex].Base, matched[hitRegionIndex].Size));
+                }
+                catch (Exception ex)
+                {
+                    WriteLine("    复扫异常: " + ex.Message);
+                }
+            }
+            WriteLine();
+            WriteLine($"  主扫描自报: GetScanOrder应产出={_reader.DiagScanOrderCount} 实际进入循环={_reader.DiagScanDidCount} " +
+                      $"计数器={_reader.DiagScanRegionsScanned} MemReg总数={_reader.DiagMemRegCount}");
+            WriteLine(hits == 0
+                ? "    => 命中区域里确实没有签名：编辑器对象不在这些区域中（覆盖范围问题）"
+                : $"    => 签名在命中区域的 idx={hitRegionIndex}；若主扫描未命中该索引，即为主扫描漏扫");
+            WriteLine();
+            WriteLine("  判读：");
+            WriteLine("    查询成功区域数=0        -> 枚举循环第一步就失败（结构体布局/权限/句柄）");
+            WriteLine("    查询成功>0 但 命中=0    -> Wine 报告的 State/Protect/Type 与真实 Windows 不同");
+            WriteLine("    命中>0 但 扫描区域数=0  -> 命中后被其它条件（超大区域）全部跳过");
+            WriteLine("    块成功=0 且 块失败>0    -> ReadProcessMemory 读不了这些区域");
+            WriteLine("    块成功>0 但 签名命中=0  -> 读了内存却没有签名，扫描覆盖范围不对");
+            WriteLine("    签名命中>0 且有被拒原因 -> 找到编辑器对象但候选校验不通过（布局不同 或 死副本）");
+        }
+#endif
+        WriteLine();
+
+        WriteLine("--- 指针链逐步解析（4 字节 vs 8 字节并列）---");
+#if LEGACY_EDITOR_READER
+        WriteLine("  旧版无此诊断字段（EditorAddress），无法做指针链解析；请用新版构建重跑。");
+#else
+        if (_reader.EditorAddress == IntPtr.Zero) WriteLine("  pEditor 为空。请确认 osu! 在编辑器界面后重跑。");
+        else DumpChainBothWidths(_reader.EditorAddress);
+#endif
+
+        WriteLine();
+        WriteLine("--- 尝试一次全量读取 ---");
+        try
+        {
+            _reader.FetchAll(false);
+            WriteLine($"  成功: 物件={_reader.numObjects} 控制点={_reader.numControlPoints} 文件={_reader.Filename}");
+        }
+        catch (Exception ex)
+        {
+            WriteLine($"  失败: {ex.Message}");
+#if !LEGACY_EDITOR_READER
+            if (_reader.DiagReadObjectFailure != null) WriteLine($"  失败位置: {_reader.DiagReadObjectFailure}");
+#endif
+        }
+
+        WriteLine();
+        WriteLine("--- viewer 日志尾部（若有）---");
+        try
+        {
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "OsuCatch-Editor-RealtimeViewer", "logs");
+            if (Directory.Exists(dir))
+            {
+                var latest = new DirectoryInfo(dir).GetFiles("*.log").OrderByDescending(f => f.LastWriteTime).FirstOrDefault();
+                if (latest != null)
+                {
+                    WriteLine($"  文件: {latest.FullName}");
+                    foreach (string line in ReadTailLines(latest.FullName, 40)) WriteLine("  | " + line);
+                }
+                else WriteLine("  目录存在但没有 .log 文件");
+            }
+            else WriteLine("  日志目录不存在: " + dir);
+        }
+        catch (Exception ex)
+        {
+            WriteLine("  读取日志失败: " + ex.Message);
+        }
+
+        WriteLine("================ 报告结束 ================");
+    }
+
+    private static bool IsWine()
+    {
+        try
+        {
+            return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WINEPREFIX"))
+                   || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WINEDLLOVERRIDES"));
+        }
+        catch { return false; }
+    }
+
+    private static void ListProcesses()
+    {
+        WriteLine("当前所有进程里名字含 osu 的:");
+        foreach (var p in System.Diagnostics.Process.GetProcesses().OrderBy(p => p.ProcessName))
+        {
+            if (!p.ProcessName.Contains("osu", StringComparison.OrdinalIgnoreCase)) continue;
+            string path = "";
+            try { path = p.MainModule?.FileName ?? ""; } catch { }
+            WriteLine($"  {p.ProcessName} (pid={p.Id}) {path}");
+        }
+    }
+
+    private static IEnumerable<string> ReadTailLines(string path, int count)
+    {
+        var lines = new LinkedList<string>();
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var sr = new StreamReader(fs, System.Text.Encoding.UTF8);
+        string? line;
+        while ((line = sr.ReadLine()) != null)
+        {
+            lines.AddLast(line);
+            if (lines.Count > count) lines.RemoveFirst();
+        }
+        return lines;
+    }
+
+    /// <summary>
+    /// 把一条指针链按 4 字节和 8 字节两种宽度各解析一遍并并排打印。
+    /// Wine 下如果 osu! 实际是 64 位进程，4 字节解析会读出垃圾指针，这里能直接看出来。
+    /// </summary>
+    private static void DumpChainBothWidths(IntPtr pEditor)
+    {
+        byte[] b = new byte[256];
+
+        foreach (int ptrSize in new[] { 4, 8 })
+        {
+            WriteLine($"\n  ==== 按 {ptrSize} 字节指针解析 ====");
+            uint ReadPtr(byte[] buf, int off) => ptrSize == 4
+                ? BitConverter.ToUInt32(buf, off)
+                : (uint)BitConverter.ToUInt64(buf, off);
+
+            if (!Mem.Rpm(_hProcess, pEditor + 28, b, 16))
+            {
+                WriteLine("    pEditor+28 读取失败");
+                continue;
+            }
+            uint pHom = ReadPtr(b, 0);
+            WriteLine($"    pEditor+28    -> HOM      = 0x{pHom:X}");
+
+            if (Mem.Rpm(_hProcess, pEditor + 112, b, 16)) WriteLine($"    pEditor+112   -> Compose  = 0x{ReadPtr(b, 0):X}");
+            if (Mem.Rpm(_hProcess, pEditor + 160, b, 16))
+            {
+                WriteLine($"    pEditor+160   -> 状态字段  = ({BitConverter.ToInt32(b, 0)}, {BitConverter.ToInt32(b, 4)}, {BitConverter.ToInt32(b, 8)})");
+            }
+
+            if (pHom == 0) { WriteLine("    HOM 为空，链断在这里"); continue; }
+            if (!Mem.Rpm(_hProcess, (IntPtr)pHom, b, 256)) { WriteLine("    HOM 头部读取失败"); continue; }
+
+            uint pBeatmap = ReadPtr(b, 48);
+            uint pObjectsL = ReadPtr(b, 72);
+            WriteLine($"    HOM+48        -> Beatmap  = 0x{pBeatmap:X}");
+            WriteLine($"    HOM+72        -> 物件列表 = 0x{pObjectsL:X}");
+
+            if (pObjectsL == 0) { WriteLine("    物件列表为空，链断在这里"); continue; }
+            if (!Mem.Rpm(_hProcess, (IntPtr)pObjectsL, b, 16)) { WriteLine("    物件列表头读取失败"); continue; }
+
+            uint items = ReadPtr(b, 4);
+            int size = BitConverter.ToInt32(b, 12);
+            WriteLine($"    列表头[4]     -> _items   = 0x{items:X}");
+            WriteLine($"    列表头[12]    -> _size    = {size}");
+
+            if (items != 0 && size > 0 && size < 1000000)
+            {
+                if (Mem.Rpm(_hProcess, (IntPtr)(items + 8), b, 16)) WriteLine($"    首元素指针   = 0x{ReadPtr(b, 0):X}");
+                if (Mem.Rpm(_hProcess, (IntPtr)(items + 8 + (uint)ptrSize * (size - 1)), b, 16)) WriteLine($"    末元素指针   = 0x{ReadPtr(b, 0):X}");
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ 强制扫描验证
+
+    /// <summary>
+    /// 清空绑定后强制走一遍完整扫描，并打印扫描统计与发现的候选。
+    /// 用于验证顺序扫描在真实环境里能找到编辑器、且各项计数互相一致。
+    /// </summary>
+    private static void ForceScanCheck()
+    {
+        if (_osu == null) { Attach(); }
+        if (_hProcess == IntPtr.Zero) { WriteLine("未附加到 osu!"); return; }
+
+#if LEGACY_EDITOR_READER
+        WriteLine("原 pEditor = (旧版无此诊断字段)，清空后强制重扫…");
+#else
+        WriteLine($"原 pEditor = 0x{_reader.EditorAddress.ToInt64():X}，清空后强制重扫…");
+#endif
+        var sw = Stopwatch.StartNew();
+        _reader.ResetEditor();
+        try
+        {
+            _reader.SetEditor();
+            sw.Stop();
+#if LEGACY_EDITOR_READER
+            WriteLine($"扫描成功（旧版无 EditorAddress，无法打印地址）  耗时 {sw.ElapsedMilliseconds} ms");
+#else
+            WriteLine($"扫描成功: pEditor = 0x{_reader.EditorAddress.ToInt64():X}  耗时 {sw.ElapsedMilliseconds} ms");
+#endif
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            WriteLine($"扫描失败: {ex.Message}  耗时 {sw.ElapsedMilliseconds} ms");
+        }
+
+#if LEGACY_EDITOR_READER
+        WriteLine();
+        WriteLine("扫描统计：当前构建为旧版 EditorReader，无此诊断能力（缺少全部 Diag* 扫描计数）。");
+#else
+        WriteLine();
+        WriteLine("扫描统计（各项应互相一致）：");
+        WriteLine($"  MemReg 区域总数      = {_reader.DiagMemRegCount}");
+        WriteLine($"  本应扫描(顺序表)     = {_reader.DiagScanOrderCount}");
+        WriteLine($"  实际进入扫描循环     = {_reader.DiagScanDidCount}");
+        WriteLine($"  计数器               = {_reader.DiagScanRegionsScanned}");
+        WriteLine($"  超大跳过             = {_reader.DiagScanRegionsSkipped}");
+        WriteLine($"  块读取 成功/失败     = {_reader.DiagScanChunksOk} / {_reader.DiagScanChunksFailed}");
+        WriteLine($"  签名命中             = {_reader.DiagScanSignatureHits}");
+        WriteLine($"  首个候选被拒         = {_reader.DiagScanFirstReject ?? "(无)"}");
+        WriteLine($"  首个读失败块         = {_reader.DiagScanFirstReadFailure ?? "(无)"}");
+#endif
+
+#if LEGACY_EDITOR_READER
+        // 旧版拿不到 EditorAddress：无法判断"是否绑定成功"，直接尝试读取验证（失败由 catch 兜住）
+        bool haveEditor = true;
+#else
+        bool haveEditor = _reader.EditorAddress != IntPtr.Zero;
+#endif
+        if (haveEditor)
+        {
+            WriteLine();
+            WriteLine("绑定后读取验证：");
+            try
+            {
+                _reader.SetHOM();
+                _reader.ReadHOM();
+                _reader.SetBeatmap();
+                _reader.ReadBeatmap();
+                _reader.SetControlPoints();
+                _reader.SetObjects();
+                WriteLine($"  物件={_reader.numObjects} 控制点={_reader.numControlPoints} 文件={_reader.Filename}");
+                _reader.FetchAll(false);
+                WriteLine($"  FetchAll 成功，校验通过");
+            }
+            catch (Exception ex)
+            {
+                WriteLine("  失败: " + ex.Message);
+#if !LEGACY_EDITOR_READER
+                if (_reader.DiagReadObjectFailure != null) WriteLine("  " + _reader.DiagReadObjectFailure);
+#endif
+            }
+        }
     }
 
     // ------------------------------------------------------------------ 8. 重试修复测试
@@ -2550,6 +3195,10 @@ internal static class Program
 
     private static void Dump()
     {
+#if LEGACY_EDITOR_READER
+        // 旧版没有 HomAddress / EditorAddress / GetObjectPointers，这三段原始字节对照无法进行
+        WriteLine("原始 HOM / pEditor / 物件列表指针诊断：当前构建为旧版 EditorReader，无此诊断能力。");
+#else
         {
             // 诊断：核对 ReadHOM 实际读到的原始字节与主工程解析出的指针
             byte[] raw = new byte[96];
@@ -2569,7 +3218,9 @@ internal static class Program
             WriteLine($"pEditor+112 = 0x{pCompose:X8}, Compose+72 = 0x{BitConverter.ToUInt32(h16, 0):X8} (需再解引用)");
             Mem.Rpm(_hProcess, (IntPtr)(h16.Length >= 16 ? BitConverter.ToUInt32(h16, 0) : 0), h16, 16);
         }
+#endif
 
+#if !LEGACY_EDITOR_READER
         var (listHeader, dataArray, count, ptrSize) = _reader.GetObjectPointers();
         {
             byte[] h16 = new byte[16];
@@ -2581,6 +3232,7 @@ internal static class Program
         }
         WriteLine($"指针宽度={ptrSize}");
         WriteLine($"物件列表: header=0x{listHeader:X} data=0x{dataArray:X} count={count}");
+#endif
         WriteLine($"控制点={_reader.numControlPoints} 书签={_reader.numBookmarks} 选中={_reader.numSelected}");
         WriteLine($"文件={_reader.Filename}");
         WriteLine($"BPM 相关: SliderMultiplier={_reader.SliderMultiplier} TickRate={_reader.SliderTickRate} CS={_reader.CircleSize} AR={_reader.ApproachRate} OD={_reader.OverallDifficulty} HP={_reader.HPDrainRate}");
@@ -2589,8 +3241,12 @@ internal static class Program
             WriteLine($"EditorTime={_reader.EditorTime()}  objectRadius={_reader.objectRadius} stackOffset={_reader.stackOffset}");
         }
         catch (Exception ex) { WriteLine("EditorTime 读取失败: " + ex.Message); }
+#if LEGACY_EDITOR_READER
+        WriteLine("Diag 拒绝原因计数/样本：当前构建为旧版 EditorReader，无此诊断能力。");
+#else
         WriteLine($"Diag 拒绝原因计数=[{string.Join(", ", _reader.DiagObjectRejectReasons)}]");
         if (_reader.DiagLastRejectSample != null) WriteLine("Diag 样本: " + _reader.DiagLastRejectSample);
+#endif
         WriteLine("日志计数=" + Log.Count);
     }
 
