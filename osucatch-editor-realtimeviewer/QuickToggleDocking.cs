@@ -1,7 +1,8 @@
 namespace osucatch_editor_realtimeviewer
 {
     /// <summary>
-    /// 快捷开关条的停靠行：吸附时占据菜单栏正下方的一行；浮动或隐藏时高度归零，
+    /// 快捷开关条的停靠行：吸附在顶部时占据菜单栏正下方的一行，
+    /// 吸附在左 / 右侧时占据画布旁边的一列；浮动或隐藏时尺寸归零，
     /// 配合 <see cref="Control.Visible"/> = false 完全不占用画布空间。
     /// </summary>
     internal sealed class QuickToggleDockRow : Panel
@@ -14,12 +15,17 @@ namespace osucatch_editor_realtimeviewer
             Dock = DockStyle.Top;
             AutoSize = false;
             Height = 0;
+            Width = 0;
+            Visible = false;
             Margin = Padding.Empty;
             Padding = Padding.Empty;
             TabStop = false;
         }
 
         internal bool HasBar => bar != null && bar.Parent == this;
+
+        /// <summary>当前是否竖排（吸附在左 / 右侧）。</summary>
+        internal bool IsVertical => Dock is DockStyle.Left or DockStyle.Right;
 
         protected override void OnControlAdded(ControlEventArgs e)
         {
@@ -33,7 +39,14 @@ namespace osucatch_editor_realtimeviewer
             base.OnControlRemoved(e);
             if (e.Control != bar) return;
             bar = null;
-            if (Height != 0) Height = 0;
+            if (IsVertical)
+            {
+                if (Width != 0) Width = 0;
+            }
+            else if (Height != 0)
+            {
+                Height = 0;
+            }
         }
 
         protected override void OnLayout(LayoutEventArgs e)
@@ -41,13 +54,25 @@ namespace osucatch_editor_realtimeviewer
             base.OnLayout(e);
             if (bar == null || bar.Parent != this) return;
 
+            if (IsVertical)
+            {
+                // 列宽由条的竖排宽度决定；条本身不自动调整大小，高度始终铺满可用区域
+                int height = Math.Max(Height, 1);
+                int width = Math.Max(bar.GetPreferredSize(new Size(0, height)).Width, 1);
+                bar.Bounds = new Rectangle(0, 0, width, height);
+                bar.NoteDockedThickness(vertical: true, width);
+                if (Width != width) Width = width;
+                return;
+            }
+
             // 行高由条的首选高度决定；条本身不自动调整大小，宽度始终铺满窗口。
             // 首选高度必须按“实际可用宽度”问条要：条用 Flow 布局换行排布，传一个很宽的宽度
             // 只会得到“单行”的高度，行会被压成一行高，第二行往后的控件全被裁掉看不见。
-            int width = Math.Max(Width, 1);
-            int height = Math.Max(bar.GetPreferredSize(new Size(width, 0)).Height, 1);
-            bar.Bounds = new Rectangle(0, 0, width, height);
-            if (Height != height) Height = height;
+            int rowWidth = Math.Max(Width, 1);
+            int rowHeight = Math.Max(bar.GetPreferredSize(new Size(rowWidth, 0)).Height, 1);
+            bar.Bounds = new Rectangle(0, 0, rowWidth, rowHeight);
+            bar.NoteDockedThickness(vertical: false, rowHeight);
+            if (Height != rowHeight) Height = rowHeight;
         }
     }
 
@@ -118,26 +143,37 @@ namespace osucatch_editor_realtimeviewer
     }
 
     /// <summary>
-    /// 快捷开关条的停靠 / 浮动管理器：在“菜单栏下方的停靠行”和“浮动小窗口”之间搬运开关条，
-    /// 处理拖出、拖回时的吸附判定，并把停靠状态与开关状态持久化到用户设置。
+    /// 快捷开关条的停靠 / 浮动管理器：在“菜单栏下方的停靠行”、“画布左 / 右侧的停靠列”
+    /// 和“浮动小窗口”之间搬运开关条，处理拖出、拖回时的吸附判定（顶部 / 左侧 / 右侧），
+    /// 并把停靠位置与开关状态持久化到用户设置。
     /// </summary>
     internal sealed class QuickToggleDocking : IDisposable
     {
-        /// <summary>吸附判定距离（屏幕像素）：拖到停靠行 / 菜单栏附近这么多像素内松手即吸附回去。</summary>
+        /// <summary>吸附判定距离（屏幕像素）：拖到停靠区附近这么多像素内松手即吸附过去。</summary>
         private const int SnapDistance = 32;
 
-        /// <summary>吸附提示条高度（屏幕像素）。</summary>
+        /// <summary>吸附提示条厚度（屏幕像素）。</summary>
         private const int HintHeight = 6;
+
+        /// <summary>三个可吸附的位置，按“顶部 → 左侧 → 右侧”的顺序判定。</summary>
+        private static readonly QuickToggleDockSide[] DockSides =
+        {
+            QuickToggleDockSide.Top,
+            QuickToggleDockSide.Left,
+            QuickToggleDockSide.Right,
+        };
 
         private readonly Form owner;
         private readonly QuickToggleBar bar;
         private readonly QuickToggleDockRow dockRow;
         private readonly Control? snapAnchor;
+        private readonly Control? bottomAnchor;
         private readonly QuickToggleFloatForm floatForm;
         private readonly QuickToggleDropHintForm hintForm;
 
         private bool barVisible = true;
         private bool floating;
+        private QuickToggleDockSide dockSide = QuickToggleDockSide.Top;
         private bool dragging;
         private bool disposed;
         private bool suppressReDock;
@@ -145,12 +181,13 @@ namespace osucatch_editor_realtimeviewer
         private Point dragOriginCursor;
         private Point dragOriginFormLocation;
 
-        internal QuickToggleDocking(Form owner, QuickToggleBar bar, QuickToggleDockRow dockRow, Control? snapAnchor)
+        internal QuickToggleDocking(Form owner, QuickToggleBar bar, QuickToggleDockRow dockRow, Control? snapAnchor, Control? bottomAnchor = null)
         {
             this.owner = owner;
             this.bar = bar;
             this.dockRow = dockRow;
             this.snapAnchor = snapAnchor;
+            this.bottomAnchor = bottomAnchor;
 
             floatForm = new QuickToggleFloatForm(bar);
             hintForm = new QuickToggleDropHintForm();
@@ -165,6 +202,7 @@ namespace osucatch_editor_realtimeviewer
             bar.DragEnded += Bar_DragEnded;
             bar.FloatingToggleRequested += Bar_FloatingToggleRequested;
             bar.HideRequested += Bar_HideRequested;
+            bar.DockSideRequested += Bar_DockSideRequested;
             bar.ContentChanged += Bar_ContentChanged;
             bar.ToggleChanged += Bar_ToggleChanged;
             bar.GroupsVisibilityChanged += Bar_GroupsVisibilityChanged;
@@ -172,11 +210,36 @@ namespace osucatch_editor_realtimeviewer
             dockRow.Controls.Add(bar);
         }
 
-        /// <summary>停靠状态（停靠 / 浮动 / 显示 / 隐藏）发生变化时触发。</summary>
+        /// <summary>停靠状态（停靠位置 / 浮动 / 显示 / 隐藏）发生变化时触发。</summary>
         internal event EventHandler? StateChanged;
 
         /// <summary>当前是否浮动为小窗口。</summary>
         internal bool IsFloating => floating;
+
+        /// <summary>
+        /// 当前吸附位置：顶部（菜单栏下方一行，控件横排）或左 / 右侧（画布旁边一列，控件竖排）。
+        /// 写入即生效并持久化；正在浮动时只改变浮动窗口的排布方向，不会自动吸附回去。
+        /// </summary>
+        internal QuickToggleDockSide DockSide
+        {
+            get => dockSide;
+            set
+            {
+                if (disposed || dockSide == value) return;
+                dockSide = value;
+                ApplyDockSide();
+                SaveState();
+                RaiseStateChanged();
+            }
+        }
+
+        /// <summary>吸附到指定位置；正在浮动时一并吸附回主窗口。</summary>
+        internal void DockTo(QuickToggleDockSide side)
+        {
+            DockSide = side;
+            if (disposed) return;
+            Dock();
+        }
 
         /// <summary>快捷开关栏是否显示（隐藏时停靠行与浮窗都不占屏幕空间）。</summary>
         internal bool BarVisible
@@ -196,9 +259,12 @@ namespace osucatch_editor_realtimeviewer
         /// 按用户设置恢复启动状态。<paramref name="floatMode"/> 为 true 时等主窗口显示出来之后再弹出浮窗，
         /// 避免启动过程中浮窗出现在错误的位置。
         /// </summary>
-        internal void ApplyStartupState(bool visible, bool floatMode)
+        internal void ApplyStartupState(bool visible, bool floatMode, QuickToggleDockSide side)
         {
             if (disposed) return;
+
+            dockSide = side;
+            ApplyDockSide();
 
             barVisible = visible;
             if (!visible || !floatMode)
@@ -212,6 +278,29 @@ namespace osucatch_editor_realtimeviewer
                 if (disposed) return;
                 FloatCore(SavedFloatLocation());
             }));
+        }
+
+        /// <summary>
+        /// 把停靠行挂进主窗口的停靠布局：由宿主在把停靠行加入 <c>Controls</c> 之后调用。
+        /// 行在控件集合里的位置取决于吸附位置，见 <see cref="PlaceDockRow"/>。
+        /// </summary>
+        internal void ApplyDockSide()
+        {
+            if (disposed) return;
+
+            dockRow.Dock = dockSide switch
+            {
+                QuickToggleDockSide.Left => DockStyle.Left,
+                QuickToggleDockSide.Right => DockStyle.Right,
+                _ => DockStyle.Top,
+            };
+
+            bar.DockSide = dockSide;
+            PlaceDockRow();
+
+            if (floating) floatForm.Refit();
+            else dockRow.PerformLayout();
+            owner.PerformLayout();
         }
 
         /// <summary>吸附回工具栏。</summary>
@@ -260,6 +349,7 @@ namespace osucatch_editor_realtimeviewer
 
             app.Default.QuickToggle_Visible = barVisible;
             app.Default.QuickToggle_Floating = floating;
+            app.Default.QuickToggle_DockSide = dockSide.ToSettingValue();
             if (floating && floatForm.Visible)
             {
                 app.Default.QuickToggle_Float_X = floatForm.Location.X;
@@ -270,6 +360,56 @@ namespace osucatch_editor_realtimeviewer
         }
 
         #region 停靠 / 浮动切换
+
+        /// <summary>
+        /// 安排停靠行的位置。WinForms 按控件集合的倒序停靠控件（下标大的先被安排），
+        /// 因此集合顺序直接决定了行与菜单栏 / 状态栏 / 画布的关系：
+        /// <list type="bullet">
+        /// <item>顶部吸附：[状态栏, 画布, 停靠行, 菜单栏] —— 与既有布局完全一致：
+        /// 行先于画布被安排，正好把画布挤到菜单栏下方；</item>
+        /// <item>左 / 右吸附：[画布, 停靠行, 状态栏, 菜单栏] —— 画布先让出一列宽度给行，
+        /// 行夹在菜单栏与状态栏之间，画布也不会有一块被行盖住。</item>
+        /// </list>
+        /// </summary>
+        private void PlaceDockRow()
+        {
+            Control.ControlCollection controls = owner.Controls;
+            if (!controls.Contains(dockRow)) return;
+
+            Control? canvas = FindFillControl();
+            Control?[] order = dockSide == QuickToggleDockSide.Top
+                ? new[] { bottomAnchor, canvas, dockRow, snapAnchor }
+                : new[] { canvas, dockRow, bottomAnchor, snapAnchor };
+
+            // SetChildIndex 是“先摘下来、再插到指定下标”，按目标下标从小到大逐个摆放即可
+            // 得到想要的顺序（前几个位置在摆放过程中不会被后面的操作打乱）
+            owner.SuspendLayout();
+            try
+            {
+                int index = 0;
+                foreach (Control? control in order)
+                {
+                    if (control == null || !controls.Contains(control)) continue;
+                    if (controls.GetChildIndex(control) != index) controls.SetChildIndex(control, index);
+                    index++;
+                }
+            }
+            finally
+            {
+                owner.ResumeLayout(performLayout: false);
+            }
+        }
+
+        /// <summary>找出铺满剩余区域的画布控件（<see cref="DockStyle.Fill"/>）：停靠行要相对它摆位。</summary>
+        private Control? FindFillControl()
+        {
+            foreach (Control control in owner.Controls)
+            {
+                if (control == dockRow || control == snapAnchor || control == bottomAnchor) continue;
+                if (control.Dock == DockStyle.Fill) return control;
+            }
+            return null;
+        }
 
         private void DockCore()
         {
@@ -318,16 +458,23 @@ namespace osucatch_editor_realtimeviewer
         private void MoveBar(Control parent)
         {
             if (bar.Parent == parent) return;
-            // 先摘再挂：停靠行会在移除时把高度归零，加入时按条的首选高度重新撑开
+            // 先摘再挂：停靠行会在移除时把行高 / 列宽归零，加入时按条的首选尺寸重新撑开
             bar.Parent?.Controls.Remove(bar);
             parent.Controls.Add(bar);
             parent.PerformLayout();
         }
 
+        /// <summary>浮窗的默认位置：贴着条原来在屏幕上的位置弹出来，横排弹到下方、竖排弹到侧面。</summary>
         private Point DefaultFloatLocation(Rectangle barScreenBefore)
         {
             if (barScreenBefore.IsEmpty) return floatForm.Location;
-            return new Point(barScreenBefore.X, barScreenBefore.Bottom + 4);
+
+            return dockSide switch
+            {
+                QuickToggleDockSide.Left => new Point(barScreenBefore.Right + 4, barScreenBefore.Y),
+                QuickToggleDockSide.Right => new Point(barScreenBefore.Left - floatForm.Width - 4, barScreenBefore.Y),
+                _ => new Point(barScreenBefore.X, barScreenBefore.Bottom + 4),
+            };
         }
 
         private static Point ClampToScreen(Point location, Size size)
@@ -384,7 +531,7 @@ namespace osucatch_editor_realtimeviewer
                 dragOriginFormLocation = floatForm.Location;
             }
 
-            UpdateHint(IsInSnapZone(e.CursorScreen));
+            UpdateHint(TryGetSnapSide(e.CursorScreen, out QuickToggleDockSide side) ? side : null);
         }
 
         private void Bar_DragMoved(object? sender, QuickToggleDragEventArgs e)
@@ -396,18 +543,19 @@ namespace osucatch_editor_realtimeviewer
                 dragOriginFormLocation.Y + e.CursorScreen.Y - dragOriginCursor.Y);
             if (floatForm.Location != location) floatForm.Location = location;
 
-            UpdateHint(IsInSnapZone(e.CursorScreen));
+            UpdateHint(TryGetSnapSide(e.CursorScreen, out QuickToggleDockSide side) ? side : null);
         }
 
         private void Bar_DragEnded(object? sender, QuickToggleDragEventArgs e)
         {
             if (disposed) return;
             dragging = false;
-            UpdateHint(false);
+            UpdateHint(null);
 
-            if (IsInSnapZone(e.CursorScreen))
+            if (TryGetSnapSide(e.CursorScreen, out QuickToggleDockSide side))
             {
-                Dock();
+                // 拖到哪一侧就吸附到哪一侧（顶部 / 左侧 / 右侧），并顺带切换横排 / 竖排
+                DockTo(side);
                 return;
             }
 
@@ -416,39 +564,91 @@ namespace osucatch_editor_realtimeviewer
             SaveState();
         }
 
-        /// <summary>拖到停靠行所在的一行（或菜单栏上）即视为要吸附回去。</summary>
-        private bool IsInSnapZone(Point cursorScreen)
+        /// <summary>
+        /// 判断松手位置要吸附到哪一侧：拖到某个吸附区附近（或菜单栏上）即命中，
+        /// 同时命中多个时取最近的一个，已经吸附着的那一侧略有优先，避免抖动时来回跳。
+        /// </summary>
+        private bool TryGetSnapSide(Point cursorScreen, out QuickToggleDockSide side)
         {
-            Rectangle target = DockTargetScreenRect();
-            target.Inflate(0, SnapDistance);
-            if (target.Contains(cursorScreen)) return true;
+            side = QuickToggleDockSide.Top;
 
+            // 菜单栏本身也算吸附区：拖到菜单栏上松手即吸附回顶部
             Control? anchor = snapAnchor;
-            return anchor != null && anchor.IsHandleCreated &&
-                anchor.RectangleToScreen(anchor.ClientRectangle).Contains(cursorScreen);
+            if (anchor != null && anchor.IsHandleCreated &&
+                anchor.RectangleToScreen(anchor.ClientRectangle).Contains(cursorScreen))
+            {
+                return true;
+            }
+
+            int best = int.MaxValue;
+            foreach (QuickToggleDockSide candidate in DockSides)
+            {
+                int distance = DistanceToRect(DockTargetScreenRect(candidate), cursorScreen);
+                if (candidate == dockSide) distance -= SnapDistance / 2;
+                if (distance > SnapDistance || distance >= best) continue;
+
+                best = distance;
+                side = candidate;
+            }
+
+            return best != int.MaxValue;
         }
 
-        /// <summary>吸附目标矩形：菜单栏正下方、与主窗口同宽的一行（屏幕坐标）。</summary>
-        private Rectangle DockTargetScreenRect()
+        /// <summary>点到矩形的距离：在矩形内为 0，取两个方向上偏移量的较大值（靠近边缘即算命中）。</summary>
+        private static int DistanceToRect(Rectangle rect, Point point)
         {
-            int menuBottom = snapAnchor != null ? snapAnchor.Bottom : 0;
-            Point topLeft = owner.PointToScreen(new Point(0, menuBottom));
-            int height = Math.Max(bar.PreferredSize.Height, 1);
-            return new Rectangle(topLeft, new Size(owner.ClientSize.Width, height));
+            int dx = Math.Max(Math.Max(rect.Left - point.X, 0), point.X - rect.Right);
+            int dy = Math.Max(Math.Max(rect.Top - point.Y, 0), point.Y - rect.Bottom);
+            return Math.Max(dx, dy);
         }
 
-        private void UpdateHint(bool show)
+        /// <summary>
+        /// 某个吸附位置对应的目标矩形（屏幕坐标）：
+        /// 顶部是菜单栏正下方、与主窗口同宽的一行；左 / 右是菜单栏与状态栏之间的一个竖条。
+        /// </summary>
+        private Rectangle DockTargetScreenRect(QuickToggleDockSide side)
         {
-            if (show)
+            Point origin = owner.PointToScreen(Point.Empty);
+            int top = origin.Y + (snapAnchor != null ? snapAnchor.Bottom : 0);
+            int bottom = bottomAnchor != null && bottomAnchor.IsHandleCreated
+                ? origin.Y + bottomAnchor.Top
+                : origin.Y + owner.ClientSize.Height;
+            int height = Math.Max(bottom - top, 1);
+
+            if (side == QuickToggleDockSide.Top)
             {
-                Rectangle target = DockTargetScreenRect();
-                hintForm.Bounds = new Rectangle(target.X, target.Y, Math.Max(target.Width, 1), HintHeight);
-                if (!hintForm.Visible) hintForm.Show();
+                return new Rectangle(
+                    origin.X,
+                    top,
+                    Math.Max(owner.ClientSize.Width, 1),
+                    Math.Max(bar.PreferredThickness(vertical: false), 1));
             }
-            else if (hintForm.Visible)
+
+            int thickness = Math.Max(bar.PreferredThickness(vertical: true), 1);
+            return side == QuickToggleDockSide.Left
+                ? new Rectangle(origin.X, top, thickness, height)
+                : new Rectangle(origin.X + Math.Max(owner.ClientSize.Width - thickness, 0), top, thickness, height);
+        }
+
+        /// <summary>显示 / 隐藏吸附提示：顶部是一条横线，左 / 右是一条竖线。</summary>
+        private void UpdateHint(QuickToggleDockSide? side)
+        {
+            if (!side.HasValue)
             {
-                hintForm.Hide();
+                if (hintForm.Visible) hintForm.Hide();
+                return;
             }
+
+            Rectangle target = DockTargetScreenRect(side.Value);
+            Rectangle bounds = side.Value switch
+            {
+                QuickToggleDockSide.Left => new Rectangle(target.X, target.Y, HintHeight, Math.Max(target.Height, 1)),
+                QuickToggleDockSide.Right => new Rectangle(target.Right - HintHeight, target.Y, HintHeight, Math.Max(target.Height, 1)),
+                _ => new Rectangle(target.X, target.Y, Math.Max(target.Width, 1), HintHeight),
+            };
+
+            if (hintForm.Bounds != bounds) hintForm.Bounds = bounds;
+            if (!hintForm.Visible) hintForm.Show();
         }
 
         #endregion
@@ -463,6 +663,12 @@ namespace osucatch_editor_realtimeviewer
         private void Bar_HideRequested(object? sender, EventArgs e)
         {
             BarVisible = false;
+        }
+
+        /// <summary>右键菜单里选了新的吸附位置：切过去并吸附回主窗口。</summary>
+        private void Bar_DockSideRequested(object? sender, QuickToggleDockSideEventArgs e)
+        {
+            DockTo(e.Side);
         }
 
         private void Bar_ContentChanged(object? sender, EventArgs e)
@@ -532,6 +738,7 @@ namespace osucatch_editor_realtimeviewer
             bar.DragEnded -= Bar_DragEnded;
             bar.FloatingToggleRequested -= Bar_FloatingToggleRequested;
             bar.HideRequested -= Bar_HideRequested;
+            bar.DockSideRequested -= Bar_DockSideRequested;
             bar.ContentChanged -= Bar_ContentChanged;
             bar.ToggleChanged -= Bar_ToggleChanged;
             bar.GroupsVisibilityChanged -= Bar_GroupsVisibilityChanged;

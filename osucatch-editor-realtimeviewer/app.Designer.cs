@@ -1091,5 +1091,17 @@ namespace osucatch_editor_realtimeviewer {
             }
         }
         
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Top")]
+        public string QuickToggle_DockSide {
+            get {
+                return ((string)(this["QuickToggle_DockSide"]));
+            }
+            set {
+                this["QuickToggle_DockSide"] = value;
+            }
+        }
+        
     }
 }

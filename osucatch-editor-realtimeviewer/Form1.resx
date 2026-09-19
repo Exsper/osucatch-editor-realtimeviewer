@@ -1009,4 +1009,16 @@
   <data name="quickToggleStripMenuItem.Text" xml:space="preserve">
     <value>&amp;Quick Toggle Bar</value>
   </data>
+  <data name="quickToggleDockSideToolStripMenuItem.Text" xml:space="preserve">
+    <value>Quick Toggle Bar &amp;Position</value>
+  </data>
+  <data name="quickToggleDockTopToolStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Top of the viewer (horizontal)</value>
+  </data>
+  <data name="quickToggleDockLeftToolStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Left of the viewer (vertical)</value>
+  </data>
+  <data name="quickToggleDockRightToolStripMenuItem.Text" xml:space="preserve">
+    <value>&amp;Right of the viewer (vertical)</value>
+  </data>
 </root>

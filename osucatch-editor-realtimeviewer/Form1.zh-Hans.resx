@@ -445,4 +445,16 @@
   <data name="quickToggleStripMenuItem.Text" xml:space="preserve">
     <value>快捷开关栏 (&amp;Q)</value>
   </data>
+  <data name="quickToggleDockSideToolStripMenuItem.Text" xml:space="preserve">
+    <value>快捷开关栏位置 (&amp;P)</value>
+  </data>
+  <data name="quickToggleDockTopToolStripMenuItem.Text" xml:space="preserve">
+    <value>吸附在 Viewer 顶部（横排）(&amp;T)</value>
+  </data>
+  <data name="quickToggleDockLeftToolStripMenuItem.Text" xml:space="preserve">
+    <value>吸附在 Viewer 左侧（竖排）(&amp;L)</value>
+  </data>
+  <data name="quickToggleDockRightToolStripMenuItem.Text" xml:space="preserve">
+    <value>吸附在 Viewer 右侧（竖排）(&amp;R)</value>
+  </data>
 </root>
