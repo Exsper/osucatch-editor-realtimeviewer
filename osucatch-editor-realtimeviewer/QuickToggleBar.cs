@@ -323,6 +323,109 @@ namespace osucatch_editor_realtimeviewer
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
 
+        #region 按钮图标
+
+        /// <summary>
+        /// 按文件路径缓存的图标：同一个文件只从磁盘读一次。
+        /// <para />缓存的是从文件流解码出来的 <see cref="Bitmap"/>，所有按钮共用同一个实例，
+        /// 因此<b>不要</b>把返回的图片再交给会 Dispose 它的调用方。
+        /// </para>
+        /// </summary>
+        private static readonly Dictionary<string, Image?> iconCache = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// 设置开关按钮的图标。传 null 或文件不存在时只清空图标，按钮回退为显示文字。
+        /// </summary>
+        /// <param name="key">开关标识。</param>
+        /// <param name="path">图标文件路径（通常是 exe 目录下的 icons\*.png）。</param>
+        /// <param name="displayStyle">
+        /// 设置成功时要切换到的显示方式：只显示图标（<see cref="ToolStripItemDisplayStyle.Image"/>）
+        /// 或图标 + 文字。图标缺失时不变更显示方式，保证按钮不会变成空白。
+        /// </param>
+        internal void SetToggleImage(string key, string? path, ToolStripItemDisplayStyle displayStyle = ToolStripItemDisplayStyle.Image)
+        {
+            if (!toggles.TryGetValue(key, out ToolStripButton? item)) return;
+
+            Image? image = LoadIcon(path);
+            if (image == null)
+            {
+                item.Image = null;
+                item.DisplayStyle = ToolStripItemDisplayStyle.Text;
+            }
+            else
+            {
+                item.Image = image;
+                item.ImageScaling = ToolStripItemImageScaling.SizeToFit;
+                item.DisplayStyle = displayStyle;
+            }
+
+            ContentChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>把功能区里所有开关按钮的显示方式统一改掉（如“果子标注”整组只显示图标）。</summary>
+        internal void SetGroupTogglesDisplayStyle(string groupKey, ToolStripItemDisplayStyle displayStyle)
+        {
+            if (!groups.TryGetValue(groupKey, out QuickToggleGroup? group)) return;
+
+            bool changed = false;
+            foreach (ToolStripItem item in group.Items)
+            {
+                if (item is not ToolStripButton button) continue;
+                if (button.Image == null) continue;      // 没有图标的按钮保持文字，避免变成空白
+                button.DisplayStyle = displayStyle;
+                changed = true;
+            }
+
+            if (changed) ContentChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// 把图标缩放到条的 <see cref="ToolStrip.ImageScalingSize"/> 大小。
+        /// <para />不缩放的话，每个按钮都会按图片原始像素绘制：一旦 Windows 缩放不是 100%，
+        /// 或者提供的是 24/32px 的高分屏图标，图标就会比按钮还高，把停靠行撑高。
+        /// </para>
+        /// </summary>
+        private Image? LoadIcon(string? path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+            if (iconCache.TryGetValue(path, out Image? cached)) return cached;
+
+            Image? image = null;
+            if (File.Exists(path))
+            {
+                try
+                {
+                    using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    using Image source = Image.FromStream(stream);
+                    Size target = new(Math.Max(ImageScalingSize.Width, 1), Math.Max(ImageScalingSize.Height, 1));
+                    if (source.Width == target.Width && source.Height == target.Height)
+                    {
+                        // 尺寸已经匹配（最常见的 16x16 @100%）：直接留一份位图副本，
+                        // 避免持有文件流的解码依赖
+                        image = new Bitmap(source);
+                    }
+                    else
+                    {
+                        Bitmap scaled = new(target.Width, target.Height);
+                        using Graphics graphics = Graphics.FromImage(scaled);
+                        graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                        graphics.DrawImage(source, 0, 0, target.Width, target.Height);
+                        image = scaled;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.ConsoleLog("Read icon file failed: " + path + "\r\n" + ex, Log.LogType.Drawing, Log.LogLevel.Warning);
+                }
+            }
+
+            iconCache[path] = image;
+            return image;
+        }
+
+        #endregion
+
         /// <summary>读取开关的勾选状态；开关不存在时返回 false。</summary>
         internal bool IsChecked(string key) => toggles.TryGetValue(key, out ToolStripButton? item) && item.Checked;
 

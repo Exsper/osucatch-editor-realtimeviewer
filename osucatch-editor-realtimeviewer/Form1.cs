@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Catch.Objects;
 using System.ComponentModel;
@@ -1531,8 +1531,9 @@ namespace osucatch_editor_realtimeviewer
                 modGroup.AddToggle(ModKeys[i], ModToggleText((ModMode)i), (ModMode)i == ModMode.None);
             }
 
-            // ---- 果子标注：四个按钮单选，对应菜单栏里最常用的四种标注 ----
-            QuickToggleBar.QuickToggleGroup labelGroup = quickToggleBar.AddGroup(LabelGroupKey, chinese ? "果子标注" : "Fruit Labels");
+            // ---- 果子标注：四个按钮单选，对应菜单栏里最常用的四种标注。
+            //      每个模式都有对应图标，因此整组不加标题、按钮只显示图标（名称见按钮提示）。 ----
+            QuickToggleBar.QuickToggleGroup labelGroup = quickToggleBar.AddGroup(LabelGroupKey, "");
             for (int i = 0; i < LabelKeys.Length; i++)
             {
                 labelGroup.AddToggle(LabelKeys[i], LabelToggleText((QuickLabelMode)i), (QuickLabelMode)i == QuickLabelMode.Hidden);
@@ -1547,7 +1548,75 @@ namespace osucatch_editor_realtimeviewer
                 (int)BarLineSettings.CurrentMode,
                 1);
             barLineGroup.AddLabel(BarLineValueKey + "_Text", BarLineStatusText());
+
+            ApplyQuickToggleIcons();
         }
+
+        #region 快捷开关：按钮图标
+
+        /// <summary>图标目录：与贴图一样按程序所在目录解析（icons\ 就在 exe 旁边）。</summary>
+        private const string IconsFolder = "icons";
+
+        /// <summary>“固定预览时刻”两个状态的图标文件名（相对 icons\）。</summary>
+        private const string FreezeIconFile = "QuickLabelMode_Switch2Freeze.png";
+
+        private const string FollowIconFile = "QuickLabelMode_Switch2Following.png";
+
+        /// <summary>
+        /// 果子标注四个按钮的图标文件名，顺序与 <see cref="LabelKeys"/> / <see cref="QuickLabelMode"/> 一致。
+        /// </summary>
+        private static readonly string[] LabelIconFiles =
+        {
+            "QuickLabelMode_Hide.png",
+            "QuickLabelMode_Distance.png",
+            "QuickLabelMode_DistanceIgnoreSvm.png",
+            "QuickLabelMode_Stars.png",
+        };
+
+        /// <summary>取 icons\ 目录下某个图标文件的完整路径（按 exe 目录解析，找不到时回退相对路径）。</summary>
+        private static string ResolveIconPath(string fileName)
+            => ResolveImagePath(Path.Combine(IconsFolder, fileName));
+
+        /// <summary>果子标注模式对应的图标文件路径。</summary>
+        private static string LabelModeIconPath(QuickLabelMode mode)
+        {
+            int index = (int)mode;
+            return (index >= 0 && index < LabelIconFiles.Length) ? ResolveIconPath(LabelIconFiles[index]) : "";
+        }
+
+        /// <summary>
+        /// 给按钮装上图标（“固定预览时刻” + 果子标注四个按钮）。
+        /// <para />图标缺失时会退化成显示文字——所以即使 icons\ 没随程序一起发布，
+        /// 按钮也不会变成认不出来的空白图标。
+        /// </para>
+        /// </summary>
+        private void ApplyQuickToggleIcons()
+        {
+            if (quickToggleBar == null) return;
+
+            // 图标缺失时退化为文字显示：先按文字算好标签与提示，再尝试装图标
+            (string followText, string followToolTip) = FreezePreviewTimeText(false);
+            (string freezeText, string freezeToolTip) = FreezePreviewTimeText(true);
+
+            bool freeze = previewTimeFrozen;
+            quickToggleBar.SetToggleText(
+                FreezePreviewTimeKey,
+                freeze ? followText : freezeText,
+                freeze ? followToolTip : freezeToolTip);
+            quickToggleBar.SetToggleImage(
+                FreezePreviewTimeKey,
+                ResolveIconPath(freeze ? FollowIconFile : FreezeIconFile));
+
+            for (int i = 0; i < LabelKeys.Length; i++)
+            {
+                quickToggleBar.SetToggleImage(LabelKeys[i], LabelModeIconPath((QuickLabelMode)i));
+            }
+
+            // 整组只显示图标（果子标注这个标题已经按需求去掉，图标本身就能说明模式）
+            quickToggleBar.SetGroupTogglesDisplayStyle(LabelGroupKey, ToolStripItemDisplayStyle.Image);
+        }
+
+        #endregion
 
         #region 快捷开关：设置与执行
 
@@ -1759,9 +1828,8 @@ namespace osucatch_editor_realtimeviewer
             // 判定线据此改为跟随 editor 时刻在画面上的位置
             drawingHelper.FixedPreviewTime = frozen;
 
-            // 按钮文本/提示跟随状态：⏸ 表示点击后固定，▶ 表示点击后恢复跟随
-            (string text, string toolTip) = FreezePreviewTimeText(frozen);
-            quickToggleBar?.SetToggleText(FreezePreviewTimeKey, text, toolTip);
+            // 按钮图标/提示跟随状态：冰冻图标表示点击后固定，播放图标表示点击后恢复跟随
+            ApplyQuickToggleIcons();
 
             if (!frozen)
             {
@@ -1851,7 +1919,7 @@ namespace osucatch_editor_realtimeviewer
 
             // 功能区标题（AddGroup 对已存在的功能区只更新标题）
             quickToggleBar.AddGroup(ModGroupKey, "");
-            quickToggleBar.AddGroup(LabelGroupKey, chinese ? "果子标注" : "Fruit Labels");
+            quickToggleBar.AddGroup(LabelGroupKey, "");
             quickToggleBar.AddGroup(BarLineGroupKey, chinese ? "拍线" : "Bar Lines");
 
             for (int i = 0; i < ModKeys.Length; i++)
@@ -1862,6 +1930,9 @@ namespace osucatch_editor_realtimeviewer
             {
                 quickToggleBar.SetToggleText(LabelKeys[i], LabelToggleText((QuickLabelMode)i), LabelToggleToolTip((QuickLabelMode)i));
             }
+
+            // 提示文字按语言刷新后再重装图标（图标只显示时，文字只作为按钮提示）
+            ApplyQuickToggleIcons();
 
             quickToggleBar.SetGroupLabelText(BarLineGroupKey, BarLineValueKey + "_Text", BarLineStatusText());
         }
