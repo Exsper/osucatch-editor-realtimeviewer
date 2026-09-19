@@ -1,4 +1,4 @@
-﻿namespace osucatch_editor_realtimeviewer
+namespace osucatch_editor_realtimeviewer
 {
     partial class SettingsForm
     {
@@ -85,7 +85,6 @@
             checkBox_UseBatchRendering = new CheckBox();
             label_UseBatchRenderingWarning = new Label();
             groupBox7 = new GroupBox();
-            checkBox_BarLine_Show = new CheckBox();
             checkBox_TimingLine_ShowGreen = new CheckBox();
             checkBox_TimingLine_ShowRed = new CheckBox();
             comboBox_BarLineSubdivide = new ComboBox();
@@ -532,7 +531,6 @@
             // groupBox7
             // 
             resources.ApplyResources(groupBox7, "groupBox7");
-            groupBox7.Controls.Add(checkBox_BarLine_Show);
             groupBox7.Controls.Add(checkBox_TimingLine_ShowGreen);
             groupBox7.Controls.Add(checkBox_TimingLine_ShowRed);
             groupBox7.Controls.Add(comboBox_BarLineSubdivide);
@@ -543,12 +541,6 @@
             groupBox7.Controls.Add(numericUpDown_RedSpeed);
             groupBox7.Name = "groupBox7";
             groupBox7.TabStop = false;
-            // 
-            // checkBox_BarLine_Show
-            // 
-            resources.ApplyResources(checkBox_BarLine_Show, "checkBox_BarLine_Show");
-            checkBox_BarLine_Show.Name = "checkBox_BarLine_Show";
-            checkBox_BarLine_Show.UseVisualStyleBackColor = true;
             // 
             // checkBox_TimingLine_ShowGreen
             // 
@@ -567,7 +559,18 @@
             resources.ApplyResources(comboBox_BarLineSubdivide, "comboBox_BarLineSubdivide");
             comboBox_BarLineSubdivide.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBox_BarLineSubdivide.FormattingEnabled = true;
-            comboBox_BarLineSubdivide.Items.AddRange(new object[] { resources.GetString("comboBox_BarLineSubdivide.Items"), resources.GetString("comboBox_BarLineSubdivide.Items1"), resources.GetString("comboBox_BarLineSubdivide.Items2") });
+            comboBox_BarLineSubdivide.Items.AddRange(new object[] {
+            resources.GetString("comboBox_BarLineSubdivide.Items"),
+            resources.GetString("comboBox_BarLineSubdivide.Items1"),
+            resources.GetString("comboBox_BarLineSubdivide.Items2"),
+            resources.GetString("comboBox_BarLineSubdivide.Items3"),
+            resources.GetString("comboBox_BarLineSubdivide.Items4"),
+            resources.GetString("comboBox_BarLineSubdivide.Items5"),
+            resources.GetString("comboBox_BarLineSubdivide.Items6"),
+            resources.GetString("comboBox_BarLineSubdivide.Items7"),
+            resources.GetString("comboBox_BarLineSubdivide.Items8"),
+            resources.GetString("comboBox_BarLineSubdivide.Items9"),
+            resources.GetString("comboBox_BarLineSubdivide.Items10")});
             comboBox_BarLineSubdivide.Name = "comboBox_BarLineSubdivide";
             // 
             // checkBox_ShowDistanceHelper
@@ -842,7 +845,6 @@
         private GroupBox groupBox7;
         private CheckBox checkBox_TimingLine_ShowGreen;
         private CheckBox checkBox_TimingLine_ShowRed;
-        private CheckBox checkBox_BarLine_Show;
         private CheckBox checkBox_ShowSelected;
         private GroupBox groupBox8;
         private CheckBox checkBox_FilterNearbyHitObjects;

@@ -1,4 +1,4 @@
-﻿using OpenTK;
+using OpenTK;
 using OpenTK.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
@@ -255,14 +255,16 @@ namespace osucatch_editor_realtimeviewer
             }
 
 
-            if (app.Default.BarLine_Show)
+            // 拍线：模式为“不显示”时整数档位为 0，这里直接跳过整段绘制
+            BarLineMode barLineMode = BarLineSettings.CurrentMode;
+            if (BarLineSettings.GetSubdivisionTier(barLineMode).Denominator > 0)
             {
                 scratchBarLines.Clear();
                 foreach (BarLine barLine in BarLines)
                 {
                     if (barLine.StartTime >= 0 && barLine.StartTime <= MaxStartTime + 1) scratchBarLines.Add(barLine);
                 }
-                DrawBarLines(scratchBarLines);
+                DrawBarLines(scratchBarLines, barLineMode);
             }
 
             if (app.Default.TimingLine_ShowGreen)
@@ -363,82 +365,85 @@ namespace osucatch_editor_realtimeviewer
             return left < objects.Count ? left : objects.Count - 1;
         }
 
-        public void DrawBarLines(List<BarLine> barLines)
+        public void DrawBarLines(List<BarLine> barLines, BarLineMode mode)
         {
-            int subdivide = app.Default.BarLine_Subdivide;
-            bool drawSubdivisions = subdivide > 0 && ControlPointInfo != null;
+            BarLineSettings.SubdivisionTier tier = BarLineSettings.GetSubdivisionTier(mode);
+            bool drawSubdivisions = tier.Denominator > 0 && ControlPointInfo != null;
 
             barLines.ForEach(barLine =>
             {
                 if (barLine.StartTime < 0) return;
                 double deltaTime = barLine.StartTime - CurrentTime;
+                int posY;
                 if (ScreensContain > 1)
                 {
                     double timeSpan = ScreensContain * ApproachTime * 1.25;
-                    if (deltaTime <= timeSpan && deltaTime >= -timeSpan)
-                    {
-                        int posY = (int)(240.0 * ScreensContain - deltaTime / TimePerPixels);
-                        Vector2 rp0 = new Vector2(64, posY);
-                        Vector2 rp1 = new Vector2(576, posY);
-                        if (barLine.Major) Canvas.DrawLine(rp0, rp1, Color.LightGray);
-                        else Canvas.DrawLine(rp0, rp1, Color.Gray);
-                        if (drawSubdivisions) DrawBarLineSubdivisions(barLine, subdivide);
-                    }
+                    if (deltaTime > timeSpan || deltaTime < -timeSpan) return;
+                    posY = (int)(240.0 * ScreensContain - deltaTime / TimePerPixels);
                 }
                 else
                 {
                     double upTime = ApproachTime;
                     double bottomTime = ApproachTime * 3 / 17;
-                    if (deltaTime <= upTime && deltaTime >= -bottomTime)
-                    {
-                        int posY = (int)(384 - deltaTime / TimePerPixels);
-                        Vector2 rp0 = new Vector2(64, posY);
-                        Vector2 rp1 = new Vector2(576, posY);
-                        if (barLine.Major) Canvas.DrawLine(rp0, rp1, Color.LightGray);
-                        else Canvas.DrawLine(rp0, rp1, Color.Gray);
-                        if (drawSubdivisions) DrawBarLineSubdivisions(barLine, subdivide);
-                    }
+                    if (deltaTime > upTime || deltaTime < -bottomTime) return;
+                    posY = (int)(384 - deltaTime / TimePerPixels);
                 }
+
+                Vector2 rp0 = new Vector2(64, posY);
+                Vector2 rp1 = new Vector2(576, posY);
+                if (barLine.Major) Canvas.DrawLine(rp0, rp1, Color.LightGray);
+                else Canvas.DrawLine(rp0, rp1, Color.Gray);
+                if (drawSubdivisions) DrawBarLineSubdivisions(barLine, tier);
             });
         }
 
         /// <summary>
-        /// 绘制小节线的拍点细分线：
-        /// “显示到2拍”每隔 2 拍一条，“显示到拍”每一拍一条。
-        /// 统一用淡白线（比小节线更淡），避免与 editor 中表示“拍”的 1/2、1/4 混淆。
-        /// 不越过下一条小节线。
+        /// 绘制一条小节线<b>之后</b>那一段（到下一根小节线为止）的拍点细分线。
+        /// <para />绘制区间取半开区间 <c>[这条小节线, 下一根小节线)</c>：每条细分线正好只由
+        /// 它左边的那根小节线画一次，既不重复也不遗漏——包括谱面第一根小节线。
+        /// </para>
+        /// <list type="bullet">
+        /// <item>“每1/N拍”（含“每拍”）：每一拍 N 等分，整拍（1/1）用淡白线、
+        /// 更细的拍点用 <see cref="BarLineSettings.GetBeatLineColor"/> 的颜色；</item>
+        /// <item>“每2拍 / 每4拍”：只在间隔的整数倍拍点画，画到的都是整拍 → 淡白线。</item>
+        /// </list>
+        /// 各拍点的时刻由这条小节线自身时刻 + 该处的拍长推出（不从“上一条小节线”反推，
+        /// 避免第一根小节线之前没有参照线时整段拍线缺失）；上界用下一条小节线兜底，
+        /// 防止拍长/拍号变化时细分线越过小节线画到下一小节里。
         /// </summary>
-        private void DrawBarLineSubdivisions(BarLine barLine, int subdivide)
+        private void DrawBarLineSubdivisions(BarLine barLine, BarLineSettings.SubdivisionTier tier)
         {
-            if (ControlPointInfo == null) return;
+            if (ControlPointInfo == null || tier.Denominator <= 0) return;
 
-            TimingControlPoint timing = ControlPointInfo.TimingPointAt(barLine.StartTime);
+            double barTime = barLine.StartTime;
+            double nextBarTime = NextBarLineTime(barTime);
+
+            TimingControlPoint timing = ControlPointInfo.TimingPointAt(barTime);
             double beatLength = timing.BeatLength;
-            if (beatLength <= 0) return;
+            if (!(beatLength > 0)) return;
 
-            int beatsPerMeasure = timing.TimeSignature.Numerator;
-            double nextBarTime = NextBarLineTime(barLine.StartTime);
-            Color subdivisionColor = Color.FromArgb(90, Color.White);
+            int beatsPerMeasure = Math.Max(1, timing.TimeSignature.Numerator);
+            int subdivisions = beatsPerMeasure * tier.Denominator;
+            // 跨拍间隔（每2拍 / 每4拍）：只在间隔的整数倍拍点画 → 这些拍点都是整拍
+            int gridStep = tier.StepBeats > 0 ? Math.Max(1, tier.StepBeats * tier.Denominator) : 1;
 
-            if (subdivide >= 2)
+            for (int i = gridStep; i < subdivisions; i += gridStep)
             {
-                // 每一拍一条（2 拍位置也包含在内，颜色相同无需去重）
-                for (int beat = 1; beat < beatsPerMeasure; beat++)
-                {
-                    double time = barLine.StartTime + beat * beatLength;
-                    if (time < nextBarTime) DrawSubdivisionLine(time, subdivisionColor);
-                }
-            }
-            else if (subdivide >= 1)
-            {
-                // 每隔 2 拍一条
-                for (int beat = 2; beat < beatsPerMeasure; beat += 2)
-                {
-                    double time = barLine.StartTime + beat * beatLength;
-                    if (time < nextBarTime) DrawSubdivisionLine(time, subdivisionColor);
-                }
+                double time = barTime + i * beatLength / tier.Denominator;
+                if (time >= nextBarTime - TimingEpsilon) break;
+                if (time < 0) continue;
+
+                // 约分成最简分数后判断：分母为 1 就是整拍，用淡白线
+                (int numerator, int denominator) = BarLineSettings.Reduce(i, tier.Denominator);
+
+                DrawSubdivisionLine(
+                    time,
+                    denominator == 1 ? BarLineSettings.BeatLineColor : BarLineSettings.GetBeatLineColor(numerator, denominator));
             }
         }
+
+        /// <summary>拍线细分的比较容差（ms）：避免浮点误差把“贴着小节线”的细分画出来。</summary>
+        private const double TimingEpsilon = 0.001;
 
         private void DrawSubdivisionLine(double time, Color color)
         {
@@ -462,17 +467,18 @@ namespace osucatch_editor_realtimeviewer
         }
 
         /// <summary>
-        /// BarLines 按时间升序，二分查找第一条晚于指定时间的小节线。
+        /// BarLines 按时间升序，二分查找指定时间之后最近的一条小节线；
+        /// 后面没有小节线时返回 <see cref="double.PositiveInfinity"/>。
         /// </summary>
         private double NextBarLineTime(double time)
         {
             int left = 0;
             int right = BarLines.Count - 1;
-            double result = double.MaxValue;
+            double result = double.PositiveInfinity;
             while (left <= right)
             {
                 int mid = left + (right - left) / 2;
-                if (BarLines[mid].StartTime > time)
+                if (BarLines[mid].StartTime > time + TimingEpsilon)
                 {
                     result = BarLines[mid].StartTime;
                     right = mid - 1;
