@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!--
     Microsoft ResX Schema
@@ -583,9 +583,6 @@ Recommended only for DTB or marathon maps. Also disables backup.</value>
   <data name="&gt;&gt;groupBox1.Name" xml:space="preserve">
     <value>groupBox1</value>
   </data>
-  <data name="checkBox_BarLine_Show.Text" xml:space="preserve">
-    <value>Show Bar Lines</value>
-  </data>
   <data name="checkBox_Log_Drawing.Size" type="System.Drawing.Size, System.Drawing">
     <value>98, 21</value>
   </data>
@@ -994,9 +991,6 @@ Recommended only for DTB or marathon maps. Also disables backup.</value>
   </data>
   <data name="&gt;&gt;checkBox_Log_BookmarkPlus.ZOrder" xml:space="preserve">
     <value>0</value>
-  </data>
-  <data name="comboBox_BarLineSubdivide.Items2" xml:space="preserve">
-    <value>Show to beat</value>
   </data>
   <data name="label2.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
@@ -1695,7 +1689,37 @@ Recommended only for DTB or marathon maps. Also disables backup.</value>
     <value>True</value>
   </data>
   <data name="comboBox_BarLineSubdivide.Items" xml:space="preserve">
-    <value>Show to measure</value>
+    <value>Hidden</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items1" xml:space="preserve">
+    <value>Every 4 beats</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items2" xml:space="preserve">
+    <value>Every 2 beats</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items3" xml:space="preserve">
+    <value>Every beat</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items4" xml:space="preserve">
+    <value>Every 1/2 beat (red)</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items5" xml:space="preserve">
+    <value>Every 1/3 beat (purple)</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items6" xml:space="preserve">
+    <value>Every 1/4 beat (1/2 red, 1/4 blue)</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items7" xml:space="preserve">
+    <value>Every 1/5 beat (yellow)</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items8" xml:space="preserve">
+    <value>Every 1/6 beat (1/2 red, 1/3 purple)</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items9" xml:space="preserve">
+    <value>Every 1/7 beat (yellow)</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items10" xml:space="preserve">
+    <value>Every 1/8 beat (1/2 red, 1/4 blue, 1/8 yellow)</value>
   </data>
   <data name="&gt;&gt;label12.Name" xml:space="preserve">
     <value>label12</value>
@@ -2149,9 +2173,6 @@ Recommended only for DTB or marathon maps. Also disables backup.</value>
   </data>
   <data name="button_Label_Color.Size" type="System.Drawing.Size, System.Drawing">
     <value>30, 30</value>
-  </data>
-  <data name="comboBox_BarLineSubdivide.Items1" xml:space="preserve">
-    <value>Show to 2 beats</value>
   </data>
   <data name="checkBox_TimingLine_ShowGreen.Text" xml:space="preserve">
     <value>Show Inherited Points (Green Lines)</value>

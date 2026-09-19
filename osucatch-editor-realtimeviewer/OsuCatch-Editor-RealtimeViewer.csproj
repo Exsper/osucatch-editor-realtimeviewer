@@ -68,6 +68,10 @@
     <None Update="img\fruit-drop.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- 快捷开关栏按钮图标：16x16 透明 PNG，按程序所在目录下的 icons\ 读取 -->
+    <None Update="icons\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

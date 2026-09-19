@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!--
     Microsoft ResX Schema
@@ -301,12 +301,6 @@
   <data name="groupBox7.Text" xml:space="preserve">
     <value>时间点</value>
   </data>
-  <data name="checkBox_BarLine_Show.Size" type="System.Drawing.Size, System.Drawing">
-    <value>87, 21</value>
-  </data>
-  <data name="checkBox_BarLine_Show.Text" xml:space="preserve">
-    <value>显示小节线</value>
-  </data>
   <data name="checkBox_TimingLine_ShowGreen.Size" type="System.Drawing.Size, System.Drawing">
     <value>171, 21</value>
   </data>
@@ -320,13 +314,37 @@
     <value>显示非继承时间点 (红线)</value>
   </data>
   <data name="comboBox_BarLineSubdivide.Items" xml:space="preserve">
-    <value>显示到小节</value>
+    <value>不显示</value>
   </data>
   <data name="comboBox_BarLineSubdivide.Items1" xml:space="preserve">
-    <value>显示到2拍</value>
+    <value>每4拍</value>
   </data>
   <data name="comboBox_BarLineSubdivide.Items2" xml:space="preserve">
-    <value>显示到拍</value>
+    <value>每2拍</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items3" xml:space="preserve">
+    <value>每拍</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items4" xml:space="preserve">
+    <value>每1/2拍（红色）</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items5" xml:space="preserve">
+    <value>每1/3拍（紫色）</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items6" xml:space="preserve">
+    <value>每1/4拍（1/2拍红，1/4拍蓝）</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items7" xml:space="preserve">
+    <value>每1/5拍（黄色）</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items8" xml:space="preserve">
+    <value>每1/6拍（1/2拍红，1/3拍紫）</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items9" xml:space="preserve">
+    <value>每1/7拍（黄色）</value>
+  </data>
+  <data name="comboBox_BarLineSubdivide.Items10" xml:space="preserve">
+    <value>每1/8拍（1/2拍红，1/4拍蓝，1/8拍黄）</value>
   </data>
   <data name="checkBox_ShowDistanceHelper.Text" xml:space="preserve">
     <value>显示距离辅助线</value>

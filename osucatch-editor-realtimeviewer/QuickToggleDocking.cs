@@ -41,9 +41,12 @@ namespace osucatch_editor_realtimeviewer
             base.OnLayout(e);
             if (bar == null || bar.Parent != this) return;
 
-            // 行高由条的首选高度决定；条本身不自动调整大小，宽度始终铺满窗口
-            int height = Math.Max(bar.PreferredSize.Height, 1);
-            bar.Bounds = new Rectangle(0, 0, Math.Max(Width, 1), height);
+            // 行高由条的首选高度决定；条本身不自动调整大小，宽度始终铺满窗口。
+            // 首选高度必须按“实际可用宽度”问条要：条用 Flow 布局换行排布，传一个很宽的宽度
+            // 只会得到“单行”的高度，行会被压成一行高，第二行往后的控件全被裁掉看不见。
+            int width = Math.Max(Width, 1);
+            int height = Math.Max(bar.GetPreferredSize(new Size(width, 0)).Height, 1);
+            bar.Bounds = new Rectangle(0, 0, width, height);
             if (Height != height) Height = height;
         }
     }
@@ -164,6 +167,7 @@ namespace osucatch_editor_realtimeviewer
             bar.HideRequested += Bar_HideRequested;
             bar.ContentChanged += Bar_ContentChanged;
             bar.ToggleChanged += Bar_ToggleChanged;
+            bar.GroupsVisibilityChanged += Bar_GroupsVisibilityChanged;
 
             dockRow.Controls.Add(bar);
         }
@@ -262,6 +266,7 @@ namespace osucatch_editor_realtimeviewer
                 app.Default.QuickToggle_Float_Y = floatForm.Location.Y;
             }
             app.Default.QuickToggle_States = bar.GetCheckedStates();
+            app.Default.QuickToggle_HiddenGroups = bar.GetHiddenGroups();
         }
 
         #region 停靠 / 浮动切换
@@ -470,8 +475,21 @@ namespace osucatch_editor_realtimeviewer
 
         private void Bar_ToggleChanged(object? sender, QuickToggleChangedEventArgs e)
         {
-            // 即时开关：状态一变就写入设置，不需要等退出程序。
-            // 写设置失败（配置文件只读/被占用等）不应让点开关变成崩溃，记录一条日志即可。
+            SaveAndFlush();
+        }
+
+        private void Bar_GroupsVisibilityChanged(object? sender, EventArgs e)
+        {
+            // 右键菜单隐藏/显示功能区：立即写入设置，下次启动保持
+            SaveAndFlush();
+        }
+
+        /// <summary>
+        /// 把开关条状态写入设置并立刻落盘。
+        /// <para />写设置失败（配置文件只读/被占用等）不应让点开关变成崩溃，记录一条日志即可。
+        /// </summary>
+        private void SaveAndFlush()
+        {
             SaveState();
             try
             {
@@ -516,6 +534,7 @@ namespace osucatch_editor_realtimeviewer
             bar.HideRequested -= Bar_HideRequested;
             bar.ContentChanged -= Bar_ContentChanged;
             bar.ToggleChanged -= Bar_ToggleChanged;
+            bar.GroupsVisibilityChanged -= Bar_GroupsVisibilityChanged;
 
             if (hintForm.Visible) hintForm.Hide();
             hintForm.Dispose();

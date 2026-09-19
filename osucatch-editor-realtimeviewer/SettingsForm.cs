@@ -1,4 +1,4 @@
-﻿namespace osucatch_editor_realtimeviewer
+namespace osucatch_editor_realtimeviewer
 {
     public partial class SettingsForm : Form
     {
@@ -6,6 +6,9 @@
         {
             InitializeComponent();
         }
+
+        /// <summary>点了“应用”并写入设置后触发：宿主据此立刻把新设置同步到界面（如快捷开关栏上的拍线滑块）。</summary>
+        internal event Action? SettingsApplied;
 
         private void SettingsForm_Load(object sender, EventArgs e)
         {
@@ -39,10 +42,9 @@
 
             checkBox_TimingLine_ShowRed.Checked = app.Default.TimingLine_ShowRed;
             checkBox_TimingLine_ShowGreen.Checked = app.Default.TimingLine_ShowGreen;
-            checkBox_BarLine_Show.Checked = app.Default.BarLine_Show;
 
-            // 小节线细分选择（下拉项由 Designer 从 resx 填充）
-            comboBox_BarLineSubdivide.SelectedIndex = Math.Clamp(app.Default.BarLine_Subdivide, 0, 2);
+            // 拍线细分（下拉项由 Designer 从 resx 填充，下标即 BarLineMode 的值）
+            comboBox_BarLineSubdivide.SelectedIndex = Math.Clamp((int)BarLineSettings.CurrentMode, 0, comboBox_BarLineSubdivide.Items.Count - 1);
 
             // 距离辅助线开关
             checkBox_ShowDistanceHelper.Checked = app.Default.Show_Distance_Helper;
@@ -145,8 +147,8 @@
 
             app.Default.TimingLine_ShowRed = checkBox_TimingLine_ShowRed.Checked;
             app.Default.TimingLine_ShowGreen = checkBox_TimingLine_ShowGreen.Checked;
-            app.Default.BarLine_Show = checkBox_BarLine_Show.Checked;
-            app.Default.BarLine_Subdivide = comboBox_BarLineSubdivide.SelectedIndex;
+            // 拍线模式：与快捷开关栏共用同一个设置项（CurrentMode 会一并刷新旧的兼容字段）
+            BarLineSettings.CurrentMode = BarLineSettings.Clamp(comboBox_BarLineSubdivide.SelectedIndex);
             app.Default.Show_Distance_Helper = checkBox_ShowDistanceHelper.Checked;
             app.Default.Distance_Helper_White_Speed = (double)numericUpDown_WhiteSpeed.Value;
             app.Default.Distance_Helper_Red_Speed = (double)numericUpDown_RedSpeed.Value;
@@ -169,6 +171,7 @@
             app.Default.Save();
 
             Form1.NeedReapplySettings = true;
+            SettingsApplied?.Invoke();
             this.Close();
         }
 

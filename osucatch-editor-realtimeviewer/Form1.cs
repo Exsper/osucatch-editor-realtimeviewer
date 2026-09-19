@@ -37,8 +37,61 @@ namespace osucatch_editor_realtimeviewer
         private QuickToggleDocking? quickToggleDocking;
         private ToolStripMenuItem? quickToggleStripMenuItem;
 
+        #region 快捷开关条：开关标识与功能区
+
         /// <summary>快捷开关“固定预览时刻”的标识（勾选状态随其它开关一起持久化）。</summary>
         private const string FreezePreviewTimeKey = "FreezePreviewTime";
+
+        // MOD 功能区（单选：NM / EZ / HR）
+        private const string ModGroupKey = "Mod";
+        private const string ModNoneKey = "Mod_None";
+        private const string ModEasyKey = "Mod_EZ";
+        private const string ModHardRockKey = "Mod_HR";
+
+        /// <summary>MOD 功能区的三个开关，顺序与 <see cref="ModMode"/> 一致。</summary>
+        private static readonly string[] ModKeys = { ModNoneKey, ModEasyKey, ModHardRockKey };
+
+        // 果子标注功能区（单选：隐藏 / 距离-正常 / 距离-忽略SVM / 难度星数）
+        private const string LabelGroupKey = "HitObjectLabel";
+        private const string LabelHiddenKey = "Label_Hidden";
+        private const string LabelDistanceKey = "Label_Distance";
+        private const string LabelIgnoreSvmKey = "Label_IgnoreSVM";
+        private const string LabelStarsKey = "Label_Stars";
+
+        /// <summary>果子标注功能区的四个开关，顺序与 <see cref="QuickLabelMode"/> 一致。</summary>
+        private static readonly string[] LabelKeys = { LabelHiddenKey, LabelDistanceKey, LabelIgnoreSvmKey, LabelStarsKey };
+
+        // 拍线功能区（滑块 + 状态文字）
+        private const string BarLineGroupKey = "BarLine";
+        private const string BarLineValueKey = "BarLineMode";
+
+        /// <summary>快捷开关条上的下拉框 / 滑块所用的值标识。</summary>
+        private const string FreezeValueKey = FreezePreviewTimeKey;
+
+        /// <summary>
+        /// 果子标注的快捷开关模式。只覆盖菜单里最常用的 4 种，
+        /// 因此与 <see cref="HitObjectLabelType"/>（还含“比较行走速度 / 连击内果子数”）不是同一个枚举。
+        /// </summary>
+        private enum QuickLabelMode
+        {
+            Hidden = 0,
+            Distance = 1,
+            DistanceIgnoreSvm = 2,
+            Stars = 3,
+        }
+
+        /// <summary>MOD 快捷开关模式。</summary>
+        private enum ModMode
+        {
+            None = 0,
+            Easy = 1,
+            HardRock = 2,
+        }
+
+        /// <summary>已经创建过快捷开关条内容（避免语言切换重复添加控件）。</summary>
+        private bool quickTogglesCreated;
+
+        #endregion
 
         /// <summary>预览时刻是否被固定（“固定预览时刻”开关打开）：为 true 时预览画布不再跟随编辑器。</summary>
         private bool previewTimeFrozen;
@@ -147,9 +200,10 @@ namespace osucatch_editor_realtimeviewer
             // 模板菜单在构造函数里创建，确保语言资源能应用到它
             CreateTemplateMenu();
 
-            // 快捷开关条（开关内容在 CreateQuickToggles 里添加）
+            // 快捷开关条（功能区内容在 CreateQuickToggles 里添加）
             CreateQuickToggleBar();
             CreateQuickToggles();
+            ApplyQuickToggleLanguage();
 
             if (app.Default.Language_String != "")
             {
@@ -258,10 +312,14 @@ namespace osucatch_editor_realtimeviewer
 
             ReapplyBookmarkStyles();
 
-            // 快捷开关栏：恢复开关状态与停靠 / 浮动状态（浮窗要等主窗口显示出来后再弹出）
+            // 快捷开关栏：恢复功能区显示状态、开关状态与停靠 / 浮动状态（浮窗要等主窗口显示出来后再弹出）
+            quickToggleBar?.ApplyHiddenGroups(app.Default.QuickToggle_HiddenGroups);
             quickToggleBar?.ApplyCheckedStates(app.Default.QuickToggle_States);
-            // ApplyCheckedStates 不触发事件，这里手动把“固定预览时刻”的内部状态同步过来
+            // ApplyCheckedStates 不触发事件，这里手动把各开关的内部状态同步过来
             SetPreviewTimeFrozen(quickToggleBar?.IsChecked(FreezePreviewTimeKey) ?? false);
+            SyncModToggleFromMenu();
+            SyncLabelToggleFromMenu();
+            ApplyBarLineMode(BarLineSettings.CurrentMode, persist: false);
             quickToggleDocking?.ApplyStartupState(app.Default.QuickToggle_Visible, app.Default.QuickToggle_Floating);
             if (quickToggleStripMenuItem != null) quickToggleStripMenuItem.Checked = app.Default.QuickToggle_Visible;
 
@@ -399,6 +457,13 @@ namespace osucatch_editor_realtimeviewer
 
             }));
             runner.SetInterval(app.Default.Drawing_Interval, app.Default.Idle_Interval);
+
+            // 设置窗口改了拍线模式：把快捷开关栏上的滑块/状态文字同步过来
+            Invoke(new MethodInvoker(delegate ()
+            {
+                ApplyBarLineMode(BarLineSettings.CurrentMode, persist: false);
+            }));
+
             if (app.Default.Backup_Enabled)
             {
                 backup_timer.Interval = app.Default.Backup_Interval;
@@ -949,6 +1014,8 @@ namespace osucatch_editor_realtimeviewer
             else
             {
                 SettingsFormInstance = new SettingsForm();
+                Form1 host = this;
+                SettingsFormInstance.SettingsApplied += () => host.ReapplySettings();
                 SettingsFormInstance.FormClosed += (s, args) => { SettingsFormInstance = null; }; // 关闭时重置变量
                 SettingsFormInstance.ShowDialog();
             }
@@ -1419,6 +1486,7 @@ namespace osucatch_editor_realtimeviewer
             // 先于停靠管理器订阅：停靠管理器在自己的 ToggleChanged 处理里统一保存设置，
             // 这里先更新运行状态，保证同一次保存里带上的都是最新状态
             quickToggleBar.ToggleChanged += quickToggleBar_ToggleChanged;
+            quickToggleBar.GroupChanged += quickToggleBar_GroupChanged;
 
             quickToggleDockRow = new QuickToggleDockRow();
             quickToggleDocking = new QuickToggleDocking(this, quickToggleBar, quickToggleDockRow, menuStrip1);
@@ -1440,16 +1508,117 @@ namespace osucatch_editor_realtimeviewer
         }
 
         /// <summary>
-        /// 创建快捷开关条上的即时开关。开关内容后续继续在这里添加。
+        /// 创建快捷开关条上的内容：最左边是独立的“固定预览时刻”，其后是各个功能区
+        /// （MOD / 果子标注 / 拍线）。
+        /// 只在首次调用时建控件；之后（语言切换）只刷新文本，避免重复添加。
         /// </summary>
         private void CreateQuickToggles()
         {
+            if (quickToggleBar == null || quickTogglesCreated) return;
+            quickTogglesCreated = true;
+
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+
+            // ---- 固定预览时刻：不属于任何功能区，固定排在条的最左边、始终显示 ----
+            (string freezeText, string freezeToolTip) = FreezePreviewTimeText(previewTimeFrozen);
+            quickToggleBar.AddStandaloneToggle(FreezePreviewTimeKey, freezeText, false);
+            quickToggleBar.SetToggleText(FreezePreviewTimeKey, freezeText, freezeToolTip);
+
+            // ---- MOD：三个按钮单选，当前 MOD 对应的按钮保持按下（NM/EZ/HR 一看便知，不加标题） ----
+            QuickToggleBar.QuickToggleGroup modGroup = quickToggleBar.AddGroup(ModGroupKey, "");
+            for (int i = 0; i < ModKeys.Length; i++)
+            {
+                modGroup.AddToggle(ModKeys[i], ModToggleText((ModMode)i), (ModMode)i == ModMode.None);
+            }
+
+            // ---- 果子标注：四个按钮单选，对应菜单栏里最常用的四种标注。
+            //      每个模式都有对应图标，因此整组不加标题、按钮只显示图标（名称见按钮提示）。 ----
+            QuickToggleBar.QuickToggleGroup labelGroup = quickToggleBar.AddGroup(LabelGroupKey, "");
+            for (int i = 0; i < LabelKeys.Length; i++)
+            {
+                labelGroup.AddToggle(LabelKeys[i], LabelToggleText((QuickLabelMode)i), (QuickLabelMode)i == QuickLabelMode.Hidden);
+            }
+
+            // ---- 拍线：滑块选择密度 + 当前模式文字 ----
+            QuickToggleBar.QuickToggleGroup barLineGroup = quickToggleBar.AddGroup(BarLineGroupKey, chinese ? "拍线" : "Bar Lines");
+            barLineGroup.AddSlider(
+                BarLineValueKey,
+                0,
+                BarLineSettings.ModeCount - 1,
+                (int)BarLineSettings.CurrentMode,
+                1);
+            barLineGroup.AddLabel(BarLineValueKey + "_Text", BarLineStatusText());
+
+            ApplyQuickToggleIcons();
+        }
+
+        #region 快捷开关：按钮图标
+
+        /// <summary>图标目录：与贴图一样按程序所在目录解析（icons\ 就在 exe 旁边）。</summary>
+        private const string IconsFolder = "icons";
+
+        /// <summary>“固定预览时刻”两个状态的图标文件名（相对 icons\）。</summary>
+        private const string FreezeIconFile = "QuickLabelMode_Switch2Freeze.png";
+
+        private const string FollowIconFile = "QuickLabelMode_Switch2Following.png";
+
+        /// <summary>
+        /// 果子标注四个按钮的图标文件名，顺序与 <see cref="LabelKeys"/> / <see cref="QuickLabelMode"/> 一致。
+        /// </summary>
+        private static readonly string[] LabelIconFiles =
+        {
+            "QuickLabelMode_Hide.png",
+            "QuickLabelMode_Distance.png",
+            "QuickLabelMode_DistanceIgnoreSvm.png",
+            "QuickLabelMode_Stars.png",
+        };
+
+        /// <summary>取 icons\ 目录下某个图标文件的完整路径（按 exe 目录解析，找不到时回退相对路径）。</summary>
+        private static string ResolveIconPath(string fileName)
+            => ResolveImagePath(Path.Combine(IconsFolder, fileName));
+
+        /// <summary>果子标注模式对应的图标文件路径。</summary>
+        private static string LabelModeIconPath(QuickLabelMode mode)
+        {
+            int index = (int)mode;
+            return (index >= 0 && index < LabelIconFiles.Length) ? ResolveIconPath(LabelIconFiles[index]) : "";
+        }
+
+        /// <summary>
+        /// 给按钮装上图标（“固定预览时刻” + 果子标注四个按钮）。
+        /// <para />图标缺失时会退化成显示文字——所以即使 icons\ 没随程序一起发布，
+        /// 按钮也不会变成认不出来的空白图标。
+        /// </para>
+        /// </summary>
+        private void ApplyQuickToggleIcons()
+        {
             if (quickToggleBar == null) return;
 
-            (string text, string toolTip) = FreezePreviewTimeText(previewTimeFrozen);
-            quickToggleBar.AddToggle(FreezePreviewTimeKey, text, false);
-            quickToggleBar.SetToggleText(FreezePreviewTimeKey, text, toolTip);
+            // 图标缺失时退化为文字显示：先按文字算好标签与提示，再尝试装图标
+            (string followText, string followToolTip) = FreezePreviewTimeText(false);
+            (string freezeText, string freezeToolTip) = FreezePreviewTimeText(true);
+
+            bool freeze = previewTimeFrozen;
+            quickToggleBar.SetToggleText(
+                FreezePreviewTimeKey,
+                freeze ? followText : freezeText,
+                freeze ? followToolTip : freezeToolTip);
+            quickToggleBar.SetToggleImage(
+                FreezePreviewTimeKey,
+                ResolveIconPath(freeze ? FollowIconFile : FreezeIconFile));
+
+            for (int i = 0; i < LabelKeys.Length; i++)
+            {
+                quickToggleBar.SetToggleImage(LabelKeys[i], LabelModeIconPath((QuickLabelMode)i));
+            }
+
+            // 整组只显示图标（果子标注这个标题已经按需求去掉，图标本身就能说明模式）
+            quickToggleBar.SetGroupTogglesDisplayStyle(LabelGroupKey, ToolStripItemDisplayStyle.Image);
         }
+
+        #endregion
+
+        #region 快捷开关：设置与执行
 
         /// <summary>
         /// “固定预览时刻”开关在当前语言下的按钮文本与提示。
@@ -1468,10 +1637,184 @@ namespace osucatch_editor_realtimeviewer
             return (text, toolTip);
         }
 
+        /// <summary>MOD 快捷按钮在当前语言下的文本（三种 MOD 名称各语言都相同）。</summary>
+        private static string ModToggleText(ModMode mode)
+        {
+            return mode switch
+            {
+                ModMode.Easy => "EZ",
+                ModMode.HardRock => "HR",
+                _ => "NM",
+            };
+        }
+
+        private static string ModToggleToolTip(ModMode mode)
+        {
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            return mode switch
+            {
+                ModMode.Easy => chinese ? "切换到 EZ（Easy）" : "Switch to EZ (Easy)",
+                ModMode.HardRock => chinese ? "切换到 HR（HardRock）" : "Switch to HR (HardRock)",
+                _ => chinese ? "切换到 NM（NoMod）" : "Switch to NM (NoMod)",
+            };
+        }
+
+        /// <summary>果子标注快捷按钮在当前语言下的文本。</summary>
+        private static string LabelToggleText(QuickLabelMode mode)
+        {
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            return mode switch
+            {
+                QuickLabelMode.Distance => chinese ? "距离-正常" : "Dist",
+                QuickLabelMode.DistanceIgnoreSvm => chinese ? "距离-忽略SVM" : "Dist-IgnoreSV",
+                QuickLabelMode.Stars => chinese ? "难度星数" : "Stars",
+                _ => chinese ? "隐藏" : "Hide",
+            };
+        }
+
+        private static string LabelToggleToolTip(QuickLabelMode mode)
+        {
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            return mode switch
+            {
+                QuickLabelMode.Distance => chinese ? "距离标注：与编辑器相同" : "Distance label: same as editor",
+                QuickLabelMode.DistanceIgnoreSvm => chinese ? "距离标注：忽略滑条速度倍率" : "Distance label: ignore slider velocity multiplier",
+                QuickLabelMode.Stars => chinese ? "难度标注：标注物件的难度星数" : "Difficulty label: star difficulty of the object",
+                _ => chinese ? "不显示果子标注" : "Hide fruit labels",
+            };
+        }
+
+        /// <summary>“拍线：{当前拍线显示模式}”文字。</summary>
+        private static string BarLineStatusText()
+        {
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            return (chinese ? "拍线：" : "Bar lines: ") + BarLineSettings.GetOptionName(BarLineSettings.CurrentMode);
+        }
+
+
+
+
+
         private void quickToggleBar_ToggleChanged(object? sender, QuickToggleChangedEventArgs e)
         {
-            if (e.Key == FreezePreviewTimeKey) SetPreviewTimeFrozen(e.IsChecked);
+            if (e.Key == FreezePreviewTimeKey)
+            {
+                SetPreviewTimeFrozen(e.IsChecked);
+                return;
+            }
+
+            int modIndex = Array.IndexOf(ModKeys, e.Key);
+            if (modIndex >= 0)
+            {
+                // 单选：同一次点击里 GroupChanged 与 ToggleChanged 都会到，这里只负责执行切换
+                ApplyModMode((ModMode)modIndex);
+                return;
+            }
+
+            int labelIndex = Array.IndexOf(LabelKeys, e.Key);
+            if (labelIndex >= 0)
+            {
+                ApplyHitObjectLabelMode((QuickLabelMode)labelIndex);
+            }
         }
+
+        private void quickToggleBar_GroupChanged(object? sender, QuickToggleGroupChangedEventArgs e)
+        {
+            if (e.Key != BarLineValueKey) return;
+
+            ApplyBarLineMode(BarLineSettings.Clamp(e.Value), persist: true);
+        }
+
+        /// <summary>
+        /// 切换 MOD：同步菜单栏勾选（物件重建由绘制循环按菜单状态自行触发），
+        /// 并把快捷按钮设为单选状态。
+        /// </summary>
+        private void ApplyModMode(ModMode mode)
+        {
+            noneToolStripMenuItem.Checked = mode == ModMode.None;
+            eZToolStripMenuItem.Checked = mode == ModMode.Easy;
+            hRToolStripMenuItem.Checked = mode == ModMode.HardRock;
+            SetQuickToggleSelection(ModKeys, (int)mode);
+        }
+
+        /// <summary>
+        /// 切换果子标注模式：同步菜单栏勾选并请求重建（标签文本在重建时才计算），
+        /// 同时把快捷按钮设为单选状态。
+        /// </summary>
+        private void ApplyHitObjectLabelMode(QuickLabelMode mode)
+        {
+            hideToolStripMenuItem.Checked = mode == QuickLabelMode.Hidden;
+            sameWithEditorToolStripMenuItem.Checked = mode == QuickLabelMode.Distance;
+            noSliderVelocityMultiplierToolStripMenuItem.Checked = mode == QuickLabelMode.DistanceIgnoreSvm;
+            compareWithWalkSpeedToolStripMenuItem.Checked = false;
+            difficultyStarsToolStripMenuItem.Checked = mode == QuickLabelMode.Stars;
+            fruitCountInComboToolStripMenuItem.Checked = false;
+
+            SetQuickToggleSelection(LabelKeys, (int)mode);
+        }
+
+        /// <summary>
+        /// 把一组快捷开关按钮设为“只有选中的那个按下”（单选式功能区）。
+        /// <para />先悄悄改内部状态（不触发事件），再逐个反射到按钮上；被选中的那个放在最后设置，
+        /// 它的 CheckedChanged 会触发一次 <see cref="quickToggleBar_ToggleChanged"/>——
+        /// 那次调用看到的已经是最终状态，因此不会再来回切换。
+        /// </para>
+        /// </summary>
+        private void SetQuickToggleSelection(string[] keys, int selectedIndex)
+        {
+            if (quickToggleBar == null || selectedIndex < 0 || selectedIndex >= keys.Length) return;
+
+            quickToggleBar.SetCheckedSilently(keys, keys[selectedIndex]);
+            for (int i = 0; i < keys.Length; i++)
+            {
+                if (i == selectedIndex) continue;
+                quickToggleBar.SetChecked(keys[i], false);
+            }
+            quickToggleBar.SetChecked(keys[selectedIndex], true);
+        }
+
+        /// <summary>
+        /// 设置拍线模式（快捷开关滑块与设置菜单下拉框共用），并同步状态文字。
+        /// </summary>
+        /// <param name="persist">是否立刻写入设置（启动时恢复不需要重复落盘）。</param>
+        private void ApplyBarLineMode(BarLineMode mode, bool persist)
+        {
+            BarLineMode clamped = BarLineSettings.Clamp((int)mode);
+            BarLineSettings.CurrentMode = clamped;
+
+            quickToggleBar?.SetGroupSliderValue(BarLineGroupKey, BarLineValueKey, (int)clamped);
+            quickToggleBar?.SetGroupLabelText(BarLineGroupKey, BarLineValueKey + "_Text", BarLineStatusText());
+
+            if (!persist) return;
+            try
+            {
+                app.Default.Save();
+            }
+            catch (Exception ex)
+            {
+                Log.ConsoleLog("Save bar line mode failed.\r\n" + ex, Log.LogType.Program, Log.LogLevel.Warning);
+            }
+        }
+
+        /// <summary>按当前菜单状态把 MOD 快捷按钮同步过来（启动时恢复用，不触发重建）。</summary>
+        private void SyncModToggleFromMenu()
+        {
+            if (hRToolStripMenuItem.Checked) SetQuickToggleSelection(ModKeys, (int)ModMode.HardRock);
+            else if (eZToolStripMenuItem.Checked) SetQuickToggleSelection(ModKeys, (int)ModMode.Easy);
+            else SetQuickToggleSelection(ModKeys, (int)ModMode.None);
+        }
+
+        /// <summary>按当前菜单状态把果子标注快捷按钮同步过来（启动时恢复用，不触发重建）。</summary>
+        private void SyncLabelToggleFromMenu()
+        {
+            QuickLabelMode mode = QuickLabelMode.Hidden;
+            if (sameWithEditorToolStripMenuItem.Checked) mode = QuickLabelMode.Distance;
+            else if (noSliderVelocityMultiplierToolStripMenuItem.Checked) mode = QuickLabelMode.DistanceIgnoreSvm;
+            else if (difficultyStarsToolStripMenuItem.Checked) mode = QuickLabelMode.Stars;
+            SetQuickToggleSelection(LabelKeys, (int)mode);
+        }
+
+        #endregion
 
         /// <summary>
         /// 切换“固定预览时刻”：打开后预览画布钉在当前 editor 时刻不再跟随，关闭后恢复跟随。
@@ -1485,9 +1828,8 @@ namespace osucatch_editor_realtimeviewer
             // 判定线据此改为跟随 editor 时刻在画面上的位置
             drawingHelper.FixedPreviewTime = frozen;
 
-            // 按钮文本/提示跟随状态：⏸ 表示点击后固定，▶ 表示点击后恢复跟随
-            (string text, string toolTip) = FreezePreviewTimeText(frozen);
-            quickToggleBar?.SetToggleText(FreezePreviewTimeKey, text, toolTip);
+            // 按钮图标/提示跟随状态：冰冻图标表示点击后固定，播放图标表示点击后恢复跟随
+            ApplyQuickToggleIcons();
 
             if (!frozen)
             {
@@ -1564,13 +1906,35 @@ namespace osucatch_editor_realtimeviewer
             app.Default.Save();
         }
 
-        /// <summary>语言切换后刷新快捷开关条上的固定文本。</summary>
+        /// <summary>语言切换后刷新快捷开关条上的文本（功能区标题、按钮、状态文字）。</summary>
         private void ApplyQuickToggleLanguage()
         {
             quickToggleDocking?.ApplyLanguage();
+            if (quickToggleBar == null) return;
+
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
 
             (string text, string toolTip) = FreezePreviewTimeText(previewTimeFrozen);
-            quickToggleBar?.SetToggleText(FreezePreviewTimeKey, text, toolTip);
+            quickToggleBar.SetToggleText(FreezePreviewTimeKey, text, toolTip);
+
+            // 功能区标题（AddGroup 对已存在的功能区只更新标题）
+            quickToggleBar.AddGroup(ModGroupKey, "");
+            quickToggleBar.AddGroup(LabelGroupKey, "");
+            quickToggleBar.AddGroup(BarLineGroupKey, chinese ? "拍线" : "Bar Lines");
+
+            for (int i = 0; i < ModKeys.Length; i++)
+            {
+                quickToggleBar.SetToggleText(ModKeys[i], ModToggleText((ModMode)i), ModToggleToolTip((ModMode)i));
+            }
+            for (int i = 0; i < LabelKeys.Length; i++)
+            {
+                quickToggleBar.SetToggleText(LabelKeys[i], LabelToggleText((QuickLabelMode)i), LabelToggleToolTip((QuickLabelMode)i));
+            }
+
+            // 提示文字按语言刷新后再重装图标（图标只显示时，文字只作为按钮提示）
+            ApplyQuickToggleIcons();
+
+            quickToggleBar.SetGroupLabelText(BarLineGroupKey, BarLineValueKey + "_Text", BarLineStatusText());
         }
 
         /// <summary>
