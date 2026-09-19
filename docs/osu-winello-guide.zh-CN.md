@@ -1,8 +1,8 @@
-﻿# 在 osu-winello（Linux / Wine）中运行 OsuCatch Editor Realtime Viewer（32 位版）并与 osu! 同时启动
+# 在 osu-winello（Linux / Wine）中运行 OsuCatch Editor Realtime Viewer（32 位版）并与 osu! 同时启动
 
 本文面向通过 [osu-winello](https://github.com/NelloKudo/osu-winello) 在 Linux 上安装 osu! stable 的用户，介绍如何把本查看器（32 位版）放进 osu! 所在的 Wine prefix，并让它在 osu! 启动时一起启动，从而实时监控 osu! 的编辑器（editor）。
 
-> 为什么必须是 32 位自包含版、并且和 osu! 在同一个 prefix 下运行：osu! stable 是 32 位程序，查看器通过 `ReadProcessMemory` 直接读取它的内存，所以位数必须一致、且要与 osu! 处于同一个 Wine prefix。自包含版还内置了 .NET 8 运行时和 GDI+ 修复，省去在 prefix 里安装运行时的步骤。
+> 为什么必须是 32 位**旧版（legacy）**自包含版、并且和 osu! 在同一个 prefix 下运行：osu! stable 是 32 位程序，查看器通过 `ReadProcessMemory` 直接读取它的内存，所以位数必须一致、且要与 osu! 处于同一个 Wine prefix。当前的 EditorReader 实现在 Wine 下无法定位编辑器对象，因此 `-legacy` 包内置的是**上一版 EditorReader 实现**；它同时内置了 .NET 8 运行时和 GDI+ 修复，省去在 prefix 里安装运行时的步骤。
 
 ## 默认路径速查
 
@@ -26,19 +26,19 @@ osu-winello 默认的路径如下（可用 `osu-wine --info` 输出确认）：
 ## 第一步：下载并解压 32 位版
 
 1. 打开发布页：<https://github.com/Exsper/osucatch-editor-realtimeviewer/releases/latest>
-2. 下载 **`release-x86-self-contained.zip`**（自包含版）。osu-winello / Linux Wine 用户必须使用自包含版；`release-x86.zip`（框架依赖版）只用于 Windows 本机。
+2. 下载 **`release-x86-self-contained-legacy.zip`**。osu-winello / Linux Wine 用户必须使用这个包：它内置的是**上一版 EditorReader 实现**，因为当前实现在 Wine 下无法工作。`release-x86.zip`（框架依赖版）和 `release-x86-self-contained.zip` 都只用于 Windows 本机。
 3. 解压到 `~/.local/share/osuconfig/osucatch-viewer/`：
 
 ```bash
 mkdir -p ~/.local/share/osuconfig/osucatch-viewer
-unzip release-x86-self-contained.zip -d ~/.local/share/osuconfig/osucatch-viewer
+unzip release-x86-self-contained-legacy.zip -d ~/.local/share/osuconfig/osucatch-viewer
 ```
 
 解压后应能看到这些关键文件：
 
 ```text
 osucatch-viewer/
-├── OsuCatch-Editor-RealtimeViewer.exe   ← 主程序
+├── OsuCatch-Editor-RealtimeViewer.exe   ← 主程序（旧版 EditorReader）
 ├── OsuCatch-Editor-RealtimeViewer.dll
 ├── StableCompatLib.dll                  ← x86 原生库
 ├── GdiPlus.dll                          ← Win7 版 GDI+（GDI+ 1.1），绕过 prefix 里的旧版 GDI+
@@ -69,7 +69,7 @@ start "" "Z:\home\你的用户名\.local\share\osuconfig\osucatch-viewer\OsuCatc
 
 - 文件**不要**叫 `launch_with_memory.bat`——那是 osu-winello 给 gosumemory/tosu 用的文件名，会被它的相关功能覆盖或删除；
 - 批处理放在 osu! 目录里，是为了用 `%~dp0` 直接定位 `osu!.exe`，不依赖 C:/D: 盘符映射；
-- 查看器目录里自带的 `GdiPlus.dll`（Win7 版 GDI+ 1.1，自包含版已包含）会在启动时被优先加载，从而绕开 prefix 里 osu-winello 为 osu! 安装的旧版 GDI+（`gdiplus_winxp`）。**不要再设置 `WINEDLLOVERRIDES=gdiplus=b`**——那会强制改用 Wine 内置 GDI+，反而绕过自带的修复 DLL；
+- 查看器目录里自带的 `GdiPlus.dll`（Win7 版 GDI+ 1.1，旧版自包含包已包含）会在启动时被优先加载，从而绕开 prefix 里 osu-winello 为 osu! 安装的旧版 GDI+（`gdiplus_winxp`）。**不要再设置 `WINEDLLOVERRIDES=gdiplus=b`**——那会强制改用 Wine 内置 GDI+，反而绕过自带的修复 DLL；
 - 查看器启动行**不要加** `/D` 参数——Wine 的 cmd 对 `start /d "路径"` 有解析问题，可能导致查看器无法启动；新版程序已按程序目录加载贴图，不需要设置工作目录。
 - 如果你的 HOME 不是 `/home/<用户名>`（比如自定义过），先用这条命令查出查看器在 Wine 里的真实路径，再填进批处理：
 
@@ -129,17 +129,18 @@ chmod +x ~/.local/bin/osu-with-viewer
 
 ## 常见问题
 
-- **启动即闪退，或提示找不到 .NET / 缺少运行时**：请改用自包含版 `release-x86-self-contained.zip`（已内置 .NET 运行时）；若仍在使用框架依赖版，需自行在 prefix 里安装 .NET 8 Desktop Runtime x86（`osu-wine n --winetricks dotnetdesktop8`）。也可以直接看 `logs/` 里的崩溃报告。
-- **查看器卡住 / 无响应**：先试 设置（Settings）→ **重启程序（Restart Program）**；如果重启后仍然卡住，多半是 Wine 下的兼容性问题，请把 `logs/` 里的日志附在 issue 里反馈（见下一条）。
-- **启动后窗口铺满整个桌面、右上角却不是最大化状态，而且无法缩小**：旧版本会把"最大化时的窗口尺寸"误存成普通窗口尺寸，导致下次启动以超大尺寸打开。最新版已修复（启动时自动把尺寸限制在所有屏幕的并集内，且不再保存最大化尺寸）。已经受影响的用户：关闭查看器后编辑 `user.config`，把 `Window_Width`/`Window_Height` 改回较小值（如 250 / 750）、`Window_Maximized` 设为 `False`；或直接删除 `user.config` 恢复默认设置。
+- **启动即闪退，或提示找不到 .NET / 缺少运行时**：请使用旧版自包含包 `release-x86-self-contained-legacy.zip`（已内置 .NET 运行时）；若仍在使用框架依赖版，需自行在 prefix 里安装 .NET 8 Desktop Runtime x86（`osu-wine n --winetricks dotnetdesktop8`）。也可以直接看 `logs/` 里的崩溃报告。
+- **提示 `No active editor found.`，或日志反复出现 `Editor needs Reload.`，画面始终不刷新**：多半是你使用的构建带的是**当前版 EditorReader，它在 Wine 下无法工作**。请下载 `release-x86-self-contained-legacy.zip`（旧版 EditorReader）并替换现有文件。同时确认已进入编辑器（窗口标题以 `.osu` 结尾）。
+- **查看器卡住 / 无响应**：先试 设置（Settings）→ **重启程序（Restart Program）**。如果重启后仍然卡住，这是旧版 EditorReader 的已知卡死问题，**目前在 Wine 下尚未解决**，非常抱歉——卡死修复只能应用于 Windows 构建。请把 `logs/` 里的日志附在 issue 里反馈（见最后一条），反馈是将来可能做出 Wine 修复的前提。
+- **启动后窗口铺满整个桌面、右上角却不是最大化状态，而且无法缩小**：旧版本会把"最大化时的窗口尺寸"误存成普通窗口尺寸，导致下次启动以超大尺寸打开。该问题已修复（启动时自动把尺寸限制在所有屏幕的并集内，且不再保存最大化尺寸）。已经受影响的用户：关闭查看器后编辑 `user.config`，把 `Window_Width`/`Window_Height` 改回较小值（如 250 / 750）、`Window_Maximized` 设为 `False`；或直接删除 `user.config` 恢复默认设置。
 - **日志里反复出现 `No Osu!.exe found`**：确认查看器是在同一 prefix 下启动的（用第二步的批处理启动即可），并确认 osu! 已经打开。
-- **启动查看器报 `Current version of GDI+ does not support this feature`（或 `Gdip` 类型初始化异常）后闪退**：osu-winello prefix 里的 `gdiplus_winxp`（旧版 GDI+ 1.0）与 .NET 8 的 System.Drawing（需要 GDI+ 1.1）不兼容。请使用自包含版 `release-x86-self-contained.zip`（已内置 Win7 版 `GdiPlus.dll`），并确认查看器目录里有 `GdiPlus.dll`；不要设置 `WINEDLLOVERRIDES=gdiplus=b`。
-- **提示 `No active editor found.`**：先确认已进入编辑器（窗口标题以 `.osu` 结尾）。osu! 更新后内存布局可能变化，请更新查看器到最新发布版。
-- **启动后一直停在 `Try fetch editor`，没有后续日志**：这是旧版本在 Wine 下内存扫描的兼容性问题，最新版已修复（分块读取 + 对阻塞区域加看门狗）。新版日志里如出现 `scan aborted ... stalled at region ...`，该区域会被退避（稍后按递增间隔重试），下一次扫描从断点继续，属于正常现象；重扫在后台进行，期间画面仍会刷新。
+- **启动查看器报 `Current version of GDI+ does not support this feature`（或 `Gdip` 类型初始化异常）后闪退**：osu-winello prefix 里的 `gdiplus_winxp`（旧版 GDI+ 1.0）与 .NET 8 的 System.Drawing（需要 GDI+ 1.1）不兼容。请使用旧版自包含包 `release-x86-self-contained-legacy.zip`（已内置 Win7 版 `GdiPlus.dll`），并确认查看器目录里有 `GdiPlus.dll`；不要设置 `WINEDLLOVERRIDES=gdiplus=b`。
+- **提示 `No active editor found.`**：请先看上面关于 `Editor needs Reload.` 的那一条——在 Wine 下通常意味着你运行的构建带的是当前版 EditorReader，而不是旧版。另外 osu! 更新后内存布局也可能变化，此时请更新到最新发布版。
+- **启动后一直停在 `Try fetch editor`，没有后续日志**：这是旧版 EditorReader 在 Wine 下的已知内存扫描兼容性问题，目前尚未解决。可先试 设置（Settings）→ **重启程序（Restart Program）**；若无改善，请把 osu! 与查看器一起重启。非常欢迎提供复现时的日志。
 - **开启 cachy（wine-osu-cachy）后查看器直接退出、没有任何日志**：osu-winello 的 cachy wine（wow64 实验构建）与 .NET 8 不兼容，基于 .NET 8 的查看器无法启动。请保持默认 wine-osu，**不要**设置 `WINE_USE_CACHY="true"`（该选项只建议给 Mapping Tools 等 .NET 6 程序使用）。
 - **查看器窗口出现但画面不刷新**：谱面本身是静态的，画面里唯一会动的是你正在拖动/放置的物件，而它的当前位置只能从编辑器内存读到——所以 `Full read` 间隔实际上就是"物件跟手"的帧率。编辑器不在前台或鼠标静止时，全量读取会降到低频间隔，这是正常设计；进入编辑器并移动鼠标（例如拖动物件）即可看到实时刷新。状态栏会说明当前处于哪种状态：`Editor is not running`（test mode / 选歌中，属正常，画面保留上一张图）、`Re-binding editor...`（正在后台重新查找编辑器地址）、`Editor read failed, retrying`（读取持续失败，程序按退避重试并继续绘制最后一份有效数据）。
 - **上次异常退出后性能相关设置被自动调整**：程序检测到上次非正常退出时会自动关闭批量渲染，可在设置里重新打开。
-- **`osu-wine --fixprefix` 之后查看器起不来**：prefix 被重装不影响查看器本体（它位于 `osuconfig` 下，自带的运行时与 `GdiPlus.dll` 也不会被清掉）；若仍启动失败，确认使用的是自包含版。
+- **`osu-wine --fixprefix` 之后查看器起不来**：prefix 被重装不影响查看器本体（它位于 `osuconfig` 下，自带的运行时与 `GdiPlus.dll` 也不会被清掉）；若仍启动失败，确认使用的是旧版自包含包。
 - **如何反馈问题**：请附带 `logs/` 目录下的 `log_YYYYMMDD.log`（当天运行日志）和 `crash_*.log`（崩溃报告）。该目录位于 prefix 的 `%LocalAppData%\OsuCatch-Editor-RealtimeViewer\logs\`，对应 Linux 路径 `~/.local/share/wineprefixes/osu-wineprefix/drive_c/users/<你的用户名>/AppData/Local/OsuCatch-Editor-RealtimeViewer/logs/`。如果问题与读取编辑器有关（例如反复出现 `Periodic task error: ... FetchEditor error.`），请先在 **设置 → 日志 → Editor Reader** 打开对应开关（并把日志级别调成 Debug）再复现：不开这个开关时日志里只有摘要，没有真正的原因（哪次读取失败、哪个区域卡住、哪份快照校验不通过）。
 
 ## 相关链接

@@ -6,18 +6,26 @@ A realtime beatmap viewer for beatmap editing (osu!stable editor) in osu!catch.
 
 ## Download
 
-Download the latest release (x64 / x86 builds):
+Download the latest release:
 
 - <https://github.com/Exsper/osucatch-editor-realtimeviewer/releases/latest>
 
-> For osu-winello / Wine on Linux, use the **self-contained** x86 build (`release-x86-self-contained.zip`) — it bundles the .NET runtime and the `GdiPlus.dll` fix required to bypass the legacy GDI+ in osu-winello prefixes.
+Pick the package that matches your setup:
+
+| Your setup | Package |
+| --- | --- |
+| Windows, 64-bit | `release-x64.zip` |
+| Windows, 32-bit | `release-x86.zip` |
+| Wine (Linux / macOS, osu-winello) | `release-x86-self-contained-legacy.zip` |
+
+> **Wine users must use the `-legacy` package.** The current EditorReader implementation does not work under Wine, so the legacy package ships the previous EditorReader implementation together with the self-contained .NET runtime and the `GdiPlus.dll` fix required to bypass the legacy GDI+ in osu-winello prefixes. See the guides below.
 
 ## Guides
 
 - [Running under osu-winello on Linux / Wine (English)](docs/osu-winello-guide.en.md)
 - [在 Linux / Wine（osu-winello）中运行（中文）](docs/osu-winello-guide.zh-CN.md)
 
-These guides explain how to add the self-contained 32-bit build to the osu-winello Wine prefix and launch it together with osu! to monitor the editor in real time.
+These guides explain how to add the legacy self-contained 32-bit build to the osu-winello Wine prefix and launch it together with osu! to monitor the editor in real time.
 
 ## Features
 
@@ -40,7 +48,11 @@ These guides explain how to add the self-contained 32-bit build to the osu-winel
 
 ### Viewer crashes on startup under Wine with "Current version of GDI+ does not support this feature"
 
-osu-winello installs the legacy `gdiplus_winxp` (GDI+ 1.0) into its Wine prefix for osu!, which is incompatible with .NET 8's System.Drawing (which requires GDI+ 1.1). The self-contained x86 build (`release-x86-self-contained.zip`) ships a Windows 7 `GdiPlus.dll` (GDI+ 1.1) next to the executable, which is loaded first and bypasses the prefix's legacy GDI+ — so osu-winello users must use the self-contained build. See the [osu-winello guide (English)](docs/osu-winello-guide.en.md) / [指南（中文）](docs/osu-winello-guide.zh-CN.md) for the full setup.
+osu-winello installs the legacy `gdiplus_winxp` (GDI+ 1.0) into its Wine prefix for osu!, which is incompatible with .NET 8's System.Drawing (which requires GDI+ 1.1). The legacy self-contained x86 build (`release-x86-self-contained-legacy.zip`) ships a Windows 7 `GdiPlus.dll` (GDI+ 1.1) next to the executable, which is loaded first and bypasses the prefix's legacy GDI+ — so osu-winello users must use the self-contained legacy package. See the [osu-winello guide (English)](docs/osu-winello-guide.en.md) / [指南（中文）](docs/osu-winello-guide.zh-CN.md) for the full setup.
+
+### Under Wine the viewer reports `No active editor found.` and never reads any data
+
+The current EditorReader implementation cannot locate the osu! editor object under Wine, so the viewer keeps logging `Editor needs Reload.` and no preview is drawn. Use `release-x86-self-contained-legacy.zip`, which contains the previous EditorReader implementation and works under Wine. Note that this legacy package still has the old freeze issue, which is currently unfixed under Wine.
 
 ## Workflow
 
