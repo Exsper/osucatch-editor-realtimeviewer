@@ -1,9 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    临时诊断工程：只用于测量 EditorReader 的真实开销与失败原因。
-    不引用主工程，而是直接链接主工程的 EditorReader 源码（同一份实现，不含 UI/设置依赖），
-    这样测出来的数字就是主程序跑出来的数字。测试结束后整个目录可以删除。
+    诊断工程：测量 EditorReader 的真实开销与失败原因。
+    不引用主工程，而是直接链接 EditorReader 源码（同一份实现，不含 UI/设置依赖）。
+
+    与主工程一致地支持两份实现二选一（公开 API 完全相同）：
+      dotnet build                                   -> 新版
+      dotnet build -p:UseLegacyEditorReader=true     -> 旧版（1564fdc 原版，兼容性优先）
+
+    旧版没有 Diag* / ProbeRegionWithMainPath / ForceHandle / IsWineTarget 这些新增诊断成员，
+    因此 harness 自身对它们的引用都用 #if !LEGACY_EDITOR_READER 包好。
   -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -15,10 +21,22 @@
     <AssemblyName>EditorReaderHarness</AssemblyName>
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <UseLegacyEditorReader Condition="'$(UseLegacyEditorReader)' == ''">false</UseLegacyEditorReader>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(UseLegacyEditorReader)' != 'true'">
     <Compile Include="..\osucatch-editor-realtimeviewer\EditorReader\*.cs" LinkBase="EditorReader" />
   </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLegacyEditorReader)' == 'true'">
+    <Compile Include="..\osucatch-editor-realtimeviewer\EditorReaderLegacy\EditorReader.cs.legacy" Link="EditorReader\EditorReader.cs" />
+    <Compile Include="..\osucatch-editor-realtimeviewer\EditorReaderLegacy\Internals.cs.legacy" Link="EditorReader\Internals.cs" />
+    <Compile Include="..\osucatch-editor-realtimeviewer\EditorReaderLegacy\HitObject.cs.legacy" Link="EditorReader\HitObject.cs" />
+    <Compile Include="..\osucatch-editor-realtimeviewer\EditorReaderLegacy\ControlPoint.cs.legacy" Link="EditorReader\ControlPoint.cs" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(UseLegacyEditorReader)' == 'true'">
+    <DefineConstants>$(DefineConstants);LEGACY_EDITOR_READER</DefineConstants>
+  </PropertyGroup>
 
 </Project>

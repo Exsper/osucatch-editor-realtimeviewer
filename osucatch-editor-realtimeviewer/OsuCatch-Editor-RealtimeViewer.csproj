@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -8,6 +8,19 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!--
+      编辑器内存读取实现的选择开关。
+
+      新版（默认）：当前 EditorReader/*.cs，带指针位宽修正、跨页分段读取、扫描诊断等改进。
+      旧版：EditorReaderLegacy/*.legacy，即 1564fdc 的原版实现，用于 Wine 等兼容性优先的场景。
+
+      用法：
+        dotnet build                                  -> 新版
+        dotnet build -p:UseLegacyEditorReader=true    -> 旧版
+      两份实现提供完全相同的公开 API，调用方（EditorReaderHelper / Form1）无需改动。
+    -->
+    <UseLegacyEditorReader Condition="'$(UseLegacyEditorReader)' == ''">false</UseLegacyEditorReader>
   </PropertyGroup>
 
   <ItemGroup>
@@ -64,6 +77,39 @@
   <ItemGroup>
     <Folder Include="Osu.Game\" />
   </ItemGroup>
+
+  <!--
+    编辑器读取实现二选一。两份都在 Editor_Reader 命名空间下提供同名的
+    EditorReader / Internals / HitObject / ControlPoint，因此必须只编译其中一份。
+    *.legacy 不是默认的 .cs 扩展名，所以不会被 SDK 自动包含；只有开启开关时才显式加入。
+  -->
+  <ItemGroup Condition="'$(UseLegacyEditorReader)' != 'true'">
+    <Compile Remove="EditorReaderLegacy\**\*.legacy" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLegacyEditorReader)' == 'true'">
+    <Compile Remove="EditorReader\EditorReader.cs" />
+    <Compile Remove="EditorReader\Internals.cs" />
+    <Compile Remove="EditorReader\HitObject.cs" />
+    <Compile Remove="EditorReader\ControlPoint.cs" />
+    <Compile Include="EditorReaderLegacy\EditorReader.cs.legacy">
+      <Link>EditorReader\EditorReader.cs</Link>
+    </Compile>
+    <Compile Include="EditorReaderLegacy\Internals.cs.legacy">
+      <Link>EditorReader\Internals.cs</Link>
+    </Compile>
+    <Compile Include="EditorReaderLegacy\HitObject.cs.legacy">
+      <Link>EditorReader\HitObject.cs</Link>
+    </Compile>
+    <Compile Include="EditorReaderLegacy\ControlPoint.cs.legacy">
+      <Link>EditorReader\ControlPoint.cs</Link>
+    </Compile>
+  </ItemGroup>
+
+  <!-- 编译期常量，便于代码里区分实现（也用于在日志里标注当前用的是哪一份） -->
+  <PropertyGroup Condition="'$(UseLegacyEditorReader)' == 'true'">
+    <DefineConstants>$(DefineConstants);LEGACY_EDITOR_READER</DefineConstants>
+  </PropertyGroup>
 
   <PropertyGroup>
     <!-- win-x64/win-x86 构建使用对应位数原生库；未指定 RID 的调试构建默认按 64 位（AnyCPU 在 x64 系统上以 64 位进程运行） -->

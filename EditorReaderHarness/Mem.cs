@@ -288,6 +288,28 @@ public static class Mem
         if (buffer == null || buffer.Length < size) buffer = new byte[size];
     }
 
+    /// <summary>把 EditorReader 里那种十六进制签名串转成字节数组（0xEE 视为通配符，由 PatternMatch 处理）。</summary>
+    public static byte[] HexToBytes(string hex)
+    {
+        var bytes = new byte[hex.Length / 2];
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+        }
+        return bytes;
+    }
+
+    /// <summary>与 EditorReader.PatternCheck 一致：模式里的 0xEE 是通配符。</summary>
+    public static bool PatternMatch(byte[] buffer, byte[] pattern, int offset)
+    {
+        if (offset < 0 || offset + pattern.Length > buffer.Length) return false;
+        for (int i = 0; i < pattern.Length; i++)
+        {
+            if (pattern[i] != 0xEE && pattern[i] != buffer[offset + i]) return false;
+        }
+        return true;
+    }
+
     /// <summary>查询某个地址所在的内存区域，用于判断"读不到"是因为地址没映射还是权限不足。</summary>
     public static string DescribeRegion(IntPtr hProcess, IntPtr address)
     {
@@ -317,6 +339,50 @@ public static class Mem
     {
         byte[] b = new byte[4];
         return Rpm(hProcess, (IntPtr)address, b, 4) ? BitConverter.ToUInt32(b, 0) : 0;
+    }
+
+    public struct RegionStats
+    {
+        public int Commit, Reserve, Free, Readable, Filtered;
+    }
+
+    /// <summary>
+    /// 枚举全部内存区域并统计各类状态，用于判断 Wine 下 VirtualQueryEx 的报告是否
+    /// 与真实 Windows 不同（主工程只接受 COMMIT + PAGE_READWRITE + MEM_PRIVATE）。
+    /// </summary>
+    public static List<MEMORY_BASIC_INFORMATION> EnumerateAllRegions(IntPtr hProcess, out RegionStats stats)
+    {
+        stats = default;
+        var list = new List<MEMORY_BASIC_INFORMATION>();
+        IntPtr address = IntPtr.Zero;
+        int guard = 0;
+
+        while (guard++ < 200000)
+        {
+            if (VirtualQueryEx(hProcess, address, out MEMORY_BASIC_INFORMATION mbi, Marshal.SizeOf<MEMORY_BASIC_INFORMATION>()) == 0)
+            {
+                break;
+            }
+
+            list.Add(mbi);
+
+            switch (mbi.State)
+            {
+                case 0x1000: stats.Commit++; break;
+                case 0x2000: stats.Reserve++; break;
+                case 0x10000: stats.Free++; break;
+            }
+
+            bool readable = mbi.Protect is 0x02 or 0x04 or 0x20 or 0x40;
+            if (readable) stats.Readable++;
+            if (mbi.State == 0x1000 && mbi.Protect == 0x04 && mbi.Type == 0x20000) stats.Filtered++;
+
+            long next = mbi.BaseAddress.ToInt64() + mbi.RegionSize.ToInt64();
+            if (next <= address.ToInt64()) break;
+            address = (IntPtr)next;
+        }
+
+        return list;
     }
 
     /// <summary>枚举 [from, to) 之间的所有内存区域并描述它们。</summary>

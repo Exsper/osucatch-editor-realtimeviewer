@@ -137,6 +137,11 @@ namespace osucatch_editor_realtimeviewer
         public Form1()
         {
             Log.Breadcrumb("Form1: constructing...");
+#if LEGACY_EDITOR_READER
+            Log.Breadcrumb("EditorReader 实现: 旧版（EditorReaderLegacy，兼容性优先）");
+#else
+            Log.Breadcrumb("EditorReader 实现: 新版（EditorReader，含位宽/跨页/诊断改进）");
+#endif
             InitializeComponent();
 
             // 模板菜单在构造函数里创建，确保语言资源能应用到它
