@@ -173,29 +173,36 @@ namespace osucatch_editor_realtimeviewer
             };
         }
 
-        /// <summary>模式对应的“拍线”下拉项 / 滑块提示文本。</summary>
+        /// <summary>
+        /// 模式对应的档位文字，用在快捷开关栏滑块下方的状态标签上。
+        /// <para />英文刻意写短（<c>1/8 beat</c> 而不是 <c>Every 1/8 beat</c>）：这段文字直接决定
+        /// 吸附在左 / 右侧时那一列的宽度，长句子会把整列撑得很宽；缩略写法配合功能区的
+        /// “Bar Lines” 标题一样看得懂。设置窗口里的下拉项另有更详细的文案（含配色说明）。
+        /// </para>
+        /// </summary>
         internal static string GetDisplayName(BarLineMode mode)
         {
             bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
             return mode switch
             {
-                BarLineMode.Every4Beats => chinese ? "每4拍" : "Every 4 beats",
-                BarLineMode.Every2Beats => chinese ? "每2拍" : "Every 2 beats",
-                BarLineMode.EveryBeat => chinese ? "每拍" : "Every beat",
-                BarLineMode.EveryHalfBeat => chinese ? "每1/2拍" : "Every 1/2 beat",
-                BarLineMode.EveryThirdBeat => chinese ? "每1/3拍" : "Every 1/3 beat",
-                BarLineMode.EveryQuarterBeat => chinese ? "每1/4拍" : "Every 1/4 beat",
-                BarLineMode.EveryFifthBeat => chinese ? "每1/5拍" : "Every 1/5 beat",
-                BarLineMode.EverySixthBeat => chinese ? "每1/6拍" : "Every 1/6 beat",
-                BarLineMode.EverySeventhBeat => chinese ? "每1/7拍" : "Every 1/7 beat",
-                BarLineMode.EveryEighthBeat => chinese ? "每1/8拍" : "Every 1/8 beat",
-                _ => chinese ? "不显示" : "Hidden",
+                BarLineMode.Every4Beats => chinese ? "每4拍" : "4 beats",
+                BarLineMode.Every2Beats => chinese ? "每2拍" : "2 beats",
+                BarLineMode.EveryBeat => chinese ? "每拍" : "1 beat",
+                BarLineMode.EveryHalfBeat => chinese ? "每1/2拍" : "1/2 beat",
+                BarLineMode.EveryThirdBeat => chinese ? "每1/3拍" : "1/3 beat",
+                BarLineMode.EveryQuarterBeat => chinese ? "每1/4拍" : "1/4 beat",
+                BarLineMode.EveryFifthBeat => chinese ? "每1/5拍" : "1/5 beat",
+                BarLineMode.EverySixthBeat => chinese ? "每1/6拍" : "1/6 beat",
+                BarLineMode.EverySeventhBeat => chinese ? "每1/7拍" : "1/7 beat",
+                BarLineMode.EveryEighthBeat => chinese ? "每1/8拍" : "1/8 beat",
+                _ => chinese ? "不显示" : "Off",
             };
         }
 
         /// <summary>
-        /// 拍线状态文字里的显示名称：<c>拍线：{当前拍线显示模式}</c>。
-        /// 只写档位、不写配色——线上什么颜色用户看一眼就知道，写进文字反而啰嗦。
+        /// 拍线状态文字里的显示名称：只写当前档位（如“每2拍”）。
+        /// 只写档位、不写配色——线上什么颜色用户看一眼就知道，写进文字反而啰嗦；
+        /// 也不带“拍线：”这类前缀：所在功能区本身就叫“拍线”，吸附在左 / 右侧竖排时前缀还会把整列撑宽。
         /// </summary>
         internal static string GetOptionName(BarLineMode mode) => GetDisplayName(mode);
 

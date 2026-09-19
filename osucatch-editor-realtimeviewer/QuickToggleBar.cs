@@ -4,10 +4,12 @@ namespace osucatch_editor_realtimeviewer
 {
     /// <summary>
     /// 快捷开关条：类似 <see cref="ToolStrip"/> 的工具条控件。
-    /// <para />它既能吸附在主窗口菜单栏下方的一行里，也能拖出来变成浮动小窗口：
-    /// 按住左侧手柄（或条上的空白处）拖动即可拖出 / 拖回，双击手柄或点击右端按钮同样可以切换。
+    /// <para />它既能吸附在主窗口菜单栏下方的一行里，也能吸附在预览画布左 / 右侧成为一列，
+    /// 还能拖出来变成浮动小窗口：按住手柄（或条上的空白处）拖动即可拖出 / 拖回，
+    /// 拖到窗口顶部或左 / 右边缘松手即吸附到那一侧；双击手柄或点击末端按钮同样可以切换浮动 / 吸附。
+    /// <para />左 / 右侧吸附时条上的控件竖排（滑块也是竖向的）。
     /// <para />条上的内容按“功能区”组织：每个功能区有一段文字标题和若干按钮 / 下拉框 / 滑块，
-    /// 功能区之间用分隔线隔开；在条上点右键可以在右键菜单里勾选要显示哪些功能区。
+    /// 功能区之间用分隔线隔开；在条上点右键可以在右键菜单里勾选要显示哪些功能区、选择吸附位置。
     /// </summary>
     /// <remarks>
     /// 典型用法：
@@ -51,8 +53,18 @@ namespace osucatch_editor_realtimeviewer
 
         private readonly ContextMenuStrip barContextMenu = new();
         private readonly ToolStripMenuItem floatMenuItem = new();
+        private readonly ToolStripMenuItem dockSideMenuItem = new();
+        private readonly ToolStripMenuItem dockTopMenuItem = new();
+        private readonly ToolStripMenuItem dockLeftMenuItem = new();
+        private readonly ToolStripMenuItem dockRightMenuItem = new();
         private readonly ToolStripMenuItem hideMenuItem = new();
         private readonly ToolStripSeparator contextMenuSeparator = new();
+
+        /// <summary>右键菜单里独立开关的勾选项（勾选 = 在条上显示），键为开关标识。</summary>
+        private readonly Dictionary<string, ToolStripMenuItem> standaloneMenuItems = new(StringComparer.Ordinal);
+
+        /// <summary>被用户在右键菜单里取消勾选、因而不显示在条上的独立开关标识。</summary>
+        private readonly HashSet<string> hiddenStandaloneKeys = new(StringComparer.Ordinal);
 
         private readonly System.Windows.Forms.Timer dragTimer = new() { Interval = DragPollIntervalMs };
 
@@ -64,6 +76,12 @@ namespace osucatch_editor_realtimeviewer
         private Point lastDragAreaClickPoint;
         private bool suppressToggleEvents;
         private bool rebuilding;
+        private QuickToggleDockSide dockSide = QuickToggleDockSide.Top;
+
+        /// <summary>上次在某个吸附位置停靠时测得的“厚度”（横排 = 行高，竖排 = 列宽）。</summary>
+        private int dockedHorizontalThickness;
+        private int dockedVerticalThickness;
+
         private string title = "Quick Toggles";
 
         internal QuickToggleBar()
@@ -91,8 +109,26 @@ namespace osucatch_editor_realtimeviewer
             floatMenuItem.Click += (sender, e) => FloatingToggleRequested?.Invoke(this, EventArgs.Empty);
             hideMenuItem.Name = "quickToggleHideMenuItem";
             hideMenuItem.Click += (sender, e) => HideRequested?.Invoke(this, EventArgs.Empty);
+
+            // 吸附位置：顶部横排 / 左、右侧竖排由用户在右键菜单里选择
+            dockSideMenuItem.Name = "quickToggleDockSideMenuItem";
+            dockTopMenuItem.Name = "quickToggleDockTopMenuItem";
+            dockLeftMenuItem.Name = "quickToggleDockLeftMenuItem";
+            dockRightMenuItem.Name = "quickToggleDockRightMenuItem";
+            dockTopMenuItem.Click += (sender, e) => RequestDockSide(QuickToggleDockSide.Top);
+            dockLeftMenuItem.Click += (sender, e) => RequestDockSide(QuickToggleDockSide.Left);
+            dockRightMenuItem.Click += (sender, e) => RequestDockSide(QuickToggleDockSide.Right);
+            dockSideMenuItem.DropDownItems.AddRange(new ToolStripItem[]
+            {
+                dockTopMenuItem,
+                dockLeftMenuItem,
+                dockRightMenuItem,
+            });
+
             barContextMenu.Items.Add(floatMenuItem);
+            barContextMenu.Items.Add(dockSideMenuItem);
             barContextMenu.Items.Add(hideMenuItem);
+            // 分隔线之后是各个勾选项：独立开关与功能区的“是否显示”都排在这里
             barContextMenu.Items.Add(contextMenuSeparator);
             ContextMenuStrip = barContextMenu;
 
@@ -111,6 +147,12 @@ namespace osucatch_editor_realtimeviewer
 
         /// <summary>显示的功能区增删导致内容变化时触发：宿主据此重新计算停靠行高度 / 浮窗尺寸。</summary>
         internal event EventHandler? ContentChanged;
+
+        /// <summary>用户在右键菜单里选了新的吸附位置（顶部 / 左侧 / 右侧）时触发。</summary>
+        internal event EventHandler<QuickToggleDockSideEventArgs>? DockSideRequested;
+
+        private void RequestDockSide(QuickToggleDockSide side)
+            => DockSideRequested?.Invoke(this, new QuickToggleDockSideEventArgs(side));
 
         #endregion
 
@@ -140,13 +182,13 @@ namespace osucatch_editor_realtimeviewer
             groups[key] = group;
             groupOrder.Add(group);
             RebuildItems();
-            UpdateGroupMenuChecks();
+            UpdateVisibilityMenuChecks();
             ContentChanged?.Invoke(this, EventArgs.Empty);
             return group;
         }
 
-        /// <summary>功能区的显示状态发生变化（右键菜单勾选）时触发。</summary>
-        internal event EventHandler? GroupsVisibilityChanged;
+        /// <summary>条上项的显示状态发生变化（右键菜单勾选功能区或独立开关）时触发，宿主据此立即落盘。</summary>
+        internal event EventHandler? VisibilityChanged;
 
         /// <summary>功能区是否存在。</summary>
         internal bool HasGroup(string key) => groups.ContainsKey(key);
@@ -162,24 +204,38 @@ namespace osucatch_editor_realtimeviewer
 
             group.Visible = visible;
             RebuildItems();
-            UpdateGroupMenuChecks();
+            UpdateVisibilityMenuChecks();
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        /// <summary>把所有功能区显示状态序列化成可写入设置的字符串（只写被隐藏的功能区）。</summary>
+        /// <summary>
+        /// 把功能区与独立开关的显示状态序列化成可写入设置的字符串（只写被隐藏的那些标识）。
+        /// <para />独立开关（如“固定预览时刻”）也记在这里：它们的键各不相同，不会与功能区标识冲突。
+        /// </para>
+        /// </summary>
         internal string GetHiddenGroups()
         {
             StringBuilder builder = new();
             foreach (QuickToggleGroup group in groupOrder)
             {
                 if (group.Visible) continue;
-                if (builder.Length > 0) builder.Append(';');
-                builder.Append(group.Key);
+                AppendKey(builder, group.Key);
+            }
+            foreach (ToolStripButton standalone in standaloneToggles)
+            {
+                if (standalone.Name is not string key || !IsStandaloneHidden(standalone)) continue;
+                AppendKey(builder, key);
             }
             return builder.ToString();
+
+            static void AppendKey(StringBuilder builder, string key)
+            {
+                if (builder.Length > 0) builder.Append(';');
+                builder.Append(key);
+            }
         }
 
-        /// <summary>从设置字符串恢复功能区显示状态（不触发 <see cref="GroupsVisibilityChanged"/>）。</summary>
+        /// <summary>从设置字符串恢复功能区与独立开关的显示状态（不触发 <see cref="VisibilityChanged"/>）。</summary>
         internal void ApplyHiddenGroups(string? hidden)
         {
             HashSet<string> hiddenKeys = new(StringComparer.Ordinal);
@@ -202,9 +258,16 @@ namespace osucatch_editor_realtimeviewer
                 changed = true;
             }
 
+            foreach (ToolStripButton standalone in standaloneToggles)
+            {
+                if (standalone.Name is not string key) continue;
+                bool visible = firstRun || !hiddenKeys.Contains(key);
+                if (visible ? hiddenStandaloneKeys.Remove(key) : hiddenStandaloneKeys.Add(key)) changed = true;
+            }
+
             if (!changed) return;
             RebuildItems();
-            UpdateGroupMenuChecks();
+            UpdateVisibilityMenuChecks();
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -225,16 +288,23 @@ namespace osucatch_editor_realtimeviewer
                     if (item is ToolStripSeparator separator) separator.Dispose();
                 }
 
-                // 最左边先放不归属任何功能区的固定开关，再按顺序排各功能区
-                foreach (ToolStripButton standalone in standaloneToggles) Items.Add(standalone);
+                // 最左边先放不归属任何功能区的固定开关，再按顺序排各功能区。
+                // 被用户隐藏的独立开关不加进来；独立开关与第一个功能区之间同样要有分隔线：
+                // 例如“固定预览时刻”按钮紧跟 MOD 的 NM / EZ / HR 时，没有线就会被当成同一组按钮。
+                bool needSeparator = false;
+                foreach (ToolStripButton standalone in standaloneToggles)
+                {
+                    if (IsStandaloneHidden(standalone)) continue;
+                    Items.Add(standalone);
+                    needSeparator = true;
+                }
 
-                bool anyVisible = false;
                 foreach (QuickToggleGroup group in groupOrder)
                 {
                     if (!group.Visible) continue;
-                    if (anyVisible) Items.Add(new ToolStripSeparator());
+                    if (needSeparator) Items.Add(new ToolStripSeparator());
                     group.InsertItems(Items);
-                    anyVisible = true;
+                    needSeparator = true;
                 }
             }
             finally
@@ -249,8 +319,8 @@ namespace osucatch_editor_realtimeviewer
 
         /// <summary>
         /// 添加一个不属于任何功能区、固定排在条最左边的即时开关（如“固定预览时刻”）。
-        /// <para />它没有功能区标题，也不会出现在右键菜单的功能区勾选里——功能区开关是用来
-        /// 按需收起的，而这种独立的模式切换按钮必须一直看得见。
+        /// <para />它没有功能区标题，但和功能区一样可以在右键菜单里按需收起——
+        /// 用 <see cref="AddStandaloneToggleToMenu"/> 给它挂一个“是否显示”的勾选项（默认显示）。
         /// </para>
         /// </summary>
         /// <param name="key">开关标识，用于读写状态与持久化，需保持稳定。</param>
@@ -318,10 +388,85 @@ namespace osucatch_editor_realtimeviewer
             if (!toggles.Remove(key, out ToolStripButton? item)) return;
             RemoveItemFromGroup(item);
             standaloneToggles.Remove(item);
+
+            // 右键菜单里的可见性勾选项一并撤掉，避免留下一个点了没反应的死项
+            if (standaloneMenuItems.Remove(key, out ToolStripMenuItem? menuItem))
+            {
+                hiddenStandaloneKeys.Remove(key);
+                barContextMenu.Items.Remove(menuItem);
+                menuItem.Dispose();
+                UpdateContextMenuSections();
+            }
+
             RebuildItems();
             item.Dispose();
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        #region 右键菜单：独立开关的显示 / 隐藏
+
+        /// <summary>
+        /// 给一个独立开关加一个右键菜单勾选项（勾选 = 在条上显示），和功能区的勾选项排在一起。
+        /// <para />菜单文字必须由调用方给：条上的按钮可能只显示图标（如“固定预览时刻”用 ⏸️ / ▶️），
+        /// 那种文本没法直接当菜单项用。
+        /// </para>
+        /// </summary>
+        /// <param name="key">开关标识（<see cref="AddStandaloneToggle"/> 里用过的那个）。</param>
+        /// <param name="menuText">菜单项文字（通常是这个开关的名字）。</param>
+        internal void AddStandaloneToggleToMenu(string key, string menuText)
+        {
+            if (standaloneMenuItems.ContainsKey(key)) return;
+            if (!toggles.ContainsKey(key)) return;
+
+            ToolStripMenuItem item = new()
+            {
+                Name = "quickToggleStandalone_" + key,
+                Text = menuText,
+                CheckOnClick = true,
+                Checked = !hiddenStandaloneKeys.Contains(key),
+            };
+            // CheckOnClick 已经翻转了勾选状态，这里只负责应用
+            item.Click += (sender, e) =>
+            {
+                SetStandaloneToggleVisible(key, item.Checked);
+                VisibilityChanged?.Invoke(this, EventArgs.Empty);
+            };
+            standaloneMenuItems[key] = item;
+
+            // 排在分隔线之后的勾选项里最前面（与条上独立开关靠左的位置一致），功能区勾选依次后移
+            int separatorIndex = barContextMenu.Items.IndexOf(contextMenuSeparator);
+            barContextMenu.Items.Insert(separatorIndex + standaloneMenuItems.Count, item);
+            UpdateContextMenuSections();
+        }
+
+        /// <summary>更新独立开关菜单项的文字（语言切换时调用）。</summary>
+        internal void SetStandaloneToggleMenuText(string key, string menuText)
+        {
+            if (standaloneMenuItems.TryGetValue(key, out ToolStripMenuItem? item)) item.Text = menuText;
+        }
+
+        /// <summary>显示 / 隐藏一个独立开关（右键菜单勾选，立即生效；下次启动按设置恢复）。</summary>
+        internal void SetStandaloneToggleVisible(string key, bool visible)
+        {
+            if (!toggles.ContainsKey(key)) return;
+
+            bool changed = visible ? hiddenStandaloneKeys.Remove(key) : hiddenStandaloneKeys.Add(key);
+            if (!changed) return;
+
+            RebuildItems();
+            UpdateVisibilityMenuChecks();
+            ContentChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>该独立开关是否被用户隐藏。</summary>
+        private bool IsStandaloneHidden(ToolStripButton toggle)
+            => toggle.Name is string key && hiddenStandaloneKeys.Contains(key);
+
+        /// <summary>按菜单里实际有哪些勾选项决定分隔线是否显示。</summary>
+        private void UpdateContextMenuSections()
+            => contextMenuSeparator.Visible = groupOrder.Count > 0 || standaloneMenuItems.Count > 0;
+
+        #endregion
 
         #region 按钮图标
 
@@ -590,18 +735,80 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>当前是否处于浮动小窗口状态，由停靠管理器维护。</summary>
         internal bool IsFloating { get; set; }
 
+        /// <summary>
+        /// 当前吸附位置，由停靠管理器维护。左 / 右侧时条上的控件改为竖排（滑块也变成竖向的）。
+        /// </summary>
+        internal QuickToggleDockSide DockSide
+        {
+            get => dockSide;
+            set
+            {
+                if (dockSide == value) return;
+                dockSide = value;
+                ApplyOrientation();
+            }
+        }
+
+        /// <summary>当前是否竖排显示（吸附在左 / 右侧）。</summary>
+        internal bool IsVertical => dockSide.IsVertical();
+
+        /// <summary>按当前的吸附位置切换排布方向：竖排时功能区里的下拉框 / 滑块等宿主控件也要跟着转。</summary>
+        private void ApplyOrientation()
+        {
+            bool vertical = IsVertical;
+            LayoutStyle = vertical
+                ? ToolStripLayoutStyle.VerticalStackWithOverflow
+                : ToolStripLayoutStyle.HorizontalStackWithOverflow;
+
+            foreach (QuickToggleGroup group in groupOrder) group.ApplyOrientation(vertical);
+
+            UpdateDockSideMenuChecks();
+            ContentChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// 条在某个吸附位置下的“厚度”：横排是行高，竖排是列宽。
+        /// <para />拖动时的吸附提示框要贴着目标边缘画，必须知道条贴上去之后有多厚。
+        /// 与当前排布一致时直接量实际尺寸；另一种排布用上次在该侧停靠时记下的值，
+        /// 没记过（例如从没吸附到过左 / 右侧）就按字体与图标估一个，只影响提示框的粗细。
+        /// </para>
+        /// </summary>
+        internal int PreferredThickness(bool vertical)
+        {
+            if (vertical == IsVertical) return Math.Max(vertical ? Width : Height, 1);
+
+            int recorded = vertical ? dockedVerticalThickness : dockedHorizontalThickness;
+            return recorded > 0 ? recorded : Math.Max(ImageScalingSize.Height + 8, Font.Height + 6);
+        }
+
+        /// <summary>停靠行 / 浮窗布局完成后回填实际厚度，供另一种排布的吸附提示使用。</summary>
+        internal void NoteDockedThickness(bool vertical, int thickness)
+        {
+            if (thickness <= 0) return;
+            if (vertical) dockedVerticalThickness = thickness;
+            else dockedHorizontalThickness = thickness;
+        }
+
         /// <summary>浮窗标题 / 提示用的名称。</summary>
         internal string BarTitle => title;
 
         /// <summary>
         /// 浮窗尺寸：按内容计算，并限制在工作区之内。
-        /// <para />宽度先夹到工作区，再按这个宽度问首选高度：条是换行排布的（Flow），
+        /// <para />横排时宽度先夹到工作区，再按这个宽度问首选高度：条是换行排布的（Flow），
         /// 用一个很宽的宽度去问只会拿到“单行”的高度，窄屏上内容换行后就会被裁掉。
+        /// 竖排时反过来：高度先夹到工作区，再按这个高度问列宽。
         /// </para>
         /// </summary>
         internal Size PreferredFloatSize()
         {
             Rectangle workingArea = Screen.FromControl(this).WorkingArea;
+            if (IsVertical)
+            {
+                int columnHeight = Math.Max(96, Math.Min(GetPreferredSize(new Size(0, 4096)).Height, workingArea.Height));
+                int columnWidth = Math.Max(48, Math.Min(GetPreferredSize(new Size(0, columnHeight)).Width, workingArea.Width));
+                return new Size(columnWidth, columnHeight);
+            }
+
             int width = Math.Max(96, Math.Min(GetPreferredSize(new Size(4096, 0)).Width, workingArea.Width));
             int height = Math.Max(24, Math.Min(GetPreferredSize(new Size(width, 0)).Height, workingArea.Height));
             return new Size(width, height);
@@ -618,13 +825,18 @@ namespace osucatch_editor_realtimeviewer
             title = chinese ? "快捷开关栏" : "Quick Toggle Bar";
             floatingButton.Text = IsFloating ? (chinese ? "吸附" : "Dock") : (chinese ? "浮动" : "Float");
             floatingButton.ToolTipText = chinese
-                ? "浮动为小窗口 / 吸附回工具栏（也可拖动左侧手柄或双击）"
-                : "Float as a window / dock back to the toolbar (or drag the grip)";
+                ? "浮动为小窗口 / 吸附回工具栏（也可拖动手柄，或将条拖到窗口顶部或左 / 右边缘吸附）"
+                : "Float as a window / dock back to the toolbar (or drag the grip to the top, left or right edge)";
             floatMenuItem.Text = IsFloating
                 ? (chinese ? "吸附到工具栏" : "Dock to toolbar")
                 : (chinese ? "浮动为小窗口" : "Float as window");
+            dockSideMenuItem.Text = chinese ? "吸附位置" : "Dock position";
+            dockTopMenuItem.Text = chinese ? "吸附在顶部（横排）" : "Dock on top (horizontal)";
+            dockLeftMenuItem.Text = chinese ? "吸附在左侧（竖排）" : "Dock on left (vertical)";
+            dockRightMenuItem.Text = chinese ? "吸附在右侧（竖排）" : "Dock on right (vertical)";
+            UpdateDockSideMenuChecks();
             hideMenuItem.Text = chinese ? "隐藏快捷开关栏" : "Hide quick toggle bar";
-            contextMenuSeparator.Visible = groupOrder.Count > 0;
+            UpdateContextMenuSections();
 
             for (int i = 0; i < groupOrder.Count; i++)
             {
@@ -640,12 +852,25 @@ namespace osucatch_editor_realtimeviewer
 
         #region 右键菜单：功能区勾选
 
-        /// <summary>
-        /// 把功能区显示状态同步到右键菜单的勾选项。
-        /// 菜单项按功能区加入顺序排列，取消勾选即隐藏对应功能区。
-        /// </summary>
-        private void UpdateGroupMenuChecks()
+        /// <summary>把当前的吸附位置同步到右键菜单的勾选项（子项按“单选”呈现）。</summary>
+        private void UpdateDockSideMenuChecks()
         {
+            dockTopMenuItem.Checked = dockSide == QuickToggleDockSide.Top;
+            dockLeftMenuItem.Checked = dockSide == QuickToggleDockSide.Left;
+            dockRightMenuItem.Checked = dockSide == QuickToggleDockSide.Right;
+        }
+
+        /// <summary>
+        /// 把功能区与独立开关的显示状态同步到右键菜单的勾选项（勾选 = 在条上显示）。
+        /// 功能区的菜单项按加入顺序创建，排在独立开关的勾选项之后。
+        /// </summary>
+        private void UpdateVisibilityMenuChecks()
+        {
+            foreach (KeyValuePair<string, ToolStripMenuItem> pair in standaloneMenuItems)
+            {
+                pair.Value.Checked = !hiddenStandaloneKeys.Contains(pair.Key);
+            }
+
             foreach (QuickToggleGroup group in groupOrder)
             {
                 if (group.MenuItem == null)
@@ -660,7 +885,7 @@ namespace osucatch_editor_realtimeviewer
                     {
                         // CheckOnClick 已经翻转了勾选状态，这里只负责应用
                         SetGroupVisible(captured.Key, item.Checked);
-                        GroupsVisibilityChanged?.Invoke(this, EventArgs.Empty);
+                        VisibilityChanged?.Invoke(this, EventArgs.Empty);
                     };
                     group.MenuItem = item;
                     barContextMenu.Items.Add(item);
@@ -669,6 +894,8 @@ namespace osucatch_editor_realtimeviewer
                 group.MenuItem.Text = group.DisplayText;
                 group.MenuItem.Checked = group.Visible;
             }
+
+            UpdateContextMenuSections();
         }
 
         #endregion
@@ -912,14 +1139,14 @@ namespace osucatch_editor_realtimeviewer
                     Height = 22,
                     Margin = new Padding(2, 2, 4, 2),
                 };
-                AddValueHost(host);
+                AddValueHost(host, combo, new Size(width, 22), new Size(width, 22), new Padding(2, 2, 4, 2), new Padding(2, 2, 2, 2));
                 ValueControls[valueKey] = combo;
                 owner.NotifyGroupItemsChanged();
                 return combo;
             }
 
             /// <summary>
-            /// 添加一个滑块（如拍线密度）。
+            /// 添加一个滑块（如拍线密度）。吸附在左 / 右侧时滑块自动变成竖向的。
             /// </summary>
             /// <param name="valueKey">值标识，用户拖动时通过 <see cref="QuickToggleBar.GroupChanged"/> 上报。</param>
             /// <param name="minimum">最小值。</param>
@@ -956,7 +1183,8 @@ namespace osucatch_editor_realtimeviewer
                     Height = slider.Height,
                     Margin = new Padding(2, 1, 4, 1),
                 };
-                AddValueHost(host);
+                // 竖排时滑块转 90°：长边放到高度上；宽度留够刻度与滑块本身的绘制空间
+                AddValueHost(host, slider, new Size(130, 24), new Size(30, 130), new Padding(2, 1, 4, 1), new Padding(1, 2, 1, 4));
                 ValueControls[valueKey] = slider;
                 owner.NotifyGroupItemsChanged();
                 return slider;
@@ -1016,9 +1244,63 @@ namespace osucatch_editor_realtimeviewer
             internal int GetSliderValue(string valueKey)
                 => ValueControls.TryGetValue(valueKey, out Control? control) && control is TrackBar slider ? slider.Value : 0;
 
-            private void AddValueHost(ToolStripControlHost host)
+            /// <summary>
+            /// 功能区里“跟着排布方向走”的宿主控件：横排与竖排各有一份尺寸与间距，
+            /// 切换吸附位置时由 <see cref="ApplyOrientation"/> 统一改写（滑块还要转动方向）。
+            /// </summary>
+            private sealed class ValueHost
+            {
+                internal required ToolStripControlHost Host { get; init; }
+
+                internal required Control Control { get; init; }
+
+                internal Size HorizontalSize { get; init; }
+
+                internal Size VerticalSize { get; init; }
+
+                internal Padding HorizontalMargin { get; init; }
+
+                internal Padding VerticalMargin { get; init; }
+            }
+
+            private readonly List<ValueHost> valueHosts = new();
+
+            /// <summary>
+            /// 按条的排布方向调整功能区里的值控件：竖排时滑块转成竖向，宿主尺寸与间距一并交换。
+            /// </summary>
+            internal void ApplyOrientation(bool vertical)
+            {
+                foreach (ValueHost info in valueHosts)
+                {
+                    if (info.Control is TrackBar slider)
+                    {
+                        Orientation orientation = vertical ? Orientation.Vertical : Orientation.Horizontal;
+                        if (slider.Orientation != orientation) slider.Orientation = orientation;
+                    }
+
+                    Size size = vertical ? info.VerticalSize : info.HorizontalSize;
+                    if (info.Control.Size != size) info.Control.Size = size;
+                    info.Host.AutoSize = false;
+                    info.Host.Margin = vertical ? info.VerticalMargin : info.HorizontalMargin;
+                    if (info.Host.Size != size) info.Host.Size = size;
+                }
+            }
+
+            private void AddValueHost(ToolStripControlHost host, Control control, Size horizontalSize, Size verticalSize, Padding horizontalMargin, Padding verticalMargin)
             {
                 items.Add(host);
+                valueHosts.Add(new ValueHost
+                {
+                    Host = host,
+                    Control = control,
+                    HorizontalSize = horizontalSize,
+                    VerticalSize = verticalSize,
+                    HorizontalMargin = horizontalMargin,
+                    VerticalMargin = verticalMargin,
+                });
+
+                // 条已经吸附在左 / 右侧时，新加的控件要立刻按竖排摆好，而不是等下一次切换
+                if (owner.IsVertical) ApplyOrientation(vertical: true);
             }
 
             internal void AddItem(ToolStripItem item) => items.Add(item);
@@ -1063,6 +1345,18 @@ namespace osucatch_editor_realtimeviewer
 
         /// <summary>新的取值（下拉框为下标，滑块为滑块值）。</summary>
         internal int Value { get; }
+    }
+
+    /// <summary>吸附位置变化事件参数。</summary>
+    internal sealed class QuickToggleDockSideEventArgs : EventArgs
+    {
+        internal QuickToggleDockSideEventArgs(QuickToggleDockSide side)
+        {
+            Side = side;
+        }
+
+        /// <summary>用户选择的吸附位置。</summary>
+        internal QuickToggleDockSide Side { get; }
     }
 
     /// <summary>拖动事件参数，坐标均为屏幕坐标。</summary>

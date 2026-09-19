@@ -266,6 +266,9 @@
     <Setting Name="QuickToggle_States" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
+    <Setting Name="QuickToggle_DockSide" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Top</Value>
+    </Setting>
     <Setting Name="QuickToggle_HiddenGroups" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
