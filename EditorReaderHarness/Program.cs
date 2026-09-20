@@ -93,6 +93,7 @@ internal static class Program
             case "M": ErrorMonitor(); break;
             case "C": CompareCandidateChecks(); break;
             case "Z": ForceScanCheck(); break;
+            case "H": ScanHotColdCompare(); break;
             case "W":
             case "y":
                 // 手动触发：等待/附加 osu! + 输出诊断报告。
@@ -494,7 +495,7 @@ internal static class Program
                 _reader.FetchAll(fetchFull);
                 string? why = Snapshot.Validate(_reader, out int rejects, out var reasons);
                 ok = why == null;
-                if (!ok)
+                if (why != null)
                 {
                     tally.Bucket(why);
                     foreach (var kv in reasons) tally.RejectReasons[kv.Key] = tally.RejectReasons.GetValueOrDefault(kv.Key) + kv.Value;
@@ -1733,8 +1734,6 @@ internal static class Program
                 WriteLine($"  [{step}] 失败 {what}: addr=0x{address:X} size={size}");
             }
         }
-
-        int ptr(uint v) => (int)v;
 
         // ---- SetEditor 之后的部分：FetchHOM / FetchBeatmap / FetchControlPoints / FetchObjects
         R("pEditor+28 (HOM)", _reader.EditorAddress + 28, b4, 4);
@@ -3138,6 +3137,58 @@ internal static class Program
 #endif
             }
         }
+    }
+
+    // ------------------------------------------------------------------ 扫描热/冷路径对比
+
+    /// <summary>
+    /// 对比冷扫描（lastFoundRegionBase 被清空，从第 0 个区域开始）与热扫描
+    /// （沿用上次命中的区域优先）的耗时与扫描区域数。
+    /// 用于回答环形游标 / 区域退避这类机制在 Windows 上到底有没有收益。
+    /// </summary>
+    private static void ScanHotColdCompare()
+    {
+        if (_osu == null) Attach();
+        if (_hProcess == IntPtr.Zero) { WriteLine("未附加到 osu!"); return; }
+
+        WriteLine("冷/热扫描对比：ResetEditor 会清掉命中区域记忆，因此下一次是冷扫描。");
+        WriteLine("对比耗时与实际扫描区域数（区域数越少，说明优先扫描省得越多）。\n");
+
+        var coldMs = new List<long>();
+        var coldRegions = new List<long>();
+        var hotMs = new List<long>();
+        var hotRegions = new List<long>();
+
+        for (int i = 0; i < 5; i++)
+        {
+            _reader.ResetEditor();
+            var sw = Stopwatch.StartNew();
+            try { _reader.SetEditor(); } catch (Exception ex) { WriteLine("  冷扫描失败: " + ex.Message); continue; }
+            sw.Stop();
+            coldMs.Add(sw.ElapsedMilliseconds);
+            coldRegions.Add(_reader.DiagScanRegionsScanned);
+
+            sw.Restart();
+            try { _reader.SetEditor(); } catch (Exception ex) { WriteLine("  热扫描失败: " + ex.Message); continue; }
+            sw.Stop();
+            hotMs.Add(sw.ElapsedMilliseconds);
+            hotRegions.Add(_reader.DiagScanRegionsScanned);
+        }
+
+        string FmtMs(List<long> xs) => xs.Count == 0 ? "(无数据)" : $"平均 {xs.Average():F0} ms  [{string.Join(", ", xs)}]";
+        string FmtRegions(List<long> xs) => xs.Count == 0 ? "(无数据)" : $"平均 {xs.Average():F0}  [{string.Join(", ", xs)}]";
+
+        WriteLine($"冷扫描（从区域 0 开始）: {FmtMs(coldMs)}");
+        WriteLine($"  扫描区域数: {FmtRegions(coldRegions)}");
+        WriteLine($"热扫描（命中区域优先）: {FmtMs(hotMs)}");
+        WriteLine($"  扫描区域数: {FmtRegions(hotRegions)}");
+        WriteLine();
+        if (coldMs.Count > 0 && hotMs.Count > 0)
+        {
+            WriteLine($"节省: {coldMs.Average() - hotMs.Average():F0} ms / 次，区域数差 {coldRegions.Average() - hotRegions.Average():F0} 个");
+        }
+        WriteLine();
+        WriteLine("说明：扫描只在绑定失效或编辑器被重建时发生，正常运行时不会反复扫。");
     }
 
     // ------------------------------------------------------------------ 8. 重试修复测试

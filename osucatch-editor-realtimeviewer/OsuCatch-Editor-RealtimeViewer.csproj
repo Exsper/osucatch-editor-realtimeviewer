@@ -21,6 +21,22 @@
       两份实现提供完全相同的公开 API，调用方（EditorReaderHelper / Form1）无需改动。
     -->
     <UseLegacyEditorReader Condition="'$(UseLegacyEditorReader)' == ''">false</UseLegacyEditorReader>
+
+    <!--
+      只保留真正需要“关掉”的警告，其余一律修代码（见各处的注释）：
+
+      CS8981：类型名 "app" 全是小写。它是 app.settings 生成的 WinForms 设置类，
+              改名要牵动全项目几百处 app.Default，代价远大于收益，故在此抑制。
+      NU1701：OpenTK / OpenTK.GLControl 3.3.3 只发布了 .NET Framework 版本，
+              NuGet 会提示“按 .NETFramework 还原、可能与 net8.0 不兼容”。
+              这是有意为之（靠 .NET 的兼容层跑 OpenGL 控件），
+              真要消除只能迁移到 OpenTK 4.x，属于单独的大改动。
+
+      说明：NU1900（取不到番外漏洞数据）不在这里抑制，改用下面的 NuGetAudit 关闭——
+            离线环境本来也取不到数据，关掉后连网络请求都不再发起。
+    -->
+    <NoWarn>$(NoWarn);CS8981;NU1701</NoWarn>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 
   <ItemGroup>
@@ -123,7 +139,9 @@
   </PropertyGroup>
 
   <Target Name="CopyStableCompatLib" AfterTargets="Build">
-    <Warning Condition="'$(RuntimeIdentifier)' == ''"
+    <!-- 这只是“没指定架构，默认按 64 位复制”的提示，不是错误；用 Message 输出，
+         既不污染 warning 计数，也仍然会出现在构建日志里 -->
+    <Message Condition="'$(RuntimeIdentifier)' == ''" Importance="high"
              Text="未指定 RuntimeIdentifier，默认复制 64 位 StableCompatLib；如需 32 位请用 -r win-x86 构建。" />
     <Error Condition="!Exists('$(StableCompatLibSourceDir)\StableCompatLib.dll')"
            Text="找不到 $(StableCompatLibSourceDir)\StableCompatLib.dll，请先构建对应架构的 StableCompatLib（CI 中由 MSYS2 步骤生成）。" />

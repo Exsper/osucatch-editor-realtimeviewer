@@ -25,10 +25,11 @@ namespace osucatch_editor_realtimeviewer
         private int _rebuildGeneration;
         private long _rebuildRetryTicks;
 
-        // 模板谱面（只读参考）
-        private ToolStripMenuItem? templateToolStripMenuItem;
-        private ToolStripMenuItem? selectTemplateStripMenuItem;
-        private ToolStripMenuItem? unloadTemplateStripMenuItem;
+        // 模板谱面（只读参考）：三个菜单项都在构造函数里由 CreateTemplateMenu 创建，
+        // 构造完成后必然非空，所以声明成不可空（null! 只是让编译器知道“稍后在构造函数里赋值”）
+        private ToolStripMenuItem templateToolStripMenuItem = null!;
+        private ToolStripMenuItem selectTemplateStripMenuItem = null!;
+        private ToolStripMenuItem unloadTemplateStripMenuItem = null!;
         private TemplateBeatmapData? templateData;
 
         // 快捷开关条：可吸附在菜单栏下方（横排）或画布左 / 右侧（竖排），也可拖出为浮动小窗口
@@ -68,6 +69,19 @@ namespace osucatch_editor_realtimeviewer
         // 拍线功能区（滑块 + 状态文字）
         private const string BarLineGroupKey = "BarLine";
         private const string BarLineValueKey = "BarLineMode";
+
+        // 垂直缩放功能区（滑块 + 当前比例文字）
+        private const string VerticalScaleGroupKey = "VerticalScale";
+        private const string VerticalScaleValueKey = "VerticalScale";
+
+        /// <summary>
+        /// 垂直缩放滑块的取值范围与默认值（百分比整数）：50 ~ 200 对应画面 Y 轴的 x0.5 ~ x2.0，默认 x1.0。
+        /// <para /><see cref="TrackBar"/> 只能取整数，所以滑块内部用百分比表示，显示时才换算成倍率。
+        /// </para>
+        /// </summary>
+        private const int VerticalScaleMinPercent = 50;
+        private const int VerticalScaleMaxPercent = 200;
+        private const int VerticalScaleDefaultPercent = 100;
 
         /// <summary>快捷开关条上的下拉框 / 滑块所用的值标识。</summary>
         private const string FreezeValueKey = FreezePreviewTimeKey;
@@ -188,7 +202,8 @@ namespace osucatch_editor_realtimeviewer
         private static System.Timers.Timer backup_timer = new System.Timers.Timer(app.Default.Backup_Interval);
         private static System.Timers.Timer Memory_Monitor_Timer = new System.Timers.Timer(200);
 
-        private PeriodicTaskRunner runner;
+        /// <summary>读取定时器；在 <see cref="Form1_Load"/> 里创建，之前的代码不应该碰它。</summary>
+        private PeriodicTaskRunner runner = null!;
         private HealthMonitor? healthMonitor;
 
         public Form1()
@@ -324,6 +339,8 @@ namespace osucatch_editor_realtimeviewer
             SyncModToggleFromMenu();
             SyncLabelToggleFromMenu();
             ApplyBarLineMode(BarLineSettings.CurrentMode, persist: false);
+            // 垂直缩放不持久化：每次启动都把滑块与画面恢复成默认的 x1.0
+            ApplyVerticalScale(VerticalScaleDefaultPercent);
             quickToggleDocking?.ApplyStartupState(
                 app.Default.QuickToggle_Visible,
                 app.Default.QuickToggle_Floating,
@@ -1287,7 +1304,7 @@ namespace osucatch_editor_realtimeviewer
         {
             if (item is ToolStripMenuItem)
             {
-                resources.ApplyResources(item, item.Name);
+                resources.ApplyResources(item, item.Name ?? "");
                 ToolStripMenuItem tsmi = (ToolStripMenuItem)item;
                 if (tsmi.DropDownItems.Count > 0)
                 {
@@ -1393,7 +1410,7 @@ namespace osucatch_editor_realtimeviewer
             Application.Exit();
         }
 
-        private async void selectTemplateStripMenuItem_Click(object sender, EventArgs e)
+        private async void selectTemplateStripMenuItem_Click(object? sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
@@ -1439,7 +1456,7 @@ namespace osucatch_editor_realtimeviewer
             }
         }
 
-        private void unloadTemplateStripMenuItem_Click(object sender, EventArgs e)
+        private void unloadTemplateStripMenuItem_Click(object? sender, EventArgs e)
         {
             templateData = null;
             drawingHelper.Template = null;
@@ -1476,9 +1493,7 @@ namespace osucatch_editor_realtimeviewer
         /// </summary>
         private void RestoreTemplateMenuText()
         {
-            if (unloadTemplateStripMenuItem == null) return;
-
-            string baseText = unloadTemplateStripMenuItem.Text;
+            string baseText = unloadTemplateStripMenuItem.Text ?? "";
             int suffixIndex = baseText.LastIndexOf(" (");
             if (suffixIndex > 0) baseText = baseText.Substring(0, suffixIndex);
 
@@ -1543,8 +1558,9 @@ namespace osucatch_editor_realtimeviewer
             }
 
             // ---- 果子标注：四个按钮单选，对应菜单栏里最常用的四种标注。
-            //      每个模式都有对应图标，因此整组不加标题、按钮只显示图标（名称见按钮提示）。 ----
-            QuickToggleBar.QuickToggleGroup labelGroup = quickToggleBar.AddGroup(LabelGroupKey, "");
+            //      每个模式都有对应图标，因此整组不加标题、按钮只显示图标（名称见按钮提示）；
+            //      条上没标题，但右键菜单里得有个看得懂的名字，见 LabelGroupMenuText。 ----
+            QuickToggleBar.QuickToggleGroup labelGroup = quickToggleBar.AddGroup(LabelGroupKey, "", LabelGroupMenuText());
             for (int i = 0; i < LabelKeys.Length; i++)
             {
                 labelGroup.AddToggle(LabelKeys[i], LabelToggleText((QuickLabelMode)i), (QuickLabelMode)i == QuickLabelMode.Hidden);
@@ -1559,6 +1575,19 @@ namespace osucatch_editor_realtimeviewer
                 (int)BarLineSettings.CurrentMode,
                 1);
             barLineGroup.AddLabel(BarLineValueKey + "_Text", BarLineStatusText());
+
+            // ---- 垂直缩放：滑块调节 Y 轴拉伸 / 压缩（X 轴不动），旁边显示当前比例。
+            //      值只作用于本次运行，不写入设置文件，因此每次启动都是默认的 x1.0。 ----
+            QuickToggleBar.QuickToggleGroup scaleGroup = quickToggleBar.AddGroup(
+                VerticalScaleGroupKey,
+                chinese ? "Y缩放" : "Y Scale");
+            scaleGroup.AddSlider(
+                VerticalScaleValueKey,
+                VerticalScaleMinPercent,
+                VerticalScaleMaxPercent,
+                VerticalScaleDefaultPercent,
+                25);
+            scaleGroup.AddLabel(VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
 
             ApplyQuickToggleIcons();
         }
@@ -1682,6 +1711,19 @@ namespace osucatch_editor_realtimeviewer
             };
         }
 
+        /// <summary>
+        /// 右键菜单里“果子标注”功能区的名称。
+        /// <para />这个功能区在条上只显示四个图标、故意不带标题，
+        /// 若不显式给名字，菜单里的勾选项就会显示内部标识 <c>HitObjectLabel</c>——看不出是什么。
+        /// 文案与菜单栏的“果子标注 / Fruit Labels”保持一致（不带快捷键标记，菜单项是代码创建的）。
+        /// </para>
+        /// </summary>
+        private static string LabelGroupMenuText()
+        {
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            return chinese ? "果子标注" : "Fruit Labels";
+        }
+
         /// <summary>果子标注快捷按钮在当前语言下的文本。</summary>
         private static string LabelToggleText(QuickLabelMode mode)
         {
@@ -1713,6 +1755,27 @@ namespace osucatch_editor_realtimeviewer
         /// </summary>
         private static string BarLineStatusText() => BarLineSettings.GetOptionName(BarLineSettings.CurrentMode);
 
+        /// <summary>
+        /// 设置画面 Y 轴（时间轴）的缩放比例：滑块值是按百分比存的整数，这里换算成倍率后立即生效。
+        /// <para />只影响绘制（<see cref="DrawingHelper.VerticalScale"/>），<b>不写入设置文件</b>，
+        /// 所以重启后回到默认的 x1.0；画面 X 轴与各物件的显示大小都不受影响。
+        /// </para>
+        /// </summary>
+        private void ApplyVerticalScale(int percent)
+        {
+            int clamped = Math.Clamp(percent, VerticalScaleMinPercent, VerticalScaleMaxPercent);
+            drawingHelper.VerticalScale = clamped / 100f;
+
+            quickToggleBar?.SetGroupSliderValue(VerticalScaleGroupKey, VerticalScaleValueKey, clamped);
+            quickToggleBar?.SetGroupLabelText(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
+        }
+
+        /// <summary>
+        /// 垂直缩放功能区里显示的当前比例文字（形如 <c>x1.00</c>）。
+        /// 滑块按 1% 步进，因此显示两位小数才能反映出每一档的变化。
+        /// </summary>
+        private static string VerticalScaleStatusText() => "x" + drawingHelper.VerticalScale.ToString("0.00");
+
 
 
 
@@ -1742,6 +1805,12 @@ namespace osucatch_editor_realtimeviewer
 
         private void quickToggleBar_GroupChanged(object? sender, QuickToggleGroupChangedEventArgs e)
         {
+            if (e.Key == VerticalScaleValueKey)
+            {
+                ApplyVerticalScale(e.Value);
+                return;
+            }
+
             if (e.Key != BarLineValueKey) return;
 
             ApplyBarLineMode(BarLineSettings.Clamp(e.Value), persist: true);
@@ -1996,8 +2065,9 @@ namespace osucatch_editor_realtimeviewer
 
             // 功能区标题（AddGroup 对已存在的功能区只更新标题）
             quickToggleBar.AddGroup(ModGroupKey, "");
-            quickToggleBar.AddGroup(LabelGroupKey, "");
+            quickToggleBar.AddGroup(LabelGroupKey, "", LabelGroupMenuText());
             quickToggleBar.AddGroup(BarLineGroupKey, chinese ? "拍线" : "Bar Lines");
+            quickToggleBar.AddGroup(VerticalScaleGroupKey, chinese ? "Y缩放" : "Y Scale");
 
             for (int i = 0; i < ModKeys.Length; i++)
             {
@@ -2012,6 +2082,7 @@ namespace osucatch_editor_realtimeviewer
             ApplyQuickToggleIcons();
 
             quickToggleBar.SetGroupLabelText(BarLineGroupKey, BarLineValueKey + "_Text", BarLineStatusText());
+            quickToggleBar.SetGroupLabelText(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
         }
 
         /// <summary>
@@ -2127,7 +2198,7 @@ namespace osucatch_editor_realtimeviewer
 
         private void SetDelBookmark(int styleId)
         {
-            if (bookmarkManager.BeatmapFolder == null || bookmarkManager.BeatmapFilename == null)
+            if (string.IsNullOrEmpty(bookmarkManager.BeatmapFolder) || string.IsNullOrEmpty(bookmarkManager.BeatmapFilename))
             {
                 MessageBox.Show("Editor is not running.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;

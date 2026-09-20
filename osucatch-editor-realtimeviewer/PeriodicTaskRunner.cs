@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace osucatch_editor_realtimeviewer
@@ -6,8 +6,10 @@ namespace osucatch_editor_realtimeviewer
     public class PeriodicTaskRunner
     {
         private readonly Func<CancellationToken, Task> _task;
-        private CancellationTokenSource _cts;
-        private Task _runTask;
+
+        /// <summary>运行期状态：<see cref="Start"/> 之前 / <see cref="StopAsync"/> 之后为 null。</summary>
+        private CancellationTokenSource? _cts;
+        private Task? _runTask;
         private long _lastStartTimestamp;
         private long _intervalTicks;
         private long _errorDelayTicks;
@@ -36,17 +38,21 @@ namespace osucatch_editor_realtimeviewer
 
         public async Task StopAsync()
         {
-            if (_cts == null) return;
+            // 用局部变量承接：字段可能在 await 期间被其它线程改写，
+            // 局部量既避免重复判空，也让 finally 里的 Dispose 明确非空
+            CancellationTokenSource? cts = _cts;
+            if (cts == null) return;
 
-            _cts.Cancel();
+            cts.Cancel();
             try
             {
-                await _runTask;
+                Task? runTask = _runTask;
+                if (runTask != null) await runTask;
             }
             catch (OperationCanceledException) { }
             finally
             {
-                _cts.Dispose();
+                cts.Dispose();
                 _cts = null;
                 timeEndPeriod(1);
             }

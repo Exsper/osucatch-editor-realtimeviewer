@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Karoo13. Licensed under https://github.com/Karoo13/EditorReader/blob/master/LICENSE
+// Copyright (c) 2019 Karoo13. Licensed under https://github.com/Karoo13/EditorReader/blob/master/LICENSE
 // See the LICENCE file in the EditorReader folder for full licence text.
 // https://github.com/Karoo13/EditorReader
 // Decompiled with ICSharpCode.Decompiler 8.1.1.7464
@@ -31,7 +31,8 @@ public class HitObject
 
     public float BaseY;
 
-    public string SampleFile;
+    /// <summary>自定义音效文件名；字段没有字符串时为 null（<see cref="EditorReader"/> 读取时才填）。</summary>
+    public string? SampleFile;
 
     public int SampleVolume;
 
@@ -41,11 +42,14 @@ public class HitObject
 
     public int CustomSampleSet;
 
-    public int[] SoundTypeList;
+    /// <summary>每段音效类型；非滑条或整段音效统一时保持 null，读取路径外不要去解引用。</summary>
+    public int[] SoundTypeList = null!;
 
-    public int[] SampleSetList;
+    /// <summary>每段采样组；非滑条或整段音效统一时保持 null。</summary>
+    public int[] SampleSetList = null!;
 
-    public int[] SampleSetAdditionsList;
+    /// <summary>每段附加采样组；非滑条或整段音效统一时保持 null。</summary>
+    public int[] SampleSetAdditionsList = null!;
 
     public bool IsSelected;
 
@@ -55,7 +59,8 @@ public class HitObject
 
     public int CurveType;
 
-    public float[] sliderCurvePoints;
+    /// <summary>滑条曲线采样点（x,y 交替）；非滑条为 null，<see cref="DeStack"/> 只在滑条上调用。</summary>
+    public float[] sliderCurvePoints = null!;
 
     public double curveLength;
 

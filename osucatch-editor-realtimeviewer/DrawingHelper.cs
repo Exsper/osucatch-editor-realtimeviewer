@@ -58,6 +58,18 @@ namespace osucatch_editor_realtimeviewer
         /// </summary>
         public bool FixedPreviewTime { get; set; }
 
+        /// <summary>
+        /// 垂直（时间轴）缩放比例：只拉伸 / 压缩画面的 Y 轴，X 轴（物件的横向位置）保持不动。
+        /// <para />1.0 = 不缩放；大于 1 把时间轴拉长（同样高度里看到的时刻更少、物件在竖直方向更分散），
+        /// 小于 1 把时间轴压扁（同样高度里看到更多时刻）。缩放以判定线
+        /// （<see cref="JudgeLineBaseY"/>，即当前时刻所在高度）为基准，判定线本身不动。
+        /// </para>
+        /// <para />由快捷开关栏的“Y缩放”滑块设置，只作用于当前会话，
+        /// <b>不写入设置文件</b>，因此每次启动都从 1.0 开始。
+        /// </para>
+        /// </summary>
+        public float VerticalScale { get; set; } = 1f;
+
         public ControlPointInfo? ControlPointInfo { get; set; }
         List<BarLine> BarLines { get; set; }
         public List<PalpableCatchHitObject> CatchHitObjects { get; set; }
@@ -174,6 +186,26 @@ namespace osucatch_editor_realtimeviewer
         public double JudgeLineBaseY => (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
 
         /// <summary>
+        /// 垂直缩放后“一个毫秒对应多少屏幕 Y 像素”，也就是 <see cref="TimePerPixels"/> 的倒数再乘上
+        /// <see cref="VerticalScale"/>。时间 → 画面的换算一律走这里，避免各处各写一遍缩放。
+        /// <para />数据无效时返回 0（调用方据此跳过绘制）。
+        /// </para>
+        /// </summary>
+        public double PixelsPerMs => (TimePerPixels > 0 && VerticalScale > 0) ? VerticalScale / TimePerPixels : 0;
+
+        /// <summary>
+        /// 把时间差（ms）换算成画面上的 Y 偏移（像素，正数表示时刻更晚、在画面上更高）。
+        /// 未缩放时等于 <c>deltaTime / TimePerPixels</c>。
+        /// </summary>
+        public double TimeDeltaToPixels(double deltaTime) => deltaTime * PixelsPerMs;
+
+        /// <summary>
+        /// 把画面上的 Y 偏移（像素）换算回时间差（ms）：<see cref="TimeDeltaToPixels"/> 的逆运算，
+        /// 用于固定预览整页翻页等“先定画面位置再反推时刻”的场合。
+        /// </summary>
+        public double PixelsToTimeDelta(double pixels) => (VerticalScale > 0) ? pixels * TimePerPixels / VerticalScale : 0;
+
+        /// <summary>
         /// 整页翻页后判定线与画面边缘保留的距离（占可视高度的比例）。
         /// <para />留余量有两个作用：翻页后判定线不贴边（看得清），
         /// 并且翻页落点与触发边界之间留出足够间隔——否则落点正好压在边缘上时，
@@ -191,15 +223,15 @@ namespace osucatch_editor_realtimeviewer
         /// <returns>是否发生了翻页。未处于固定预览模式或时刻数据无效时不做事。</returns>
         public bool PageToKeepEditorVisible(double visibleTopY, double visibleBottomY)
         {
-            if (!FixedPreviewTime || !(TimePerPixels > 0)) return false;
+            if (!FixedPreviewTime || !(PixelsPerMs > 0)) return false;
 
             double baseY = JudgeLineBaseY;
-            double lineY = baseY - (EditorTime - CurrentTime) / TimePerPixels;
+            double lineY = baseY - TimeDeltaToPixels(EditorTime - CurrentTime);
             if (lineY >= visibleTopY && lineY <= visibleBottomY) return false;
 
             double margin = Math.Max((visibleBottomY - visibleTopY) * PageMarginRatio, 1);
             double targetY = (lineY < visibleTopY) ? visibleBottomY - margin : visibleTopY + margin;
-            CurrentTime = (float)(EditorTime - (baseY - targetY) * TimePerPixels);
+            CurrentTime = (float)(EditorTime - PixelsToTimeDelta(baseY - targetY));
             return true;
         }
 
@@ -334,7 +366,7 @@ namespace osucatch_editor_realtimeviewer
                 if (obj is TinyDroplet) diameter *= obj.Scale / 2f;
                 else if (obj is Droplet) diameter *= obj.Scale;
 
-                float posY = (float)(baseY - deltaTime / TimePerPixels);
+                float posY = (float)(baseY - TimeDeltaToPixels(deltaTime));
                 Canvas.DrawDashedCircleOutline(new Vector2(64 + obj.EffectiveX, posY), diameter / 2f, templateColor);
             }
         }
@@ -379,14 +411,14 @@ namespace osucatch_editor_realtimeviewer
                 {
                     double timeSpan = ScreensContain * ApproachTime * 1.25;
                     if (deltaTime > timeSpan || deltaTime < -timeSpan) return;
-                    posY = (int)(240.0 * ScreensContain - deltaTime / TimePerPixels);
+                    posY = (int)(240.0 * ScreensContain - TimeDeltaToPixels(deltaTime));
                 }
                 else
                 {
                     double upTime = ApproachTime;
                     double bottomTime = ApproachTime * 3 / 17;
                     if (deltaTime > upTime || deltaTime < -bottomTime) return;
-                    posY = (int)(384 - deltaTime / TimePerPixels);
+                    posY = (int)(384 - TimeDeltaToPixels(deltaTime));
                 }
 
                 Vector2 rp0 = new Vector2(64, posY);
@@ -462,7 +494,7 @@ namespace osucatch_editor_realtimeviewer
                 if (deltaTime > span || deltaTime < -span) return;
             }
 
-            int posY = (int)(baseY - deltaTime / TimePerPixels);
+            int posY = (int)(baseY - TimeDeltaToPixels(deltaTime));
             Canvas.DrawLine(new Vector2(64, posY), new Vector2(576, posY), color);
         }
 
@@ -500,11 +532,15 @@ namespace osucatch_editor_realtimeviewer
         /// 这样固定预览时刻后辅助线仍然指示当前编辑位置的可达距离；
         /// 而锚点在画面上的位置要按预览时刻（<see cref="CurrentTime"/>）换算——画面就是按预览时刻画的，
         /// 用 editor 时刻会让锚点脱离画面上那个物件，并随 editor 时刻前进一起向下漂移。
+        /// <para />垂直缩放（<see cref="VerticalScale"/>）下锚点高度、可见时长的像素高度与射线斜率
+        /// 都按同一比例换算，射线才仍然贴着“可达距离”的边界（见 <see cref="DrawConeRays"/>）。
+        /// </para>
         /// </summary>
         private void DrawDistanceHelper()
         {
             if (!app.Default.Show_Distance_Helper) return;
             if (CatchHitObjects == null || CatchHitObjects.Count <= 0) return;
+            if (!(PixelsPerMs > 0)) return;
 
             int currentIndex = FindFruitIndexAtTime(EditorTime);
             if (currentIndex < 0) return;
@@ -513,9 +549,12 @@ namespace osucatch_editor_realtimeviewer
             if (previous == null) return;
 
             double baseY = (ScreensContain <= 1) ? 408 : 240.0 * ScreensContain;
-            double topY = (ScreensContain <= 1)
-                ? baseY - (ApproachTime + CircleDiameter * TimePerPixels)
-                : baseY - ScreensContain * ApproachTime * 1.25;
+            // 射线向上延伸到“可视时长”的顶端：这段时长在垂直缩放后占的像素高度也跟着变，
+            // 所以这里必须一起缩放，否则放大时间轴时射线会提前被截断。
+            double topTime = (ScreensContain <= 1)
+                ? ApproachTime + CircleDiameter * TimePerPixels
+                : ScreensContain * ApproachTime * 1.25;
+            double topY = baseY - TimeDeltaToPixels(topTime);
             if (topY >= baseY) return;
 
             double anchorX = 64 + previous.EffectiveX;
@@ -536,7 +575,7 @@ namespace osucatch_editor_realtimeviewer
         /// 换成 editor 时刻会让锚点落到画面上另一个位置（固定预览后还会随 editor 前进而向下漂移）。
         /// </summary>
         private double DistanceHelperAnchorY(double previousStartTime, double baseY)
-            => baseY - (previousStartTime - CurrentTime) / TimePerPixels;
+            => baseY - TimeDeltaToPixels(previousStartTime - CurrentTime);
 
         /// <summary>
         /// 按 SameWithEditor 语义换算水平速度（px/ms）：
@@ -560,13 +599,19 @@ namespace osucatch_editor_realtimeviewer
 
         /// <summary>
         /// 从锚点画两条对称的向上放射线（右上、左上），延伸到可视窗口顶部，超出 playfield 时在边缘截断。
-        /// 屏幕坐标下时间轴向上为未来，速度 s 的斜率为 dy/dx = -1/(s * TimePerPixels)。
+        /// 屏幕坐标下时间轴向上为未来；水平速度 s（px/ms）在未缩放时的斜率为 dy/dx = -1/(s * TimePerPixels)。
+        /// <para /><b>垂直缩放的影响</b>：X 轴不受缩放影响，而画面上 1 像素高度对应的时长从
+        /// <c>TimePerPixels</c> 变成 <c>TimePerPixels / VerticalScale</c>，即向上 dy 像素可用的时间变成
+        /// <c>dy / PixelsPerMs</c>；这段时间能横移 <c>s * dy / PixelsPerMs</c> 像素，
+        /// 于是斜率按同一比例变成 <c>VerticalScale / (s * TimePerPixels)</c>——
+        /// 时间轴拉长时射线更陡，压扁时更平，射线始终贴着当前速度下的可达距离边界。
+        /// </para>
         /// </summary>
         private void DrawConeRays(double anchorX, double anchorY, double topY, double speed, Color color)
         {
-            if (speed <= 0 || TimePerPixels <= 0) return;
+            if (speed <= 0 || !(PixelsPerMs > 0)) return;
 
-            double slope = 1.0 / (speed * TimePerPixels);
+            double slope = VerticalScale / (speed * TimePerPixels);
             Vector2 anchor = new Vector2((float)anchorX, (float)anchorY);
 
             Canvas.DrawLine(anchor, ConeRayEndpoint(anchorX, anchorY, topY, slope, +1), color);
@@ -627,7 +672,7 @@ namespace osucatch_editor_realtimeviewer
                     double timeSpan = ScreensContain * ApproachTime * 1.25;
                     if (deltaTime <= timeSpan && deltaTime >= -timeSpan)
                     {
-                        int posY = (int)(240.0 * ScreensContain - deltaTime / TimePerPixels);
+                        int posY = (int)(240.0 * ScreensContain - TimeDeltaToPixels(deltaTime));
                         Vector2 rp0 = new Vector2(64, posY);
                         Vector2 rp1 = new Vector2(576, posY);
                         int width = BookmarkPlus.GetLineWidthByStyleId(bookmark.StyleId);
@@ -644,7 +689,7 @@ namespace osucatch_editor_realtimeviewer
                     double bottomTime = ApproachTime * 3 / 17;
                     if (deltaTime <= upTime && deltaTime >= -bottomTime)
                     {
-                        int posY = (int)(384 - deltaTime / TimePerPixels);
+                        int posY = (int)(384 - TimeDeltaToPixels(deltaTime));
                         Vector2 rp0 = new Vector2(64, posY);
                         Vector2 rp1 = new Vector2(576, posY);
                         int width = BookmarkPlus.GetLineWidthByStyleId(bookmark.StyleId);
@@ -669,7 +714,7 @@ namespace osucatch_editor_realtimeviewer
                     double timeSpan = ScreensContain * ApproachTime * 1.25;
                     if (deltaTime <= timeSpan && deltaTime >= -timeSpan)
                     {
-                        int posY = (int)(240.0 * ScreensContain - deltaTime / TimePerPixels);
+                        int posY = (int)(240.0 * ScreensContain - TimeDeltaToPixels(deltaTime));
                         Canvas.DrawBPMLabel(timingControlPoint.BPM, posY);
                     }
                 }
@@ -679,7 +724,7 @@ namespace osucatch_editor_realtimeviewer
                     double bottomTime = ApproachTime * 3 / 17;
                     if (deltaTime <= upTime && deltaTime >= -bottomTime)
                     {
-                        int posY = (int)(384 - deltaTime / TimePerPixels);
+                        int posY = (int)(384 - TimeDeltaToPixels(deltaTime));
                         Canvas.DrawBPMLabel(timingControlPoint.BPM, posY);
                     }
                 }
@@ -697,7 +742,7 @@ namespace osucatch_editor_realtimeviewer
                     double timeSpan = ScreensContain * ApproachTime * 1.25;
                     if (deltaTime <= timeSpan && deltaTime >= -timeSpan)
                     {
-                        int posY = (int)(240.0 * ScreensContain - deltaTime / TimePerPixels);
+                        int posY = (int)(240.0 * ScreensContain - TimeDeltaToPixels(deltaTime));
                         Canvas.DrawSVLabel(difficultyControlPoint.SliderVelocity, posY);
                     }
                 }
@@ -707,7 +752,7 @@ namespace osucatch_editor_realtimeviewer
                     double bottomTime = ApproachTime * 3 / 17;
                     if (deltaTime <= upTime && deltaTime >= -bottomTime)
                     {
-                        int posY = (int)(384 - deltaTime / TimePerPixels);
+                        int posY = (int)(384 - TimeDeltaToPixels(deltaTime));
                         Canvas.DrawSVLabel(difficultyControlPoint.SliderVelocity, posY);
                     }
                 }
@@ -717,7 +762,7 @@ namespace osucatch_editor_realtimeviewer
         private void DrawHitcircle(PalpableCatchHitObject hitObject, double deltaTime)
         {
             double baseY = (ScreensContain <= 1) ? 408 : 240.0 * this.ScreensContain;
-            Vector2 pos = new Vector2(64 + hitObject.EffectiveX, (float)(baseY - deltaTime / TimePerPixels));
+            Vector2 pos = new Vector2(64 + hitObject.EffectiveX, (float)(baseY - TimeDeltaToPixels(deltaTime)));
             bool withColor = app.Default.Combo_Colour;
             int comboColorIndex = (hitObject.ComboIndex) % CustomComboColours.Count;
             Color4 color = CustomComboColours[comboColorIndex];
@@ -798,7 +843,7 @@ namespace osucatch_editor_realtimeviewer
                 else if (xVal > 512) xVal = 512;
                 double baseY = (ScreensContain <= 1) ? 408 : 240.0 * this.ScreensContain;
                 double deltaTime = tVal - CurrentTime;
-                Vector2 pos = new Vector2(64 + xVal, (float)(baseY - deltaTime / TimePerPixels));
+                Vector2 pos = new Vector2(64 + xVal, (float)(baseY - TimeDeltaToPixels(deltaTime)));
                 splinePoints.Add(pos);
             }
             for (int i = 1; i < splinePoints.Count; i++)

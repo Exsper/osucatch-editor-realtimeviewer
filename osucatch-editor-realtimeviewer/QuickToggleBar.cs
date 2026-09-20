@@ -166,19 +166,35 @@ namespace osucatch_editor_realtimeviewer
         /// <param name="label">
         /// 功能区标题（显示在按钮之前）。传空字符串表示不加标题——
         /// 例如 MOD 区只有 NM/EZ/HR 三个按钮，用户一看便知，标题反而占地方；
-        /// 此时该功能区依然出现在右键菜单里（菜单项文字回退为 <paramref name="key"/>）。
+        /// 此时该功能区依然出现在右键菜单里（菜单项文字回退为 <paramref name="key"/>，
+        /// 或用下面那个重载显式给一个看得懂的名字）。
         /// </param>
         internal QuickToggleGroup AddGroup(string key, string label)
+            => AddGroup(key, label, menuText: null);
+
+        /// <summary>
+        /// 添加一个功能区，并单独指定它在右键菜单里的名称。
+        /// <para />用于“条上只显示按钮 / 图标、不要标题，但右键菜单需要一个看得懂的名字”的功能区
+        /// （如“果子标注”：条上是四个图标，菜单里若回退成内部标识 <c>HitObjectLabel</c> 就没法看）。
+        /// </para>
+        /// <para />与 <paramref name="label"/> 一样，语言切换后必须重新传一次
+        /// （传 <c>null</c> 表示沿用上次给的名字）。
+        /// </para>
+        /// </summary>
+        /// <param name="key">功能区标识，用于持久化显示状态，需保持稳定。</param>
+        /// <param name="label">功能区在条上的标题；传空字符串表示条上不加标题。</param>
+        /// <param name="menuText">右键菜单里的名称；传 <c>null</c> 时按标题 / 标识回退。</param>
+        internal QuickToggleGroup AddGroup(string key, string label, string? menuText)
         {
             ArgumentException.ThrowIfNullOrEmpty(key);
 
             if (groups.TryGetValue(key, out QuickToggleGroup? existing))
             {
-                existing.SetLabel(label);
+                existing.SetLabel(label, menuText);
                 return existing;
             }
 
-            QuickToggleGroup group = new(this, key, label, showLabel: label.Length > 0);
+            QuickToggleGroup group = new(this, key, label, showLabel: label.Length > 0, menuText);
             groups[key] = group;
             groupOrder.Add(group);
             RebuildItems();
@@ -1012,12 +1028,15 @@ namespace osucatch_editor_realtimeviewer
             private readonly string fallbackText;
             private ToolStripMenuItem? menuItem;
 
-            internal QuickToggleGroup(QuickToggleBar owner, string key, string labelText, bool showLabel)
+            /// <summary>右键菜单里显式指定的名称；为 null 时按条上标题 / 标识回退。</summary>
+            private string? menuText;
+
+            internal QuickToggleGroup(QuickToggleBar owner, string key, string labelText, bool showLabel, string? menuText = null)
             {
                 this.owner = owner;
                 Key = key;
                 fallbackText = key;
-                DisplayText = labelText.Length > 0 ? labelText : key;
+                ApplyTexts(labelText, menuText);
 
                 if (!showLabel) return;
 
@@ -1036,10 +1055,11 @@ namespace osucatch_editor_realtimeviewer
             internal string Key { get; }
 
             /// <summary>
-            /// 功能区标题文本。没有标题的功能区（<see cref="AddGroup"/> 传空字符串）用标识兜底，
-            /// 这样右键菜单里的勾选项仍然有文字可显示。
+            /// 功能区在右键菜单里显示的名称：优先用显式指定的菜单名，
+            /// 其次用条上标题（<see cref="AddGroup"/> 传空字符串表示条上不加标题），
+            /// 都没有时用标识兜底——这样菜单里的勾选项始终有文字可显示。
             /// </summary>
-            internal string DisplayText { get; private set; }
+            internal string DisplayText { get; private set; } = string.Empty;
 
             /// <summary>功能区当前是否显示（右键菜单可切换）。</summary>
             internal bool Visible { get; set; } = true;
@@ -1054,12 +1074,22 @@ namespace osucatch_editor_realtimeviewer
             /// <summary>该功能区已加入的项（含标题与值控件）。</summary>
             internal IReadOnlyList<ToolStripItem> Items => items;
 
-            /// <summary>设置功能区标题（语言切换时调用）。传空字符串只影响标题项，不影响右键菜单文字。</summary>
-            internal void SetLabel(string text)
+            /// <summary>
+            /// 设置功能区的标题与右键菜单名称（语言切换时调用）。
+            /// 传空标题只影响条上的标题项；<paramref name="menuText"/> 传 <c>null</c> 表示沿用上次给的名字。
+            /// </summary>
+            internal void SetLabel(string text, string? menuText = null)
             {
-                DisplayText = text.Length > 0 ? text : fallbackText;
+                ApplyTexts(text, menuText);
                 if (label != null) label.Text = text;
-                if (menuItem != null) menuItem.Text = DisplayText;
+                if (this.menuItem != null) this.menuItem.Text = DisplayText;
+            }
+
+            /// <summary>按条上标题与菜单名算出 <see cref="DisplayText"/>。</summary>
+            private void ApplyTexts(string text, string? menuText)
+            {
+                if (menuText != null) this.menuText = menuText;
+                DisplayText = this.menuText ?? (text.Length > 0 ? text : fallbackText);
             }
 
             /// <summary>

@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -21,12 +21,14 @@ namespace osucatch_editor_realtimeviewer
 
         [JsonConverter(typeof(ColorConverter))]
         public Color Color { get; set; }
-        public string Comment { get; set; }
+
+        /// <summary>线条说明文字（如 HyperDash）；没写过时为空字符串而不是 null（设置窗口直接读它填文本框）。</summary>
+        public string Comment { get; set; } = "";
 
         public int CompareTo(object? lineStyle)
         {
             if (lineStyle == null) return 1;
-            LineStyle otherLineStyle = lineStyle as LineStyle;
+            LineStyle? otherLineStyle = lineStyle as LineStyle;
             if (otherLineStyle == null) throw new ArgumentException("Object is not a LineStyle.");
             return otherLineStyle.Id - Id;
         }
@@ -40,7 +42,7 @@ namespace osucatch_editor_realtimeviewer
         public int CompareTo(object? bookmark)
         {
             if (bookmark == null) return 1;
-            Bookmark otherBookmark = bookmark as Bookmark;
+            Bookmark? otherBookmark = bookmark as Bookmark;
             if (otherBookmark == null) throw new ArgumentException("Object is not a Bookmark.");
             return (int)(otherBookmark.Time - Time);
         }
@@ -296,8 +298,14 @@ namespace osucatch_editor_realtimeviewer
     {
         public List<Bookmark> Bookmarks { get; set; } = new();
 
-        public string BeatmapFolder;
-        public string BeatmapFilename;
+        /// <summary>
+        /// 当前书签对应的谱面位置；还没绑定到任何谱面时为空字符串
+        /// （调用方用 <c>== ""</c> 判断“编辑器没在运行 / 还没读到谱面”）。
+        /// </summary>
+        public string BeatmapFolder = "";
+
+        /// <inheritdoc cref="BeatmapFolder"/>
+        public string BeatmapFilename = "";
 
         public BookmarkManager()
         {
