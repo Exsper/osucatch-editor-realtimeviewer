@@ -75,13 +75,17 @@ namespace osucatch_editor_realtimeviewer
         private const string VerticalScaleValueKey = "VerticalScale";
 
         /// <summary>
-        /// 垂直缩放滑块的取值范围与默认值（百分比整数）：50 ~ 200 对应画面 Y 轴的 x0.5 ~ x2.0，默认 x1.0。
-        /// <para /><see cref="TrackBar"/> 只能取整数，所以滑块内部用百分比表示，显示时才换算成倍率。
+        /// 垂直缩放滑块的取值范围与默认值，<b>以 0.1 为单位</b>：5 ~ 40 对应画面 Y 轴的 x0.5 ~ x4.0，默认 x1.0（= 10）。
+        /// <para /><see cref="TrackBar"/> 只能取整数，所以滑块内部用“十分之一倍率”表示：
+        /// 一个刻度 = 0.1，正好是需要的精度；显示时才换算成倍率。
         /// </para>
         /// </summary>
-        private const int VerticalScaleMinPercent = 50;
-        private const int VerticalScaleMaxPercent = 200;
-        private const int VerticalScaleDefaultPercent = 100;
+        private const int VerticalScaleMinTenths = 5;
+        private const int VerticalScaleMaxTenths = 40;
+        private const int VerticalScaleDefaultTenths = 10;
+
+        /// <summary>滑块刻度间隔（同样以 0.1 为单位）：每 0.5 倍画一根刻度线。</summary>
+        private const int VerticalScaleTickTenths = 5;
 
         /// <summary>快捷开关条上的下拉框 / 滑块所用的值标识。</summary>
         private const string FreezeValueKey = FreezePreviewTimeKey;
@@ -340,7 +344,7 @@ namespace osucatch_editor_realtimeviewer
             SyncLabelToggleFromMenu();
             ApplyBarLineMode(BarLineSettings.CurrentMode, persist: false);
             // 垂直缩放不持久化：每次启动都把滑块与画面恢复成默认的 x1.0
-            ApplyVerticalScale(VerticalScaleDefaultPercent);
+            ApplyVerticalScale(VerticalScaleDefaultTenths);
             quickToggleDocking?.ApplyStartupState(
                 app.Default.QuickToggle_Visible,
                 app.Default.QuickToggle_Floating,
@@ -1583,10 +1587,10 @@ namespace osucatch_editor_realtimeviewer
                 chinese ? "Y缩放" : "Y Scale");
             scaleGroup.AddSlider(
                 VerticalScaleValueKey,
-                VerticalScaleMinPercent,
-                VerticalScaleMaxPercent,
-                VerticalScaleDefaultPercent,
-                25);
+                VerticalScaleMinTenths,
+                VerticalScaleMaxTenths,
+                VerticalScaleDefaultTenths,
+                VerticalScaleTickTenths);
             scaleGroup.AddLabel(VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
 
             ApplyQuickToggleIcons();
@@ -1756,25 +1760,26 @@ namespace osucatch_editor_realtimeviewer
         private static string BarLineStatusText() => BarLineSettings.GetOptionName(BarLineSettings.CurrentMode);
 
         /// <summary>
-        /// 设置画面 Y 轴（时间轴）的缩放比例：滑块值是按百分比存的整数，这里换算成倍率后立即生效。
+        /// 设置画面 Y 轴（时间轴）的缩放比例：滑块值以 0.1 为单位，这里换算成倍率后立即生效
+        /// （范围 x0.5 ~ x4.0，步进 0.1）。
         /// <para />只影响绘制（<see cref="DrawingHelper.VerticalScale"/>），<b>不写入设置文件</b>，
         /// 所以重启后回到默认的 x1.0；画面 X 轴与各物件的显示大小都不受影响。
         /// </para>
         /// </summary>
-        private void ApplyVerticalScale(int percent)
+        private void ApplyVerticalScale(int tenths)
         {
-            int clamped = Math.Clamp(percent, VerticalScaleMinPercent, VerticalScaleMaxPercent);
-            drawingHelper.VerticalScale = clamped / 100f;
+            int clamped = Math.Clamp(tenths, VerticalScaleMinTenths, VerticalScaleMaxTenths);
+            drawingHelper.VerticalScale = clamped / 10f;
 
             quickToggleBar?.SetGroupSliderValue(VerticalScaleGroupKey, VerticalScaleValueKey, clamped);
             quickToggleBar?.SetGroupLabelText(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
         }
 
         /// <summary>
-        /// 垂直缩放功能区里显示的当前比例文字（形如 <c>x1.00</c>）。
-        /// 滑块按 1% 步进，因此显示两位小数才能反映出每一档的变化。
+        /// 垂直缩放功能区里显示的当前比例文字（形如 <c>x1.0</c>）。
+        /// 滑块步进 0.1，所以一位小数恰好能反映出每一档的变化。
         /// </summary>
-        private static string VerticalScaleStatusText() => "x" + drawingHelper.VerticalScale.ToString("0.00");
+        private static string VerticalScaleStatusText() => "x" + drawingHelper.VerticalScale.ToString("0.0");
 
 
 
