@@ -1,4 +1,4 @@
-﻿using osu.Game.Beatmaps;
+using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Catch.Beatmaps;
 using osu.Game.Rulesets.Catch.Objects;
 using System.Globalization;
@@ -14,10 +14,6 @@ namespace osucatch_editor_realtimeviewer
         {
             Log.ConsoleLog("Building hitobjects.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
             HitObjectManagerCatch manager = new(beatmap, mods, false);
-
-            float? lastPosition = null;
-            double lastStartTime = 0;
-            bool isFirstSame = true;
 
             int sourceIndex = 0;
             foreach (var currentObject in beatmap.HitObjects)

@@ -15,7 +15,11 @@ public class EditorReader
 
     public bool autoRound;
 
-    private byte[] buffer;
+    /// <summary>
+    /// 复用读取缓冲：每次用前都先过 <see cref="EnsureBuffer"/>（它按需扩容），
+    /// 所以这里给个空数组而不是 null，交给 EnsureBuffer 决定何时真正分配。
+    /// </summary>
+    private byte[] buffer = Array.Empty<byte>();
 
     private byte[] buffer4 = new byte[4];
 
@@ -27,7 +31,8 @@ public class EditorReader
 
     private IntPtr bytesRead;
 
-    private Process process;
+    /// <summary>目标 osu! 进程；由 <see cref="SetProcess"/> / <see cref="SetEditor"/> 绑定后才可用。</summary>
+    private Process process = null!;
 
     /// <summary>
     /// 目标进程句柄。默认走 <see cref="Process.Handle"/>；
@@ -66,11 +71,14 @@ public class EditorReader
 
     public int numBookmarks;
 
-    public int[] bookmarks;
+    /// <summary>书签时刻列表；读取成功前为 null（调用方按 null 判断“还没读到”）。</summary>
+    public int[] bookmarks = null!;
 
-    public string ContainingFolder;
+    /// <summary>当前谱面所在文件夹；还没读到谱面时为空字符串（不是 null，调用方按 <c>== ""</c> 判断）。</summary>
+    public string ContainingFolder = "";
 
-    public string Filename;
+    /// <summary>当前谱面文件名；还没读到谱面时为空字符串。</summary>
+    public string Filename = "";
 
     public float HPDrainRate;
 
@@ -98,9 +106,10 @@ public class EditorReader
 
     public int numControlPoints;
 
-    private byte[] pControlPoints;
+    private byte[] pControlPoints = Array.Empty<byte>();
 
-    public List<ControlPoint> controlPoints;
+    /// <summary>控制点列表；读取成功前为 null。</summary>
+    public List<ControlPoint> controlPoints = null!;
 
     private IntPtr pObjectsL;
 
@@ -108,7 +117,7 @@ public class EditorReader
 
     public int numObjects;
 
-    private byte[] pObjects;
+    private byte[] pObjects = Array.Empty<byte>();
 
     /// <summary>
     /// 主物件列表指针 -> 主物件下标，用于轻量地把选中物件列表映射回 SourceIndex。
@@ -116,7 +125,8 @@ public class EditorReader
     /// </summary>
     private Dictionary<IntPtr, int>? masterIndexByPointer;
 
-    public List<HitObject> hitObjects;
+    /// <summary>主物件列表；读取成功前为 null（调用方按 null 判断“还没读到”）。</summary>
+    public List<HitObject> hitObjects = null!;
 
     /// <summary>
     /// 目标进程的指针宽度。绝不能再用 <see cref="IntPtr.Size"/>：
@@ -124,8 +134,12 @@ public class EditorReader
     /// <c>IntPtr.Size == 8</c>，会把每 8 字节才读一次指针，从第二个物件起全部错位
     /// ——表现为"物件读出来全是垃圾值 / 数量为 0"，而不是报错。
     /// 因此 32 位目标必须按 4 字节指针读取。
+    /// <para />刻意<b>不写成 <c>const</c></b>：写成常量后编译器会把
+    /// <see cref="ToIntPtr"/> 里“目标指针宽度 &gt; 4 就按 8 字节读”的防御分支判成死代码（CS0162）。
+    /// 这里保留成一个只读值，语义不变，同时那条分支仍然可编译、可保留。
+    /// </para>
     /// </summary>
-    private const int TargetPointerSize = 4;
+    private static readonly int TargetPointerSize = 4;
 
     /// <summary>
     /// 诊断用：最近一次 <see cref="ReadObjects"/> 的失败分类计数。
@@ -224,23 +238,19 @@ public class EditorReader
 
     private IntPtr pClipboardL;
 
-    private IntPtr pClipboardA;
-
     public int numClipboard;
 
-    private byte[] pClipboard;
-
-    public List<HitObject> clipboardObjects;
+    /// <summary>剪贴板物件列表；读取成功前为 null。</summary>
+    public List<HitObject> clipboardObjects = null!;
 
     private IntPtr pSelectedL;
 
-    private IntPtr pSelectedA;
-
     public int numSelected;
 
-    private byte[] pSelected;
+    private byte[] pSelected = Array.Empty<byte>();
 
-    public List<HitObject> selectedObjects;
+    /// <summary>选中物件列表；读取成功前为 null。</summary>
+    public List<HitObject> selectedObjects = null!;
 
     /// <summary>
     /// 单个内存区域允许扫描的最大字节数：超过则跳过并记录警告。
@@ -271,13 +281,11 @@ public class EditorReader
     /// <summary>当前扫描线程正在读取的区域序号（供超时看门狗定位卡点）。</summary>
     private volatile int scanningRegionIndex;
 
-    private IntPtr pHoveredObject;
+    /// <summary>鼠标悬停的物件；该功能尚未接入读取流程，因此恒为 null。</summary>
+    public HitObject? hoveredObject;
 
-    public HitObject hoveredObject;
-
-    private IntPtr pSliderPlacement;
-
-    public HitObject sliderPlacement;
+    /// <summary>滑条放置预览物件；该功能尚未接入读取流程，因此恒为 null。</summary>
+    public HitObject? sliderPlacement;
 
     private IntPtr pPointsL;
 
@@ -291,7 +299,7 @@ public class EditorReader
 
     private int numTemp;
 
-    private byte[] bTemp;
+    private byte[] bTemp = Array.Empty<byte>();
 
     [DllImport("kernel32.dll", SetLastError = true)]
     protected static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int dwSize, ref IntPtr lpNumberOfBytesRead);
@@ -375,7 +383,11 @@ public class EditorReader
         return offset >= minRequired;
     }
 
-    private string ReadString(IntPtr pString)
+    /// <summary>
+    /// 从目标进程读一个 .NET 字符串。指针为 0（该字段没有字符串）时返回 null，
+    /// 调用方按需要自行回退（路径类字段回退成空字符串）。
+    /// </summary>
+    private string? ReadString(IntPtr pString)
     {
         if (pString == IntPtr.Zero)
         {
@@ -432,7 +444,8 @@ public class EditorReader
         const int ReadChunkSize = 8 * 1024 * 1024;
         byte[] array = ToByteArray("230000001400000019000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0C000000eeeeeeeeeeeeeeeeeeeeeeeeee00");
         int overlap = array.Length - 1;
-        byte[] scanBuffer = null;
+        // 扫描缓冲：交给 EnsureBuffer 按块大小分配（空数组即“还没分配”）
+        byte[] scanBuffer = Array.Empty<byte>();
         byte[] probe16 = new byte[16];
         byte[] probe4 = new byte[4];
         IntPtr read = IntPtr.Zero;
@@ -587,7 +600,8 @@ public class EditorReader
 
         byte[] array = ToByteArray("230000001400000019000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0C000000eeeeeeeeeeeeeeeeeeeeeeeeee00");
         int overlap = array.Length - 1;
-        byte[] scanBuffer = null;
+        // 扫描缓冲：交给 EnsureBuffer 按块大小分配（空数组即“还没分配”）
+        byte[] scanBuffer = Array.Empty<byte>();
         byte[] probe16 = new byte[16];
         byte[] probe4 = new byte[4];
         IntPtr read = IntPtr.Zero;
@@ -794,7 +808,7 @@ public class EditorReader
     /// 绑定 osu! 进程。切换到新进程时清空扫描状态：地址空间已完全不同，
     /// 旧的退避表/命中区域/扫描游标都失去意义。
     /// </summary>
-    public void SetProcess(Process forceProcess = null)
+    public void SetProcess(Process? forceProcess = null)
     {
         if (forceProcess != null)
         {
@@ -806,7 +820,9 @@ public class EditorReader
         Process[] processesByName = Process.GetProcessesByName("osu!");
         foreach (Process process in processesByName)
         {
-            if (process.MainModule.ModuleName == "osu!.exe" && process.MainModule.FileVersionInfo.ProductName == "osu!")
+            // MainModule 在目标进程已退出/权限不足时为 null，这里必须判空
+            ProcessModule? mainModule = process.MainModule;
+            if (mainModule != null && mainModule.ModuleName == "osu!.exe" && mainModule.FileVersionInfo.ProductName == "osu!")
             {
                 this.process = process;
                 ResetScanState();
@@ -1120,8 +1136,8 @@ public class EditorReader
         CircleSize = BitConverter.ToSingle(buffer, 48);
         HPDrainRate = BitConverter.ToSingle(buffer, 52);
         OverallDifficulty = BitConverter.ToSingle(buffer, 56);
-        ContainingFolder = ReadString(ToIntPtr(buffer, 120));
-        Filename = ReadString(ToIntPtr(buffer, 144));
+        ContainingFolder = ReadString(ToIntPtr(buffer, 120)) ?? "";
+        Filename = ReadString(ToIntPtr(buffer, 144)) ?? "";
         BeatmapVersion = BitConverter.ToInt32(buffer, 216);
         PreviewTime = BitConverter.ToInt32(buffer, 288);
         StackLeniency = BitConverter.ToSingle(buffer, 296);

@@ -495,7 +495,7 @@ internal static class Program
                 _reader.FetchAll(fetchFull);
                 string? why = Snapshot.Validate(_reader, out int rejects, out var reasons);
                 ok = why == null;
-                if (!ok)
+                if (why != null)
                 {
                     tally.Bucket(why);
                     foreach (var kv in reasons) tally.RejectReasons[kv.Key] = tally.RejectReasons.GetValueOrDefault(kv.Key) + kv.Value;
@@ -1734,8 +1734,6 @@ internal static class Program
                 WriteLine($"  [{step}] 失败 {what}: addr=0x{address:X} size={size}");
             }
         }
-
-        int ptr(uint v) => (int)v;
 
         // ---- SetEditor 之后的部分：FetchHOM / FetchBeatmap / FetchControlPoints / FetchObjects
         R("pEditor+28 (HOM)", _reader.EditorAddress + 28, b4, 4);

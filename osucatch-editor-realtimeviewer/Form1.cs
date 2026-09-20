@@ -25,10 +25,11 @@ namespace osucatch_editor_realtimeviewer
         private int _rebuildGeneration;
         private long _rebuildRetryTicks;
 
-        // 模板谱面（只读参考）
-        private ToolStripMenuItem? templateToolStripMenuItem;
-        private ToolStripMenuItem? selectTemplateStripMenuItem;
-        private ToolStripMenuItem? unloadTemplateStripMenuItem;
+        // 模板谱面（只读参考）：三个菜单项都在构造函数里由 CreateTemplateMenu 创建，
+        // 构造完成后必然非空，所以声明成不可空（null! 只是让编译器知道“稍后在构造函数里赋值”）
+        private ToolStripMenuItem templateToolStripMenuItem = null!;
+        private ToolStripMenuItem selectTemplateStripMenuItem = null!;
+        private ToolStripMenuItem unloadTemplateStripMenuItem = null!;
         private TemplateBeatmapData? templateData;
 
         // 快捷开关条：可吸附在菜单栏下方（横排）或画布左 / 右侧（竖排），也可拖出为浮动小窗口
@@ -201,7 +202,8 @@ namespace osucatch_editor_realtimeviewer
         private static System.Timers.Timer backup_timer = new System.Timers.Timer(app.Default.Backup_Interval);
         private static System.Timers.Timer Memory_Monitor_Timer = new System.Timers.Timer(200);
 
-        private PeriodicTaskRunner runner;
+        /// <summary>读取定时器；在 <see cref="Form1_Load"/> 里创建，之前的代码不应该碰它。</summary>
+        private PeriodicTaskRunner runner = null!;
         private HealthMonitor? healthMonitor;
 
         public Form1()
@@ -1302,7 +1304,7 @@ namespace osucatch_editor_realtimeviewer
         {
             if (item is ToolStripMenuItem)
             {
-                resources.ApplyResources(item, item.Name);
+                resources.ApplyResources(item, item.Name ?? "");
                 ToolStripMenuItem tsmi = (ToolStripMenuItem)item;
                 if (tsmi.DropDownItems.Count > 0)
                 {
@@ -1408,7 +1410,7 @@ namespace osucatch_editor_realtimeviewer
             Application.Exit();
         }
 
-        private async void selectTemplateStripMenuItem_Click(object sender, EventArgs e)
+        private async void selectTemplateStripMenuItem_Click(object? sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
@@ -1454,7 +1456,7 @@ namespace osucatch_editor_realtimeviewer
             }
         }
 
-        private void unloadTemplateStripMenuItem_Click(object sender, EventArgs e)
+        private void unloadTemplateStripMenuItem_Click(object? sender, EventArgs e)
         {
             templateData = null;
             drawingHelper.Template = null;
@@ -1491,9 +1493,7 @@ namespace osucatch_editor_realtimeviewer
         /// </summary>
         private void RestoreTemplateMenuText()
         {
-            if (unloadTemplateStripMenuItem == null) return;
-
-            string baseText = unloadTemplateStripMenuItem.Text;
+            string baseText = unloadTemplateStripMenuItem.Text ?? "";
             int suffixIndex = baseText.LastIndexOf(" (");
             if (suffixIndex > 0) baseText = baseText.Substring(0, suffixIndex);
 
@@ -2198,7 +2198,7 @@ namespace osucatch_editor_realtimeviewer
 
         private void SetDelBookmark(int styleId)
         {
-            if (bookmarkManager.BeatmapFolder == null || bookmarkManager.BeatmapFilename == null)
+            if (string.IsNullOrEmpty(bookmarkManager.BeatmapFolder) || string.IsNullOrEmpty(bookmarkManager.BeatmapFilename))
             {
                 MessageBox.Show("Editor is not running.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
