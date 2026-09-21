@@ -90,6 +90,9 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>一格滚轮（Ctrl + 滚轮）调整多少：1 = 0.1，与滑块步进一致。</summary>
         private const int VerticalScaleTenthsPerWheelNotch = 1;
 
+        /// <summary>Y 缩放功能区里“当前缩放相当于多少 AR”那一段文字的标识。</summary>
+        private const string VerticalScaleArTextKey = "VerticalScaleAR";
+
         /// <summary>
         /// 当前 Y 轴缩放（以 0.1 为单位）。与滑块位置、<see cref="DrawingHelper.VerticalScale"/>
         /// 一起由 <see cref="ApplyVerticalScale"/> 统一维护，Ctrl + 滚轮也走同一条路径，
@@ -653,6 +656,8 @@ namespace osucatch_editor_realtimeviewer
                     if (IsDisposed || Disposing) return;
                     if (title != null && this.Text != title) this.Text = title;
                     if (StateToolStripStatusLabel.Text != statusText) StateToolStripStatusLabel.Text = statusText;
+                    // 后台重建刚提交的话 ApproachTime 可能已变（开/关 EZ、HR 或换谱面）：顺带刷新“等效 AR”
+                    RefreshVerticalScaleArText();
                     this.Canvas.Canvas_Paint(null, null);
                 }));
                 Log.ConsoleLog("Draw a frame successful.", Log.LogType.Drawing, Log.LogLevel.Debug);
@@ -1610,8 +1615,11 @@ namespace osucatch_editor_realtimeviewer
                 VerticalScaleDefaultTenths,
                 VerticalScaleTickTenths);
             scaleGroup.AddLabel(VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
-            // 条上只放得下“x1.0”，Ctrl+滚轮这个快捷方式写进悬停提示
+            // 当前缩放相当于多少 AR：紧跟在比例后面（开 EZ / HR 时按 mod 后的实际 AR 折算）
+            scaleGroup.AddLabel(VerticalScaleArTextKey, VerticalScaleArText());
+            // 条上只放得下“x1.0”“AR 9.3”，Ctrl+滚轮与折算口径写进悬停提示
             quickToggleBar.SetGroupLabelToolTip(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleHintText());
+            quickToggleBar.SetGroupLabelToolTip(VerticalScaleGroupKey, VerticalScaleArTextKey, VerticalScaleArHintText());
 
             ApplyQuickToggleIcons();
         }
@@ -1794,6 +1802,8 @@ namespace osucatch_editor_realtimeviewer
 
             quickToggleBar?.SetGroupSliderValue(VerticalScaleGroupKey, VerticalScaleValueKey, clamped);
             quickToggleBar?.SetGroupLabelText(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
+            // 比例一变，等效 AR 跟着变（同一帧内一起刷新，两个数字不会出现一帧的错位）
+            RefreshVerticalScaleArText();
         }
 
         /// <summary>
@@ -1801,6 +1811,54 @@ namespace osucatch_editor_realtimeviewer
         /// 滑块步进 0.1，所以一位小数恰好能反映出每一档的变化。
         /// </summary>
         private static string VerticalScaleStatusText() => "x" + drawingHelper.VerticalScale.ToString("0.0");
+
+        /// <summary>
+        /// 当前 Y 轴缩放相当于多少 AR（形如 <c>AR 9.3</c>）。
+        /// <para />折算口径：画面上 432 像素对应的时间就是 <see cref="DrawingHelper.TimePerPixels"/> 的来历
+        /// （<c>TimePerPixels = ApproachTime / 432</c>）。缩放 <c>r</c> 倍后同样 432 像素对应
+        /// <c>ApproachTime / r</c> 毫秒，把这个时间当成 AR 的 approach time 反推，就得到等效 AR：
+        /// 放大（x&gt;1）看到的时间尺度更短 → 等效 AR 更高，压扁则更低。
+        /// </para>
+        /// <para /><see cref="DrawingHelper.ApproachTime"/> 取自绘制状态，而它是由
+        /// <c>convertedBeatmap.Difficulty.ApproachRate</c> 算出来的——EZ / HR 属于
+        /// <c>IApplicableToDifficulty</c>，在换谱面的转换阶段就已经作用到难度值上，
+        /// 所以开 mod 后这里显示的自然是按 mod 后实际 AR 折算的结果。
+        /// </para>
+        /// <para />等效值可能超出 0~10（放大到 4x 会高于 AR10，压扁到 0.5x 可能低于 AR0），一律照实显示。
+        /// </para>
+        /// </summary>
+        private static string VerticalScaleArText()
+        {
+            int approachTime = drawingHelper.ApproachTime;
+            float scale = drawingHelper.VerticalScale;
+            // 还没读到谱面（ApproachTime 尚未装载）时给个占位符，避免显示 AR NaN / 负无穷
+            if (approachTime <= 0 || !(scale > 0)) return "AR -";
+
+            double ar = DrawingHelper.ApproachRateFromApproachTime(approachTime / (double)scale);
+            return "AR" + ar.ToString("0.0");
+        }
+
+        /// <summary>上次刷新“等效 AR”用的输入，避免每帧都重新格式化字符串。</summary>
+        private int arTextCachedApproachTime = -1;
+        private float arTextCachedScale = -1f;
+
+        /// <summary>
+        /// 刷新“等效 AR”文字（只在 UI 线程调用）。
+        /// <para />两个触发点：比例变化时由 <see cref="ApplyVerticalScale"/> 立即刷新；
+        /// 后台重建提交后 <see cref="DrawingHelper.ApproachTime"/> 会变（开 / 关 EZ、HR 或换谱面都走这条路，
+        /// 而提交发生在后台线程），由每帧绘制前的 <see cref="RequestDraw"/> 顺带补上。
+        /// </para>
+        /// </summary>
+        private void RefreshVerticalScaleArText()
+        {
+            int approachTime = drawingHelper.ApproachTime;
+            float scale = drawingHelper.VerticalScale;
+            if (approachTime == arTextCachedApproachTime && scale == arTextCachedScale) return;
+
+            arTextCachedApproachTime = approachTime;
+            arTextCachedScale = scale;
+            quickToggleBar?.SetGroupLabelText(VerticalScaleGroupKey, VerticalScaleArTextKey, VerticalScaleArText());
+        }
 
         /// <summary>
         /// Y 缩放比例文字的悬停提示：条上只显示“x1.0”，这里把 Ctrl + 滚轮的快捷操作一并说明。
@@ -1811,6 +1869,17 @@ namespace osucatch_editor_realtimeviewer
             return chinese
                 ? "Y 轴缩放比例（在 viewer 窗口内按住 Ctrl 滚滚轮也能调，每格 0.1）"
                 : "Y axis scale (hold Ctrl and scroll inside the viewer window; 0.1 per notch)";
+        }
+
+        /// <summary>“等效 AR”文字的悬停提示：说明它是按当前缩放折算出来的，并点明 mod 口径。</summary>
+        private static string VerticalScaleArHintText()
+        {
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            return chinese
+                ? "按当前 Y 缩放折算的等效 AR：把画面上“432 像素对应的时间”当成 AR 的 approach time 反推；"
+                  + "开 EZ / HR 时按 mod 后的实际 AR 计算（缩放只改显示比例，不改谱面数据）"
+                : "Effective AR implied by the current Y scale (the 432-pixel approach distance is re-expressed as an AR); "
+                  + "uses the modded AR when EZ / HR is on (the scale only changes the view, not the beatmap)";
         }
 
         #region Y 轴缩放：Ctrl + 滚轮
@@ -2188,7 +2257,10 @@ namespace osucatch_editor_realtimeviewer
 
             quickToggleBar.SetGroupLabelText(BarLineGroupKey, BarLineValueKey + "_Text", BarLineStatusText());
             quickToggleBar.SetGroupLabelText(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
+            // 等效 AR 的文字本身与语言无关（“AR 9.3”），但提示要跟着语言走
+            RefreshVerticalScaleArText();
             quickToggleBar.SetGroupLabelToolTip(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleHintText());
+            quickToggleBar.SetGroupLabelToolTip(VerticalScaleGroupKey, VerticalScaleArTextKey, VerticalScaleArHintText());
         }
 
         /// <summary>
