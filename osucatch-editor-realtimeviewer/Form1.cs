@@ -87,6 +87,16 @@ namespace osucatch_editor_realtimeviewer
         /// <summary>滑块刻度间隔（同样以 0.1 为单位）：每 0.5 倍画一根刻度线。</summary>
         private const int VerticalScaleTickTenths = 5;
 
+        /// <summary>一格滚轮（Ctrl + 滚轮）调整多少：1 = 0.1，与滑块步进一致。</summary>
+        private const int VerticalScaleTenthsPerWheelNotch = 1;
+
+        /// <summary>
+        /// 当前 Y 轴缩放（以 0.1 为单位）。与滑块位置、<see cref="DrawingHelper.VerticalScale"/>
+        /// 一起由 <see cref="ApplyVerticalScale"/> 统一维护，Ctrl + 滚轮也走同一条路径，
+        /// 这样“滚轮改完滑块跟着动”天然成立（浮点倍率不适合拿来累加，故另存一份整数）。
+        /// </summary>
+        private int verticalScaleTenths = VerticalScaleDefaultTenths;
+
         /// <summary>快捷开关条上的下拉框 / 滑块所用的值标识。</summary>
         private const string FreezeValueKey = FreezePreviewTimeKey;
 
@@ -345,6 +355,14 @@ namespace osucatch_editor_realtimeviewer
             ApplyBarLineMode(BarLineSettings.CurrentMode, persist: false);
             // 垂直缩放不持久化：每次启动都把滑块与画面恢复成默认的 x1.0
             ApplyVerticalScale(VerticalScaleDefaultTenths);
+            // Ctrl + 滚轮缩放 Y 轴：滚轮消息发给“拥有键盘焦点的窗口”（焦点可能在画布上），
+            // 用消息过滤器在消息分发前拦下，不依赖 WinForms 的滚轮冒泡行为
+            wheelFilter = new VerticalScaleWheelFilter(this);
+            Application.AddMessageFilter(wheelFilter);
+            FormClosed += (sender, e) =>
+            {
+                if (wheelFilter != null) Application.RemoveMessageFilter(wheelFilter);
+            };
             quickToggleDocking?.ApplyStartupState(
                 app.Default.QuickToggle_Visible,
                 app.Default.QuickToggle_Floating,
@@ -1592,6 +1610,8 @@ namespace osucatch_editor_realtimeviewer
                 VerticalScaleDefaultTenths,
                 VerticalScaleTickTenths);
             scaleGroup.AddLabel(VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
+            // 条上只放得下“x1.0”，Ctrl+滚轮这个快捷方式写进悬停提示
+            quickToggleBar.SetGroupLabelToolTip(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleHintText());
 
             ApplyQuickToggleIcons();
         }
@@ -1769,6 +1789,7 @@ namespace osucatch_editor_realtimeviewer
         private void ApplyVerticalScale(int tenths)
         {
             int clamped = Math.Clamp(tenths, VerticalScaleMinTenths, VerticalScaleMaxTenths);
+            verticalScaleTenths = clamped;
             drawingHelper.VerticalScale = clamped / 10f;
 
             quickToggleBar?.SetGroupSliderValue(VerticalScaleGroupKey, VerticalScaleValueKey, clamped);
@@ -1780,6 +1801,85 @@ namespace osucatch_editor_realtimeviewer
         /// 滑块步进 0.1，所以一位小数恰好能反映出每一档的变化。
         /// </summary>
         private static string VerticalScaleStatusText() => "x" + drawingHelper.VerticalScale.ToString("0.0");
+
+        /// <summary>
+        /// Y 缩放比例文字的悬停提示：条上只显示“x1.0”，这里把 Ctrl + 滚轮的快捷操作一并说明。
+        /// </summary>
+        private static string VerticalScaleHintText()
+        {
+            bool chinese = Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "zh";
+            return chinese
+                ? "Y 轴缩放比例（在 viewer 窗口内按住 Ctrl 滚滚轮也能调，每格 0.1）"
+                : "Y axis scale (hold Ctrl and scroll inside the viewer window; 0.1 per notch)";
+        }
+
+        #region Y 轴缩放：Ctrl + 滚轮
+
+        /// <summary>滚轮消息（WM_MOUSEWHEEL）；wParam 高 16 位是带符号的滚动量。</summary>
+        private const int WM_MOUSEWHEEL = 0x020A;
+
+        /// <summary>Ctrl + 滚轮的消息过滤器实例（随窗体关闭一并注销）。</summary>
+        private VerticalScaleWheelFilter? wheelFilter;
+
+        /// <summary>
+        /// Ctrl + 滚轮调整 Y 轴缩放的消息过滤器。
+        /// <para /><b>为什么用消息过滤器而不是重写 <c>OnMouseWheel</c></b>：滚轮消息由系统发给
+        /// “当前拥有键盘焦点的窗口”。焦点可能落在画布上（<see cref="Canvas"/> 是 GLControl，
+        /// 有自己独立的窗口句柄），也可能落在主窗口本身；过滤器在消息进入控件之前就能看到，
+        /// 因此不必依赖“未处理的滚轮消息会被 WinForms 冒泡给父控件”这个实现细节。
+        /// </para>
+        /// <para />回调里的三道闸（前台、光标在窗口内、按住 Ctrl）都在 <see cref="TryZoomVerticalScaleByWheel"/>。
+        /// </para>
+        /// </summary>
+        private sealed class VerticalScaleWheelFilter : IMessageFilter
+        {
+            private readonly Form1 owner;
+
+            internal VerticalScaleWheelFilter(Form1 owner) => this.owner = owner;
+
+            public bool PreFilterMessage(ref Message m)
+            {
+                if (m.Msg != WM_MOUSEWHEEL) return false;
+
+                int delta = (short)((m.WParam.ToInt64() >> 16) & 0xFFFF);
+                return owner.TryZoomVerticalScaleByWheel(delta);
+            }
+        }
+
+        /// <summary>
+        /// 处理一次滚轮消息：只有“viewer 在前台 + 光标在 viewer 窗口内 + 按住 Ctrl”时才调整 Y 轴缩放。
+        /// <para />向上滚 = 放大（把时间轴拉长），一格 0.1，与滑块步进一致；缩放基准仍是判定线，
+        /// 与拖滑块完全等价（滚轮只是另一个入口）。
+        /// </para>
+        /// </summary>
+        /// <returns>true 表示这条滚轮消息已被消费，不再交给画布 / 快捷开关栏等控件。</returns>
+        private bool TryZoomVerticalScaleByWheel(int wheelDelta)
+        {
+            // 正在关闭时不再动控件（消息过滤器要等 FormClosed 才注销，期间可能还有滚轮消息在途）
+            if (IsDisposed || Disposing) return false;
+
+            // ① 本窗口必须在前台：焦点在窗口内的任意子控件上才算。
+            //    “viewer 不在前台”包含两类情况，这里一并挡掉：
+            //    - 焦点在别的程序（或本程序的浮窗 / 设置窗口）上；
+            //    - Windows 的“悬停时滚动非活动窗口”把滚轮直接送到悬停窗口，但焦点并不在我们的窗口上。
+            if (!ContainsFocus) return false;
+
+            // ② 光标必须落在 viewer 窗口内（Ctrl+滚轮甩到窗口外时不该改缩放）
+            if (!Bounds.Contains(Cursor.Position)) return false;
+
+            // ③ 必须按住 Ctrl：没按 Ctrl 时把滚轮让给其它控件（菜单栏溢出滚动、下拉框等）
+            if ((ModifierKeys & Keys.Control) != Keys.Control) return false;
+
+            int notches = wheelDelta / SystemInformation.MouseWheelScrollDelta;
+            // 高精度滚轮 / 触摸板可能只报小于一格（120）的增量：按方向算作一格，避免完全没反应
+            if (notches == 0) notches = Math.Sign(wheelDelta);
+            if (notches == 0) return false;
+
+            ApplyVerticalScale(verticalScaleTenths + notches * VerticalScaleTenthsPerWheelNotch);
+            return true;
+        }
+
+        #endregion
 
 
 
@@ -2088,6 +2188,7 @@ namespace osucatch_editor_realtimeviewer
 
             quickToggleBar.SetGroupLabelText(BarLineGroupKey, BarLineValueKey + "_Text", BarLineStatusText());
             quickToggleBar.SetGroupLabelText(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleStatusText());
+            quickToggleBar.SetGroupLabelToolTip(VerticalScaleGroupKey, VerticalScaleValueKey + "_Text", VerticalScaleHintText());
         }
 
         /// <summary>

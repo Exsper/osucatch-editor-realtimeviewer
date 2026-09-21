@@ -729,6 +729,15 @@ namespace osucatch_editor_realtimeviewer
             if (groups.TryGetValue(groupKey, out QuickToggleGroup? group)) group.SetLabelText(labelKey, text);
         }
 
+        /// <summary>
+        /// 设置功能区里一段只读文字的悬停提示（语言切换等场景调用）。
+        /// 条上的文字通常很短（如“x1.0”），快捷键之类的补充说明放在这里。
+        /// </summary>
+        internal void SetGroupLabelToolTip(string groupKey, string labelKey, string toolTip)
+        {
+            if (groups.TryGetValue(groupKey, out QuickToggleGroup? group)) group.SetLabelToolTip(labelKey, toolTip);
+        }
+
         #endregion
 
         #region 停靠 / 浮动
@@ -1118,6 +1127,16 @@ namespace osucatch_editor_realtimeviewer
             internal void SetLabelText(string labelKey, string text)
             {
                 if (labels.TryGetValue(labelKey, out ToolStripLabel? item)) item.Text = text;
+            }
+
+            /// <summary>设置功能区里一段只读文字的悬停提示。</summary>
+            internal void SetLabelToolTip(string labelKey, string toolTip)
+            {
+                if (!labels.TryGetValue(labelKey, out ToolStripLabel? item)) return;
+
+                // AutoToolTip = true 会用 Text 覆盖 ToolTipText，这里必须关掉才显示得出提示
+                item.AutoToolTip = false;
+                item.ToolTipText = toolTip;
             }
 
             /// <summary>功能区里的只读文字项，键为文字标识。</summary>
