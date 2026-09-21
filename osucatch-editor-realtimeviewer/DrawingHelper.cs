@@ -164,6 +164,19 @@ namespace osucatch_editor_realtimeviewer
         }
 
         /// <summary>
+        /// 由 approach time（ms）反推 AR：<see cref="LoadBeatmap"/> 里正向换算的逆运算
+        /// （AR &lt; 5 段 AT = 1800 - 120·AR，AR ≥ 5 段 AT = 1200 - 150·(AR-5)，两段在 AR=5 / AT=1200 处衔接）。
+        /// <para />用于把“当前 Y 轴缩放看到的纵向时间尺度”折算成大家熟悉的 AR：
+        /// 缩放到 <c>r</c> 时画面上 432 像素对应的时间是 <c>ApproachTime / r</c>，
+        /// 把它当成 AR 的 approach time 代进来即可。
+        /// </para>
+        /// </summary>
+        /// <param name="approachTime">approach time（ms）。</param>
+        /// <returns>等效 AR；超出 0~10 的值照实返回（不夹取）。</returns>
+        public static double ApproachRateFromApproachTime(double approachTime)
+            => (approachTime > 1200) ? (1800 - approachTime) / 120.0 : (1950 - approachTime) / 150.0;
+
+        /// <summary>
         /// 将后台流水线构建好的数据原子地应用到当前绘制实例。
         /// 只替换装载期字段，不动 CurrentTime / NearbyHitObjects / Bookmarks 等运行时状态。
         /// </summary>

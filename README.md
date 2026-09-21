@@ -35,6 +35,7 @@ These guides explain how to add the legacy self-contained 32-bit build to the os
 - Template and bookmark tools, including an optional global hotkey for bookmarks
 - Quick toggle bar under the menu bar: docked by default, or dragged out into a floating window for instant switches while editing
 - "Freeze preview" switch: pins the preview at the current editor time while the editor keeps running (the distance helper still follows the editor)
+- Y axis (time) scale from x0.5 to x4.0 in 0.1 steps, via the quick toggle bar's "Y Scale" slider or by holding **Ctrl** and scrolling inside the viewer window (only while the viewer is in the foreground; the X axis is unaffected)
 - Unified user settings and crash logs under a fixed `%LocalAppData%` path
 
 ## Requirements
