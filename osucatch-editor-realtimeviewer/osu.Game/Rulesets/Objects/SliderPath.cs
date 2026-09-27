@@ -113,12 +113,93 @@ namespace osu.Game.Rulesets.Objects
         private void invalidate()
         {
             version++;
+
+            // 让下一次访问重新计算（见 ensureValid 的说明）
+            isValid = false;
         }
 
+        /// <summary>
+        /// 曲线（<see cref="calculatedPath"/> / <see cref="cumulativeLength"/>）是否已经算过、且输入没变过。
+        /// </summary>
+        private bool isValid;
+
+        /// <summary>
+        /// 上次计算时输入的指纹（控制点 + OptimiseCatmull + ExpectedDistance）。
+        /// </summary>
+        private ulong validFingerprint;
+
+        /// <summary>
+        /// 保证曲线与累积长度可用。
+        /// <para>
+        /// 曲线逼近（尤其是控制点很多的滑条）非常昂贵，而 <see cref="Distance"/> / <see cref="PositionAt"/>
+        /// 在生成物件时会被反复调用、且每次都要求"确保有效"。此前这里是无条件重算的，
+        /// 一条 1 万多个控制点的滑条会被整块重算十几次，单条就能吃掉几十毫秒。
+        /// </para>
+        /// <para>
+        /// 因此这里按输入指纹做记忆化：指纹不变就直接复用上次的结果。
+        /// 用指纹而不是单纯一个布尔标记，是因为 <see cref="ControlPoints"/> 是公开的
+        /// <see cref="List{T}"/>，外部可以直接改动/增删而不会通知本对象；
+        /// 指纹（O(控制点数)）比重新逼近（O(控制点数²) 甚至更多）便宜好几个数量级，
+        /// 又能保证任何真实改动都会被察觉。
+        /// </para>
+        /// <para>
+        /// <see cref="ExpectedDistance"/> 变化的语义与上游 lazer 一致：重置为未计算再算一次
+        /// （<see cref="calculateLength"/> 会按 ExpectedDistance 截断/延长曲线，必须与路径一起重算）。
+        /// </para>
+        /// </summary>
         private void ensureValid()
         {
+            ulong fingerprint = calculateFingerprint();
+
+            if (isValid && fingerprint == validFingerprint)
+                return;
+
             calculatePath();
             calculateLength();
+
+            validFingerprint = fingerprint;
+            isValid = true;
+        }
+
+        /// <summary>
+        /// 计算当前输入的指纹：控制点（坐标 + 段类型）、<see cref="OptimiseCatmull"/> 与 <see cref="ExpectedDistance"/>。
+        /// <para>只是用来判断"输入有没有变"，不做任何分配。</para>
+        /// </summary>
+        private ulong calculateFingerprint()
+        {
+            unchecked
+            {
+                const ulong prime = 1099511628211UL;
+
+                ulong hash = 14695981039346656037UL;
+                hash = (hash ^ (ulong)(uint)ControlPoints.Count) * prime;
+
+                for (int i = 0; i < ControlPoints.Count; i++)
+                {
+                    PathControlPoint point = ControlPoints[i];
+
+                    hash = (hash ^ (uint)BitConverter.SingleToInt32Bits(point.Position.X)) * prime;
+                    hash = (hash ^ (uint)BitConverter.SingleToInt32Bits(point.Position.Y)) * prime;
+
+                    PathType? type = point.Type;
+                    if (type == null)
+                        hash = (hash ^ 0x9E3779B97F4A7C15UL) * prime;
+                    else
+                    {
+                        hash = (hash ^ (uint)type.Value.Type) * prime;
+                        hash = (hash ^ (uint)(type.Value.Degree ?? -1)) * prime;
+                    }
+                }
+
+                hash = (hash ^ (optimiseCatmull ? 0x1UL : 0x2UL)) * prime;
+
+                if (ExpectedDistance is double expectedDistance)
+                    hash = (hash ^ (ulong)BitConverter.DoubleToInt64Bits(expectedDistance)) * prime;
+                else
+                    hash = (hash ^ 0x3UL) * prime;
+
+                return hash;
+            }
         }
 
         private void calculatePath()

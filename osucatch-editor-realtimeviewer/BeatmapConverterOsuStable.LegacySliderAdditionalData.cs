@@ -58,6 +58,12 @@ namespace osucatch_editor_realtimeviewer
 
             public Vector2 Position2;
 
+            /// <summary>
+            /// <see cref="EndPosition"/> / <see cref="Position2"/> / <see cref="SpanCount"/> / <see cref="EndTime"/>
+            /// 是否已经算出来（曲线退化、没有任何线段时不会算，保持默认值，与改动前一致）。
+            /// </summary>
+            internal bool HasResultPositions;
+
             public List<int> SliderRepeatPoints = new List<int>();
 
             public List<int> SliderScoreTimingPoints = new List<int>();
@@ -66,12 +72,117 @@ namespace osucatch_editor_realtimeviewer
 
             public List<Segment> CurveSegmentPath = new List<Segment>();
 
+            /// <summary>
+            /// 用于复制一份结果（只搬字段，不做计算）。
+            /// </summary>
+            internal LegacySliderAdditionalData()
+            {
+            }
+
             public LegacySliderAdditionalData(IBeatmap beatmap, JuiceStream slider, bool flip)
             {
-                StartTime = (int)slider.StartTime;
-                Position = new(slider.OriginalX, slider.Y);
+                Vector2 position = new(slider.OriginalX, slider.Y);
+                bool cacheable = SliderCurveCache.IsCacheable(slider);
 
-                compute(beatmap, slider, flip);
+                // 必须在 compute 之前取：compute 会把「没写像素长度的滑条」的 ExpectedDistance
+                // 改写成曲线长度，之后就不能再拿它当缓存键了。
+                double? declaredExpectedDistance = slider.Path.ExpectedDistance;
+
+                if (cacheable)
+                {
+                    LegacySliderAdditionalData? cached = SliderCurveCache.TryGet(beatmap, slider, flip, declaredExpectedDistance, position);
+                    if (cached != null)
+                    {
+                        copyFrom(cached);
+                        return;
+                    }
+                }
+
+                StartTime = (int)slider.StartTime;
+                Position = position;
+
+                // 没命中缓存：按滑条当前位置完整算一遍（与改动前逐位一致），算完存进缓存。
+                compute(beatmap, slider, flip, position);
+
+                if (cacheable)
+                {
+                    bool expectedDistanceWasUnset = CurveLength > 0 && (declaredExpectedDistance is null || declaredExpectedDistance == 0);
+                    SliderCurveCache.Store(beatmap, slider, flip, declaredExpectedDistance, this, position, expectedDistanceWasUnset);
+                }
+            }
+
+            /// <summary>
+            /// 按给定位置完整计算一遍（不走缓存）。缓存用它在"停下之后"补一次精确结果。
+            /// </summary>
+            internal static LegacySliderAdditionalData ComputeAbsolute(IBeatmap beatmap, JuiceStream slider, bool flip, Vector2 position)
+            {
+                LegacySliderAdditionalData data = new LegacySliderAdditionalData();
+                data.StartTime = (int)slider.StartTime;
+                data.Position = position;
+                data.compute(beatmap, slider, flip, position);
+                return data;
+            }
+
+            /// <summary>
+            /// 把 <paramref name="source"/> 的结果整体平移 <paramref name="delta"/> 后返回。
+            /// <para>
+            /// 平移在 double 里做：坐标是 float、平移量是整数，两者之和在 double 里是精确的，
+            /// 所以 <paramref name="delta"/> 为 0 时结果与 <paramref name="source"/> 逐位相同
+            /// （这种情况直接共享线段表，不做任何分配）。
+            /// </para>
+            /// <para>
+            /// 与位置无关的字段（时刻、累积长度）算完之后只读，直接共享。
+            /// </para>
+            /// </summary>
+            internal static LegacySliderAdditionalData Shifted(LegacySliderAdditionalData source, Vector2 delta)
+            {
+                LegacySliderAdditionalData copy = new LegacySliderAdditionalData();
+                copy.copyFrom(source);
+
+                if (delta.X == 0 && delta.Y == 0)
+                    return copy;
+
+                double dx = delta.X;
+                double dy = delta.Y;
+
+                copy.Position = new Vector2((float)(source.Position.X + dx), (float)(source.Position.Y + dy));
+
+                if (source.HasResultPositions)
+                {
+                    copy.EndPosition = new Vector2((float)(source.EndPosition.X + dx), (float)(source.EndPosition.Y + dy));
+                    copy.Position2 = new Vector2((float)(source.Position2.X + dx), (float)(source.Position2.Y + dy));
+                }
+
+                List<Segment> path = new List<Segment>(source.CurveSegmentPath.Count);
+                foreach (Segment segment in source.CurveSegmentPath)
+                {
+                    path.Add(new Segment(
+                        new Vector2((float)(segment.Start.X + dx), (float)(segment.Start.Y + dy)),
+                        new Vector2((float)(segment.End.X + dx), (float)(segment.End.Y + dy))));
+                }
+
+                copy.CurveSegmentPath = path;
+                return copy;
+            }
+
+            private void copyFrom(LegacySliderAdditionalData other)
+            {
+                SpanCount = other.SpanCount;
+                StartTime = other.StartTime;
+                EndTime = other.EndTime;
+                ExpectedDistance = other.ExpectedDistance;
+                Velocity = other.Velocity;
+                CurveLength = other.CurveLength;
+                HasResultPositions = other.HasResultPositions;
+
+                SliderRepeatPoints = other.SliderRepeatPoints;
+                SliderScoreTimingPoints = other.SliderScoreTimingPoints;
+                CumulativeLengths = other.CumulativeLengths;
+
+                Position = other.Position;
+                EndPosition = other.EndPosition;
+                Position2 = other.Position2;
+                CurveSegmentPath = other.CurveSegmentPath;
             }
 
             private static double computeVelocity(
@@ -202,7 +313,7 @@ namespace osucatch_editor_realtimeviewer
                 return GetPositionByLength(lengthRequired);
             }
 
-            private void compute(IBeatmap beatmap, JuiceStream slider, bool flip)
+            private void compute(IBeatmap beatmap, JuiceStream slider, bool flip, Vector2 offset)
             {
                 double sliderComboPointDistance = (100 * beatmap.Difficulty.SliderMultiplier) / beatmap.Difficulty.SliderTickRate;
 
@@ -220,7 +331,7 @@ namespace osucatch_editor_realtimeviewer
 
                 // The first control point should have a non-null PathType
                 PathType pathType = pathData.ControlPoints[0].Type ?? PathType.LINEAR;
-                List<Vector2> curvePoints = rebuildCurvePoints(new Vector2(slider.OriginalX, slider.Y), pathData, flip);
+                List<Vector2> curvePoints = rebuildCurvePoints(offset, pathData, flip);
 
                 const int subSegmentCount = 50;
 
@@ -400,6 +511,8 @@ namespace osucatch_editor_realtimeviewer
 
                 if (path.Count < 1)
                     return;
+
+                HasResultPositions = true;
 
                 {
                     double scoringLengthTotal = 0;

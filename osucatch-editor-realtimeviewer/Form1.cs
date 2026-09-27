@@ -150,7 +150,22 @@ namespace osucatch_editor_realtimeviewer
             public int Mods = -1;
             public HitObjectLabelType LabelType = HitObjectLabelType.None;
             public bool ConverterIsStable;
+
+            /// <summary>
+            /// 这份结果里有滑条走了"平移近似"（拖动过程中的快速路径）。
+            /// 编辑器数据稳定下来之后要再重建一次，让缓存补出逐位精确的结果。
+            /// </summary>
+            public bool UsedApproximateSliderCurve;
         }
+
+        /// <summary>
+        /// 已经为"补一次精确结果"发起过的重建次数（编辑器数据一变就清零）。
+        /// 上限 2 次：第一次把当前位置登记进缓存，第二次缓存就会补算精确结果，
+        /// 同时避免缓存始终补不上时无限重建。
+        /// </summary>
+        private int _exactRebuildAttempts;
+
+        private const int MaxExactRebuildAttempts = 2;
 
         /// <summary>
         /// 消费后台重建任务的结果：任务已完成且代次未过期时，把新数据原子地提交到绘制状态。
@@ -693,6 +708,15 @@ namespace osucatch_editor_realtimeviewer
             };
 
             Log.ConsoleLog("Start build new beatmap.", Log.LogType.BeatmapBuilder, Log.LogLevel.Debug);
+
+            // 换了一张谱面：把上张图留下的滑条曲线缓存清掉。
+            // （缓存是按"相对几何"寻址的，留着也不会算错，只是白占内存；
+            //   换图属于低频操作，清空一次可以保证内存不会被多张图慢慢撑大。）
+            if (differenceType == DifferenceType.DifferentFile)
+            {
+                BeatmapConverterOsuStable.ClearSliderCurveCache();
+            }
+
             Beatmap? beatmap;
             if (differenceType == DifferenceType.DifferentFile)
             {
@@ -748,10 +772,13 @@ namespace osucatch_editor_realtimeviewer
 
             // prepare drawing objects
             Log.ConsoleLog("Try building drawing objects.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
+            long approximateBefore = BeatmapConverterOsuStable.SliderCurveCacheApproximationCount;
             var stagingDrawing = new DrawingHelper();
             stagingDrawing.LabelType = labelType;
             stagingDrawing.LoadBeatmap(convertedBeatmap, mods);
             newState.Drawing = stagingDrawing;
+            newState.UsedApproximateSliderCurve =
+                BeatmapConverterOsuStable.SliderCurveCacheApproximationCount != approximateBefore;
             Log.ConsoleLog("Build drawing objects successfully.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
 
             return newState;
@@ -893,6 +920,24 @@ namespace osucatch_editor_realtimeviewer
                     differenceType = DifferenceType.None;
                 }
                 drawingHelper.SelectionLines = thisReader.SelectionLines;
+
+                // Step4.5 收尾补算
+                // 上一份结果是滑条走"平移近似"（拖动中的快速路径）算出来的：编辑器数据一停下来，
+                // 就再重建一次，让滑条曲线缓存补出逐位精确的结果（见 SliderCurveCache 的说明）。
+                // 最多补 MaxExactRebuildAttempts 次：第一次把当前位置登记进缓存，第二次缓存才会补算。
+                if (differenceType == DifferenceType.None && _committed.UsedApproximateSliderCurve &&
+                    _exactRebuildAttempts < MaxExactRebuildAttempts)
+                {
+                    _exactRebuildAttempts++;
+                    differenceType = DifferenceType.DifferentObjects;
+                    Log.ConsoleLog("Retry rebuild for exact slider curves (attempt " + _exactRebuildAttempts + ").",
+                        Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
+                }
+                else if (differenceType != DifferenceType.None)
+                {
+                    // 数据又变了：重新开始计数，等这次拖动停下来再补算
+                    _exactRebuildAttempts = 0;
+                }
 
                 // Step5. Build osu file Path
                 string filepath = "";
@@ -1408,6 +1453,8 @@ namespace osucatch_editor_realtimeviewer
         {
             Log.Breadcrumb("Manual reset requested.");
             _committed = new CommittedState();
+            _exactRebuildAttempts = 0;
+            BeatmapConverterOsuStable.ClearSliderCurveCache();
             _rebuildGeneration++;
             _rebuildTask = null;
             _rebuildRetryTicks = 0;
