@@ -456,6 +456,13 @@ namespace osucatch_editor_realtimeviewer
                             ? new BeatmapInfoCollection(reader, partialLoadingHalfTimeSpan)
                             : new BeatmapInfoCollection(reader);
 
+                        // 让新一份数据能复用上一份里没变过物件的 .osu 文本行（见 HitObjectLines）
+                        if (!filterNearby && cachedCollection != null)
+                        {
+                            thisReaderData.PreviousHitObjects = cachedCollection.HitObjects;
+                            thisReaderData.PreviousHitObjectLines = cachedCollection.CachedHitObjectLines;
+                        }
+
                         Log.ConsoleLog("FetchAll complete.", Log.LogType.EditorReader, Log.LogLevel.Debug);
 
                         cachedCollection = thisReaderData;
@@ -615,18 +622,57 @@ namespace osucatch_editor_realtimeviewer
             {
                 if (hitObjectLines == null)
                 {
+                    // 上一次读取的物件与文本行：编辑时绝大多数物件没变过，
+                    // 它们的 .osu 文本可以直接复用（一条上万控制点的滑条要拼上万个 "x:y"）。
+                    // 只有"字段完全一致"（HitObjectEquals）时才复用，而复用的行只由这些字段决定，
+                    // 所以复用不会改变结果。
+                    List<Editor_Reader.HitObject>? previousObjects = PreviousHitObjects;
+                    List<ReaderHitObjectWithSelect>? previousLines = PreviousHitObjectLines;
+
                     var lines = new List<ReaderHitObjectWithSelect>(HitObjects.Count);
                     for (int i = 0; i < HitObjects.Count; i++)
                     {
                         Editor_Reader.HitObject ho = HitObjects[i];
-                        lines.Add(new ReaderHitObjectWithSelect(ho.ToString(), ho.IsSelected, i));
+                        string line;
+
+                        if (previousObjects != null && previousLines != null &&
+                            i < previousObjects.Count && i < previousLines.Count &&
+                            HitObjectEquals(previousObjects[i], ho, false))
+                        {
+                            line = previousLines[i].HitObjectLine;
+                        }
+                        else
+                        {
+                            line = ho.ToString();
+                        }
+
+                        lines.Add(new ReaderHitObjectWithSelect(line, ho.IsSelected, i));
                     }
+
                     hitObjectLines = lines;
+
+                    // 读完就把上一份数据放掉：否则每次读取都会多留一份物件表与字符串
+                    PreviousHitObjects = null;
+                    PreviousHitObjectLines = null;
                 }
                 return hitObjectLines;
             }
             set => hitObjectLines = value;
         }
+
+        /// <summary>
+        /// 上一次读取的物件表（仅用于 <see cref="HitObjectLines"/> 复用没变过的文本行）。
+        /// 构建完文本行后会被清空，避免长期持有上一份数据。
+        /// </summary>
+        public List<Editor_Reader.HitObject>? PreviousHitObjects;
+
+        /// <summary>
+        /// 上一次读取已经生成好的文本行（可能为 null：上一份数据没触发过重建，就没生成过）。
+        /// </summary>
+        public List<ReaderHitObjectWithSelect>? PreviousHitObjectLines;
+
+        /// <summary>已经生成好的文本行（没有则返回 null，不会触发构建）。</summary>
+        public List<ReaderHitObjectWithSelect>? CachedHitObjectLines => hitObjectLines;
 
         /// <summary>
         /// 显式生成每行 .osu 文本（等价于访问 <see cref="HitObjectLines"/>）。

@@ -52,10 +52,18 @@ namespace osucatch_editor_realtimeviewer
         {
             Log.ConsoleLog("Converting beatmap.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
             FlatWorkingBeatmap workingBeatmap = new FlatWorkingBeatmap(beatmap);
-            IBeatmap playableBeatmap = workingBeatmap.GetPlayableBeatmap(catchRuleset, mods);
+            IBeatmap playableBeatmap = workingBeatmap.GetPlayableBeatmap(catchRuleset, mods, RequiresNestedHitObjects(mods));
             if (playableBeatmap == null) throw new Exception("This beatmap is invalid or is not a ctb beatmap.");
             return playableBeatmap;
         }
+
+        /// <summary>
+        /// 转换阶段是否需要生成嵌套物件（滑条水滴、香蕉…）。
+        /// <para />默认需要：lazer 的 <see cref="GetPalpableObjects"/> 直接取
+        /// <c>NestedHitObjects</c>。稳定版转换器会覆盖它——它自己按 osu!stable 的算法
+        /// 重建全部可接物件，这一步在大滑条谱面上是整个重建最贵的单项。
+        /// </summary>
+        protected virtual bool RequiresNestedHitObjects(Mod[] mods) => true;
 
         public IBeatmap GetConvertedBeatmap(Beatmap beatmap, string[] mods)
         {

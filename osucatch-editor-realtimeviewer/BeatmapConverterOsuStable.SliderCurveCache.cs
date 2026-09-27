@@ -27,6 +27,15 @@ namespace osucatch_editor_realtimeviewer
         /// </summary>
         public static long SliderCurveCacheApproximationCount => Interlocked.Read(ref SliderCurveCache.approximationCount);
 
+        /// <summary>
+        /// 缓存统计（诊断用）：命中原位置 / 停下后补算 / 平移近似 / 未命中。
+        /// </summary>
+        public static (long ExactHits, long Settles, long Shifts, long Misses) SliderCurveCacheStats
+            => (Interlocked.Read(ref SliderCurveCache.exactHits),
+                Interlocked.Read(ref SliderCurveCache.settleHits),
+                Interlocked.Read(ref SliderCurveCache.shiftHits),
+                Interlocked.Read(ref SliderCurveCache.misses));
+
         /// <summary>清空滑条曲线缓存（切换谱面/换图时调用）。</summary>
         public static void ClearSliderCurveCache() => SliderCurveCache.Clear();
 
@@ -198,6 +207,9 @@ namespace osucatch_editor_realtimeviewer
             /// <summary>走了"平移近似"的次数，供调用方判断结果里是否含近似值。</summary>
             internal static long approximationCount;
 
+            /// <summary>统计（仅诊断用）：命中既有位置、命中后补算、平移近似、未命中。</summary>
+            internal static long exactHits, settleHits, shiftHits, misses;
+
             /// <summary>诊断/对照用开关：关掉后每条滑条都重新解析。</summary>
             public static bool Enabled { get; set; } = true;
 
@@ -252,6 +264,7 @@ namespace osucatch_editor_realtimeviewer
                     }
                 }
 
+                Interlocked.Increment(ref misses);
                 return null;
             }
 
@@ -261,6 +274,7 @@ namespace osucatch_editor_realtimeviewer
                 LegacySliderAdditionalData? exact = entry.Find(position);
                 if (exact != null)
                 {
+                    Interlocked.Increment(ref exactHits);
                     entry.Remember(position);
                     return exact;
                 }
@@ -269,6 +283,7 @@ namespace osucatch_editor_realtimeviewer
                 {
                     // 同一个位置连着来了两次：说明已经停下（或这是复制出来的另一条同形状滑条），
                     // 在这里补一次精确计算，之后就一直精确复用。
+                    Interlocked.Increment(ref settleHits);
                     Prototype prototype = new()
                     {
                         Position = position,
@@ -285,6 +300,7 @@ namespace osucatch_editor_realtimeviewer
                 // 拖动过程中的快速路径：按双精度平移已有结果（与原型位置相同则逐位一致）
                 LegacySliderAdditionalData reference = entry.MostRecent;
                 Interlocked.Increment(ref approximationCount);
+                Interlocked.Increment(ref shiftHits);
                 return LegacySliderAdditionalData.Shifted(reference, position - reference.Position);
             }
 

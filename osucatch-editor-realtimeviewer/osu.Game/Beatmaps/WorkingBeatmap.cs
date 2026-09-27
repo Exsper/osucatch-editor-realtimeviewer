@@ -110,13 +110,21 @@ namespace osu.Game.Beatmaps
         #region Playable beatmap
 
         public IBeatmap GetPlayableBeatmap(Ruleset ruleset, IReadOnlyList<Mod> mods = null)
+            => GetPlayableBeatmap(ruleset, mods, true);
+
+        /// <summary>
+        /// 与 <see cref="GetPlayableBeatmap(Ruleset, IReadOnlyList{Mod})"/> 相同，
+        /// 但可以指定是否需要生成嵌套物件（见
+        /// <see cref="HitObject.ApplyDefaults"/> 的 <c>createNestedHitObjects</c>）。
+        /// </summary>
+        public IBeatmap GetPlayableBeatmap(Ruleset ruleset, IReadOnlyList<Mod> mods, bool createNestedHitObjects)
         {
             try
             {
                 using (var cancellationTokenSource = new CancellationTokenSource(10_000))
                 {
                     // don't apply the default timeout when debugger is attached (may be breakpointing / debugging).
-                    return GetPlayableBeatmap(ruleset, mods ?? Array.Empty<Mod>(), Debugger.IsAttached ? new CancellationToken() : cancellationTokenSource.Token);
+                    return GetPlayableBeatmap(ruleset, mods ?? Array.Empty<Mod>(), Debugger.IsAttached ? new CancellationToken() : cancellationTokenSource.Token, createNestedHitObjects);
                 }
             }
             catch (OperationCanceledException)
@@ -126,6 +134,9 @@ namespace osu.Game.Beatmaps
         }
 
         public virtual IBeatmap GetPlayableBeatmap(Ruleset ruleset, IReadOnlyList<Mod> mods, CancellationToken token)
+            => GetPlayableBeatmap(ruleset, mods, token, true);
+
+        public virtual IBeatmap GetPlayableBeatmap(Ruleset ruleset, IReadOnlyList<Mod> mods, CancellationToken token, bool createNestedHitObjects)
         {
             Log.ConsoleLog("Creating converter.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);
 
@@ -172,7 +183,7 @@ namespace osu.Game.Beatmaps
             foreach (var obj in converted.HitObjects)
             {
                 token.ThrowIfCancellationRequested();
-                obj.ApplyDefaults(converted.ControlPointInfo, converted.Difficulty, token);
+                obj.ApplyDefaults(converted.ControlPointInfo, converted.Difficulty, token, createNestedHitObjects);
             }
 
             Log.ConsoleLog("Nested hitobjects' indexing & offsets.", Log.LogType.BeatmapConverter, Log.LogLevel.Debug);

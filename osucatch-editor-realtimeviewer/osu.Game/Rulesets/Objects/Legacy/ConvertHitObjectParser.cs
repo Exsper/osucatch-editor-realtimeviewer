@@ -7,6 +7,7 @@ using osu.Game.Beatmaps.Legacy;
 using osu.Game.Rulesets.Objects.Types;
 using osuTK;
 using System.Buffers;
+using System.Globalization;
 
 namespace osu.Game.Rulesets.Objects.Legacy
 {
@@ -122,7 +123,7 @@ namespace osu.Game.Rulesets.Objects.Legacy
             return result;
         }
 
-        private PathType convertPathType(string input)
+        private PathType convertPathType(ReadOnlySpan<char> input)
         {
             switch (input[0])
             {
@@ -131,7 +132,7 @@ namespace osu.Game.Rulesets.Objects.Legacy
                     return PathType.CATMULL;
 
                 case 'B':
-                    if (input.Length > 1 && int.TryParse(input.AsSpan(1), out int degree) && degree > 0)
+                    if (input.Length > 1 && int.TryParse(input[1..], out int degree) && degree > 0)
                         return PathType.BSpline(degree);
 
                     return PathType.BEZIER;
@@ -168,21 +169,30 @@ namespace osu.Game.Rulesets.Objects.Legacy
         private PathControlPoint[] convertPathString(string pointString, Vector2 offset)
         {
             // This code takes on the responsibility of handling explicit segments of the path ("X" & "Y" from above). Implicit segments are handled by calls to convertPoints().
-            string[] pointStringSplit = pointString.Split('|');
+            //
+            // 注意：这里刻意用 ReadOnlySpan 逐段扫描，而不是 pointString.Split('|') + Split(':')。
+            // 复杂谱面一条滑条就能有上万个控制点（本项目的实时预览每次编辑都要重解析整张图），
+            // 老写法每个点要分配 1 个 string[] + 2 个子串，一张 7 万控制点的图就是二十多万次分配、
+            // 十几 MB 垃圾，实测占整个解析阶段的大头。
+            ReadOnlySpan<char> remaining = pointString.AsSpan();
+            int tokenCount = remaining.Count('|') + 1;
 
-            var pointsBuffer = ArrayPool<Vector2>.Shared.Rent(pointStringSplit.Length);
-            var segmentsBuffer = ArrayPool<(PathType Type, int StartIndex)>.Shared.Rent(pointStringSplit.Length);
+            var pointsBuffer = ArrayPool<Vector2>.Shared.Rent(tokenCount);
+            var segmentsBuffer = ArrayPool<(PathType Type, int StartIndex)>.Shared.Rent(tokenCount);
             int currentPointsIndex = 0;
             int currentSegmentsIndex = 0;
 
             try
             {
-                foreach (string s in pointStringSplit)
+                while (true)
                 {
-                    if (char.IsLetter(s[0]))
+                    int separator = remaining.IndexOf('|');
+                    ReadOnlySpan<char> token = separator < 0 ? remaining : remaining[..separator];
+
+                    if (char.IsLetter(token[0]))
                     {
                         // The start of a new segment(indicated by having an alpha character at position 0).
-                        var pathType = convertPathType(s);
+                        var pathType = convertPathType(token);
                         segmentsBuffer[currentSegmentsIndex++] = (pathType, currentPointsIndex);
 
                         // First segment is prepended by an extra zero point
@@ -191,8 +201,13 @@ namespace osu.Game.Rulesets.Objects.Legacy
                     }
                     else
                     {
-                        pointsBuffer[currentPointsIndex++] = readPoint(s, offset);
+                        pointsBuffer[currentPointsIndex++] = readPoint(token, offset);
                     }
+
+                    if (separator < 0)
+                        break;
+
+                    remaining = remaining[(separator + 1)..];
                 }
 
                 int pointsCount = currentPointsIndex;
@@ -223,12 +238,27 @@ namespace osu.Game.Rulesets.Objects.Legacy
                 ArrayPool<(PathType, int)>.Shared.Return(segmentsBuffer);
             }
 
-            static Vector2 readPoint(string value, Vector2 startPos)
+            static Vector2 readPoint(ReadOnlySpan<char> value, Vector2 startPos)
             {
-                string[] vertexSplit = value.Split(':');
+                int colon = value.IndexOf(':');
 
-                Vector2 pos = new Vector2((int)Parsing.ParseDouble(vertexSplit[0], Parsing.MAX_COORDINATE_VALUE), (int)Parsing.ParseDouble(vertexSplit[1], Parsing.MAX_COORDINATE_VALUE)) - startPos;
+                // Parsing.ParseDouble(value, MAX_COORDINATE_VALUE)，只是不切出子串
+                double x = parseCoordinate(value[..colon]);
+                double y = parseCoordinate(value[(colon + 1)..]);
+
+                Vector2 pos = new Vector2((int)x, (int)y) - startPos;
                 return pos;
+            }
+
+            static double parseCoordinate(ReadOnlySpan<char> value)
+            {
+                double output = double.Parse(value, CultureInfo.InvariantCulture);
+
+                if (output < -Parsing.MAX_COORDINATE_VALUE) throw new OverflowException("Value is too low");
+                if (output > Parsing.MAX_COORDINATE_VALUE) throw new OverflowException("Value is too high");
+                if (double.IsNaN(output)) throw new FormatException("Not a number");
+
+                return output;
             }
         }
 

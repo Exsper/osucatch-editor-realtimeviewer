@@ -55,11 +55,25 @@ namespace osu.Game.Rulesets.Objects
         /// <param name="controlPointInfo">The control points.</param>
         /// <param name="difficulty">The difficulty settings to use.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public void ApplyDefaults(ControlPointInfo controlPointInfo, IBeatmapDifficultyInfo difficulty, CancellationToken cancellationToken = default)
+        /// <param name="createNestedHitObjects">
+        /// 是否生成嵌套物件（滑条的水滴/香蕉等）。
+        /// <para />置 false 时只做 <see cref="ApplyDefaultsToSelf"/>，跳过 <see cref="CreateNestedHitObjects"/>
+        /// 以及随之而来的排序/组合信息下发/递归。<b>调用方必须自己保证没人会用到
+        /// <see cref="NestedHitObjects"/></b>——本项目的稳定版转换器就是这种情况（见
+        /// <c>BeatmapConverterOsuStable</c>）：它自己按 osu!stable 的算法重建全部可接物件，
+        /// 而 lazer 这一套在大滑条上要花掉整个重建一半的时间。
+        /// </param>
+        public void ApplyDefaults(ControlPointInfo controlPointInfo, IBeatmapDifficultyInfo difficulty, CancellationToken cancellationToken = default, bool createNestedHitObjects = true)
         {
             ApplyDefaultsToSelf(controlPointInfo, difficulty);
 
             nestedHitObjects.Clear();
+
+            if (!createNestedHitObjects)
+            {
+                DefaultsApplied?.Invoke(this);
+                return;
+            }
 
             CreateNestedHitObjects(cancellationToken);
 

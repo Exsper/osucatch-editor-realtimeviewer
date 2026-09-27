@@ -1,6 +1,8 @@
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Catch.Beatmaps;
 using osu.Game.Rulesets.Catch.Objects;
+using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Objects;
 using System.Globalization;
 using System.Text;
 
@@ -9,6 +11,21 @@ namespace osucatch_editor_realtimeviewer
 
     public partial class BeatmapConverterOsuStable : BeatmapConverter
     {
+        /// <summary>
+        /// 稳定版转换器不需要 lazer 生成的嵌套物件：<see cref="GetPalpableObjects"/> 里
+        /// <see cref="HitObjectManagerCatch"/> 会按 osu!stable 的算法重建全部水滴/香蕉。
+        /// 大滑条谱面上这一步是整个重建最贵的单项（例如 1.3 万控制点的滑条要几十毫秒）。
+        ///
+        /// <para>
+        /// 例外：会介入 <see cref="osu.Game.Beatmaps.IBeatmapProcessor"/> 的 mod（目前是 HR，
+        /// 见 <c>CatchModHardRock</c>）。<c>CatchBeatmapProcessor.ApplyPositionOffsets</c> 会按
+        /// "先遍历各滑条的嵌套物件消费随机数、再给水果加 HardRock 偏移"的顺序使用同一个
+        /// <c>LegacyRandom</c>，跳过嵌套物件会改变随机数序列、进而改变水果的 <c>XOffset</c>，
+        /// 所以这类 mod 下仍然照旧生成。
+        /// </para>
+        /// </summary>
+        protected override bool RequiresNestedHitObjects(Mod[] mods)
+            => mods.Any(mod => mod is IApplicableToBeatmapProcessor);
 
         public override List<PalpableCatchHitObject> GetPalpableObjects(IBeatmap beatmap, int mods)
         {
